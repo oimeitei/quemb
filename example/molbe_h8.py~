@@ -33,5 +33,4 @@ fobj = fragpart(Natom, frag_type='autogen',mol=mol,
                 frozen_core=True)
 
 mybe = pbe(mf, fobj, super_cell=True)
-mybe.optimize(solver='CCSD',method='QN', nproc=1)
-mybe.Fobjs = [Frags(fragment-1), Frags(fragment-2)....]
+mybe.optimize(solver='FCI',method='QN', nproc=1)

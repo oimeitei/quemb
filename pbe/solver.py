@@ -174,6 +174,7 @@ def be_func(pot, Fobjs, Nocc, solver, enuc,
 
         if solver=='MP2':
             rdm1_tmp = fobj._mc.make_rdm1()
+        fobj.__rdm1 = rdm1_tmp.copy()
         fobj._rdm1 = functools.reduce(numpy.dot,
                                       (fobj.mo_coeffs,
                                        #fobj._mc.make_rdm1(),

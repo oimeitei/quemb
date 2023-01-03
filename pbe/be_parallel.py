@@ -8,7 +8,7 @@ def run_solver(h1, dm0, dname, nao, nocc,
                solver='MP2',eri_file='eri_file.h5',
                hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
                ompnum=4, writeh1=False,
-               eeval=True, ):
+               eeval=True, return_rdm_ao=True):
     
     eri = get_eri(dname, nao, eri_file=eri_file)    
     mf_ = get_scfObj(h1, eri, nocc, dm0=dm0)
@@ -109,7 +109,9 @@ def run_solver(h1, dm0, dname, nao, nocc,
             rdm2s = mc_.make_rdm2()
         elif solver == 'FCI':
             rdm2s = mc_.make_rdm2(civec, mc_.norb, mc_.nelec)
-            
+    if return_rdm_ao:
+        return(mf._mo_coeff, rdm1, rdm2s, rdm1_tmp)
+    
     return (mf_.mo_coeff, rdm1, rdm2s)
     
 
@@ -163,7 +165,8 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc,
     for idx, fobj in enumerate(Fobjs):
         fobj.mo_coeffs = rdms[idx][0]
         fobj._rdm1 = rdms[idx][1]
-        fobj.energy(rdms[idx][2])
+        fobj.__rdm1 = rdms[idx][3]
+        fobj.energy(rdms[idx][2])        
         Etot += fobj.ebe
 
     Etot /= Fobjs[0].unitcell_nkpt

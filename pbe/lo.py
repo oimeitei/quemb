@@ -339,12 +339,11 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True
             self.W = numpy.dot(C_, W_)
                 
             
-            if not self.frozen_core:                 
-                self.lmo_coeff = functools.reduce(numpy.dot,
-                                                  (self.W.T, self.S, self.C))
-            else:
-                
-                self.lmo_coeff = functools.reduce(numpy.dot,
+        if not self.frozen_core:                 
+            self.lmo_coeff = functools.reduce(numpy.dot,
+                                              (self.W.T, self.S, self.C))
+        else:            
+            self.lmo_coeff = functools.reduce(numpy.dot,
                                               (self.W.T, self.S, self.C[:,self.ncore:]))            
 
     elif lo_method=='iao':

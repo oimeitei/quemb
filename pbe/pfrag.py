@@ -52,6 +52,7 @@ class Frags:
         self.udim = None
 
         self._rdm1 = None
+        self.__rdm1 = None
         self.rdm1 = None
         self.genvs = None
         self.ebe = 0.
@@ -229,9 +230,17 @@ class Frags:
 
         e_ = e1+e2+ec        
         etmp = 0.
+        e1_ = 0.
+        ec_ = 0.
+        e2_ = 0.
         for i in self.efac[1]:
             etmp += self.efac[0]*e_[i]
+            e1_ += self.efac[0] * e1[i]
+            ec_ += self.efac[0] * ec[i]
+            e2_ += self.efac[0] * e2[i]
             
+        print('BE Energy Frag-{:>3}   {:>12.7f}  {:>12.7f}  {:>12.7f};   Total : {:>12.7f}'.
+              format(self.dname, e1_, ec_, e2_, etmp))
         
         self.ebe = etmp
         return (e1+e2+ec)
