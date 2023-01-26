@@ -12,7 +12,7 @@ def make_rdm1_ccsd_t1(t1):
 
     return dm
 
-def make_rdm2_urlx(t1, t2):
+def make_rdm2_urlx(t1, t2, with_dm1=True):
     nocc, nvir = t1.shape
     nmo = nocc + nvir
 
@@ -27,19 +27,20 @@ def make_rdm2_urlx(t1, t2):
     dm2[nocc:,:nocc,nocc:,:nocc] = dm2[:nocc,nocc:,:nocc,nocc:].transpose(1,0,3,2).conj()
     dovov = None
 
-    dm1 = make_rdm1_ccsd_t1(t1)
-    dm1[numpy.diag_indices(nocc)] -= 2
-
-    for i in range(nocc):
-        dm2[i,i,:,:] += dm1 * 2
-        dm2[:,:,i,i] += dm1 * 2
-        dm2[:,i,i,:] -= dm1
-        dm2[i,:,:,i] -= dm1.T
-
-    for i in range(nocc):
-        for j in range(nocc):
-            dm2[i,i,j,j] += 4
-            dm2[i,j,j,i] -= 2
+    if with_dm1:
+        dm1 = make_rdm1_ccsd_t1(t1)
+        dm1[numpy.diag_indices(nocc)] -= 2
+        
+        for i in range(nocc):
+            dm2[i,i,:,:] += dm1 * 2
+            dm2[:,:,i,i] += dm1 * 2
+            dm2[:,i,i,:] -= dm1
+            dm2[i,:,:,i] -= dm1.T
+        
+        for i in range(nocc):
+            for j in range(nocc):
+                dm2[i,i,j,j] += 4
+                dm2[i,j,j,i] -= 2
 
     return dm2  
 # end
@@ -49,7 +50,7 @@ def be_func(pot, Fobjs, Nocc, solver, enuc,
             only_chem = False, nproc=4,hci_pt=False,
             hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,            
             eeval=False, ereturn=False, ek = 0., kp=1.,
-            return_vec=False, ecore=0., ebe_hf=0., be_iter=None, writeh1=False):
+            return_vec=False, ecore=0., ebe_hf=0., be_iter=None, writeh1=False,use_cumulant=True):
     from pyscf import fci
     import h5py,os
     from pyscf import ao2mo
@@ -184,14 +185,29 @@ def be_func(pot, Fobjs, Nocc, solver, enuc,
         
         if eeval or ereturn:
             if solver =='CCSD':
-                rdm2s = make_rdm2_urlx(fobj.t1, fobj.t2)
+                if not use_cumulant:
+                    rdm2s = make_rdm2_urlx(fobj.t1, fobj.t2)
+                else:
+                    rdm2s = make_rdm2_urlx(fobj.t1, fobj.t2, with_dm1=False)
             elif solver == 'MP2':
                 rdm2s = fobj._mc.make_rdm2()
             elif solver =='FCI':
                 rdm2s = mc.make_rdm2(civec, mc.norb, mc.nelec)
-                
+                if use_cumulant:
+                    hf_dm = numpy.zeros_like(rdm1_tmp)
+                    hf_dm[numpy.diag_indices(fobj.nsocc)] += 2.
+                    del_rdm1 = rdm1_tmp.copy()
+                    del_rdm1[numpy.diag_indices(fobj.nsocc)] -= 2.
+                    nc = numpy.einsum('ij,kl->ijkl',hf_dm, hf_dm) + \
+                        numpy.einsum('ij,kl->ijkl',hf_dm, del_rdm1) + \
+                        numpy.einsum('ij,kl->ijkl',del_rdm1, hf_dm)
+                    nc -= (numpy.einsum('ij,kl->iklj',hf_dm, hf_dm) + \
+                           numpy.einsum('ij,kl->iklj',hf_dm, del_rdm1) + \
+                           numpy.einsum('ij,kl->iklj',del_rdm1, hf_dm))*0.5
+                    rdm2s -= nc
+            fobj.__rdm2 = rdm2s.copy()
             #fobj.energy_hf()
-            fobj.energy(rdm2s)
+            #fobj.energy(rdm2s)
             
             E += fobj.ebe
 
@@ -208,8 +224,8 @@ def be_func(pot, Fobjs, Nocc, solver, enuc,
         return (ernorm, ervec, Ebe)
 
     if eeval:
-        print('BE energy per unit cell        : {:>12.8f} Ha'.format(Ebe), flush=True)
-        print('BE Ecorr  per unit cell        : {:>12.8f} Ha'.format(Ebe-ebe_hf), flush=True)
+        #print('BE energy per unit cell        : {:>12.8f} Ha'.format(Ebe), flush=True)
+        #print('BE Ecorr  per unit cell        : {:>12.8f} Ha'.format(Ebe-ebe_hf), flush=True)
         print('Error in density matching      :   {:>2.4e}'.format(ernorm), flush=True)
 
     return ernorm
@@ -378,7 +394,12 @@ def solve_ccsd(mf, frozen=None, mo_coeff=None,
     cc__ = None
     return (t1, t2)
 
-
+def pretty(dm):
+    for i in dm:
+        for j in i:
+            print('{:>10.6f} '.format(j),end=' ')
+        print()
+    print()
 
 def schmidt_decomposition(mo_coeff, nocc, Frag_sites, cinv = None, rdm=None,tmpa=None):
     import scipy.linalg
@@ -412,7 +433,7 @@ def schmidt_decomposition(mo_coeff, nocc, Frag_sites, cinv = None, rdm=None,tmpa
     TA = numpy.zeros([Tot_sites, len(Frag_sites) + len(Bidx)])
     TA[Frag_sites, :len(Frag_sites)] = numpy.eye(len(Frag_sites))
     TA[Env_sites1,len(Frag_sites):] = Evec[:,Bidx]
-
+    
     return TA
 
 

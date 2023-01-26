@@ -139,8 +139,8 @@ class BEOPT:
                 file_opt.close()
 
             
-            print('BE energy per unit cell        : {:>12.8f} Ha'.format(self.Ebe), flush=True)
-            print('BE Ecorr  per unit cell        : {:>12.8f} Ha'.format(self.Ebe-self.ebe_hf), flush=True)
+            #print('BE energy per unit cell        : {:>12.8f} Ha'.format(self.Ebe), flush=True)
+            #print('BE Ecorr  per unit cell        : {:>12.8f} Ha'.format(self.Ebe-self.ebe_hf), flush=True)
             print('Error in density matching      :   {:>2.4e}'.format(self.err), flush=True)
             print(flush=True)
 
@@ -163,8 +163,8 @@ class BEOPT:
                                 save_fname=save_fname)
                 self.iter += 1
                 print('-- In iter ',self.iter, flush=True)                
-                print('BE energy per unit cell        : {:>12.8f} Ha'.format(self.Ebe), flush=True)
-                print('BE Ecorr  per unit cell        : {:>12.8f} Ha'.format(self.Ebe-self.ebe_hf), flush=True)
+                #print('BE energy per unit cell        : {:>12.8f} Ha'.format(self.Ebe), flush=True)
+                #print('BE Ecorr  per unit cell        : {:>12.8f} Ha'.format(self.Ebe-self.ebe_hf), flush=True)
                 print('Error in density matching      :   {:>2.4e}'.format(self.err), flush=True)
                 print(flush=True)
                 if self.err < self.conv_tol:

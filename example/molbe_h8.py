@@ -28,11 +28,4 @@ fobj = fragpart(Natom, frag_type='hchain_simple',mol=mol,
 
 mybe = pbe(mf, fobj, super_cell=True)
 mybe.optimize(solver='FCI',method='QN', nproc=1)
-
-# Get 1-RDM in full basis (AO basis)
-rdm1 = mybe.rdm1_fullbasis()
-
-# test 1e- energy
-h1 = mybe.hcore
-e1 = numpy.einsum('ij,ij', h1,rdm1)
-print('1-electron Energy: {:>12.7f} H'.format(e1))
+rdm1, rdm2 = mybe.get_rdm()

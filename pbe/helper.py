@@ -1,5 +1,5 @@
 import numpy, sys
-
+from pyscf import ao2mo
 def get_veff(eri_, dm, S, TA, hf_veff):
     import functools
     from pyscf import scf
@@ -7,7 +7,7 @@ def get_veff(eri_, dm, S, TA, hf_veff):
     if dm.ndim==2:
         ST = numpy.dot(S, TA)
         P_ = functools.reduce(numpy.dot,(ST.T, dm, ST))
-
+    
     P_ = numpy.asarray(P_.real, dtype=numpy.double)
     eri_ = numpy.asarray(eri_, dtype=numpy.double)
     vj, vk = scf.hf.dot_eri_dm(eri_, P_, hermi=1, with_j=True, with_k=True)

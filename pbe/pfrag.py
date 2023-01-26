@@ -53,6 +53,7 @@ class Frags:
 
         self._rdm1 = None
         self.__rdm1 = None
+        self.__rdm2 = None
         self.rdm1 = None
         self.genvs = None
         self.ebe = 0.
@@ -227,7 +228,7 @@ class Frags:
                 Gij += Gij.T
                 
                 e2[i] += Gij[numpy.tril_indices(jmax)] @ eri[ij]
-
+        
         e_ = e1+e2+ec        
         etmp = 0.
         e1_ = 0.

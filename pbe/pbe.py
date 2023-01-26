@@ -186,7 +186,7 @@ class pbe:
     from ._opt import optimize
     from .optqn import get_be_error_jacobian,get_be_error_jacobian_selffrag
     from .lo import localize
-    from .rdm import rdm1_fullbasis
+    from .rdm import rdm1_fullbasis, get_rdm
     def print_ini(self):
         
         print('-----------------------------------------------------------',

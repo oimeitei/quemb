@@ -8,7 +8,7 @@ def run_solver(h1, dm0, dname, nao, nocc,
                solver='MP2',eri_file='eri_file.h5',
                hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
                ompnum=4, writeh1=False,
-               eeval=True, return_rdm_ao=True):
+               eeval=True, return_rdm_ao=True, use_cumulant=True,):
     
     eri = get_eri(dname, nao, eri_file=eri_file)    
     mf_ = get_scfObj(h1, eri, nocc, dm0=dm0)
@@ -104,11 +104,26 @@ def run_solver(h1, dm0, dname, nao, nocc,
     
     if eeval:
         if solver =='CCSD':
-            rdm2s = make_rdm2_urlx(t1, t2)
+            if not use_cumulant:
+                rdm2s = make_rdm2_urlx(t1, t2)
+            else:
+                rdm2s = make_rdm2_urlx(t1, t2, with_dm1 = False)
         elif solver == 'MP2':
             rdm2s = mc_.make_rdm2()
         elif solver == 'FCI':
             rdm2s = mc_.make_rdm2(civec, mc_.norb, mc_.nelec)
+            if use_cumulant:
+                hf_dm = numpy.zeros_like(rdm1_tmp)
+                hf_dm[numpy.diag_indices(nocc)] += 2.
+                del_rdm1 = rdm1_tmp.copy()
+                del_rdm1[numpy.diag_indices(nocc)] -= 2.
+                nc = numpy.einsum('ij,kl->ijkl',hf_dm, hf_dm) + \
+                    numpy.einsum('ij,kl->ijkl',hf_dm, del_rdm1) + \
+                    numpy.einsum('ij,kl->ijkl',del_rdm1, hf_dm)
+                nc -= (numpy.einsum('ij,kl->iklj',hf_dm, hf_dm) + \
+                       numpy.einsum('ij,kl->iklj',hf_dm, del_rdm1) + \
+                       numpy.einsum('ij,kl->iklj',del_rdm1, hf_dm))*0.5
+                rdm2s -= nc
     if return_rdm_ao:
         return(mf._mo_coeff, rdm1, rdm2s, rdm1_tmp)
     
@@ -166,7 +181,7 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc,
         fobj.mo_coeffs = rdms[idx][0]
         fobj._rdm1 = rdms[idx][1]
         fobj.__rdm1 = rdms[idx][3]
-        fobj.energy(rdms[idx][2])        
+        #fobj.energy(rdms[idx][2])        
         Etot += fobj.ebe
 
     Etot /= Fobjs[0].unitcell_nkpt
@@ -183,8 +198,8 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc,
         return (ernorm, ervec, Ebe)
 
     if eeval:
-        print('BE energy per unit cell        : {:>12.8f} Ha'.format(Ebe), flush=True)
-        print('BE Ecorr  per unit cell        : {:>12.8f} Ha'.format(Ebe-ebe_hf), flush=True)
+        #print('BE energy per unit cell        : {:>12.8f} Ha'.format(Ebe), flush=True)
+        #print('BE Ecorr  per unit cell        : {:>12.8f} Ha'.format(Ebe-ebe_hf), flush=True)
         print('Error in density matching      :   {:>2.4e}'.format(ernorm), flush=True)
         
     return ernorm
