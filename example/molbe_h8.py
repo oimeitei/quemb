@@ -28,4 +28,5 @@ fobj = fragpart(Natom, frag_type='hchain_simple',mol=mol,
 
 mybe = pbe(mf, fobj, super_cell=True)
 mybe.optimize(solver='FCI',method='QN', nproc=1)
-rdm1, rdm2 = mybe.get_rdm()
+rdm1, rdm2 = mybe.get_rdm() # AO basis
+# rdm1, rdm2 = mybe.get_rdm(return_ao=False) # MO basis
