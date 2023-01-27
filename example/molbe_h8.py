@@ -15,14 +15,14 @@ H 0. 0. 4.
 H 0. 0. 5.
 H 0. 0. 6.
 H 0. 0. 7.
-''',basis='sto-3g', charge=0)
+''',basis='6-31g', charge=0)
 
 
 mf = scf.RHF(mol)
 mf.conv_tol = 1e-12
 mf.kernel()
 Natom = 8 # only for Hchain
-fobj = fragpart(Natom, frag_type='hchain_simple',mol=mol,
+fobj = fragpart(Natom, frag_type='chain',mol=mol,
                 be_type='be2', 
                 frozen_core=False)
 

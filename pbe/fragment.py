@@ -34,6 +34,14 @@ class fragpart:
             self.ncore, self.no_core_idx, self.core_list = get_core(mol)
         if frag_type=='hchain_simple':
             self.hchain_simple()
+        elif frag_type=='chain':
+            if mol is None:
+                print('Provide pyscf gto.M object in fragpart() and restart!',
+                      flush=True)
+                print('exiting',flush=True)
+                sys.exit()
+            self.chain(mol, frozen_core=frozen_core,closed=closed)
+            
         elif frag_type=='autogen':
             if mol is None:
                 print('Provide pyscf gto.M object in fragpart() and restart!',
@@ -60,7 +68,7 @@ class fragpart:
                   flush=True)
             print('exiting',flush=True)
             sys.exit()   
-    
+    from .lchain import chain
     def hchain_simple(self):
         
         if self.be_type=='be1':

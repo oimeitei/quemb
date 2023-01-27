@@ -106,7 +106,7 @@ def get_rdm(self, approx_cumulant=False, use_full_rdm=True, return_ao=True):
     print(flush=True)
 
     if return_ao: return(rdm1f, RDM2_full)
-    rdm1,f, Kumul = self.rdm1_fullbasis(return_ao =False)
+    rdm1f, Kumul = self.rdm1_fullbasis(return_ao =False)
     
         
     for fobjs in self.Fobjs:
