@@ -28,5 +28,15 @@ fobj = fragpart(Natom, frag_type='chain',mol=mol,
 
 mybe = pbe(mf, fobj, super_cell=True)
 mybe.optimize(solver='FCI',method='QN', nproc=1)
-rdm1, rdm2 = mybe.get_rdm() # AO basis
+rdm1, rdm2 = mybe.get_rdm(return_ao=False) # AO basis
 # rdm1, rdm2 = mybe.get_rdm(return_ao=False) # MO basis
+
+# Test energies
+h1_mo = mf.mo_coeff.T @ mf.get_hcore() @ mf.mo_coeff
+E1 = numpy.einsum('ij,ij', h1_mo, rdm1)
+print(' E(h1)   : {:>12.8f} Ha'.format( E1))
+eri_mo = ao2mo.kernel(mol, mf.mo_coeff)
+eri_mo = ao2mo.restore(1,eri_mo, mf.mo_coeff.shape[1])
+E2 = numpy.einsum('pqrs,pqrs', eri_mo, rdm2, optimize=True)
+print(' E(V)    : {:>12.8f} Ha'.format(0.5*E2))
+print(' Total E : {:>12.8f} Ha'.format(E1+0.5*E2+mf.energy_nuc()))

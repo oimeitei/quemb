@@ -40,7 +40,7 @@ def rdm1_fullbasis(self, return_ao=True, only_rdm1=False, only_rdm2=False):
     
     return rdm1, rdm2
 
-def get_rdm(self, approx_cumulant=False, use_full_rdm=True, return_ao=True):
+def get_rdm(self, approx_cumulant=False, use_full_rdm=False, return_ao=True):
     from pyscf import scf, ao2mo
     
             
@@ -72,7 +72,6 @@ def get_rdm(self, approx_cumulant=False, use_full_rdm=True, return_ao=True):
     EKumul = numpy.einsum('pqrs,pqrs', eri,Kumul, optimize=True)
     EKumul_T = numpy.einsum('pqrs,pqrs', eri,Kumul_T, optimize=True)
     if use_full_rdm: E2 = numpy.einsum('pqrs,pqrs', eri,RDM2_full, optimize=True)
-    
     EKapprox = self.ebe_hf + Eh1_dg + Eveff_dg + EKumul/2. 
     EKtrue = Eh1 + EVeff/2. + EKumul_T/2. + self.enuc + self.E_core
     
@@ -106,19 +105,11 @@ def get_rdm(self, approx_cumulant=False, use_full_rdm=True, return_ao=True):
     print(flush=True)
 
     if return_ao: return(rdm1f, RDM2_full)
-    rdm1f, Kumul = self.rdm1_fullbasis(return_ao =False)
-    
-        
-    for fobjs in self.Fobjs:
-        drdm1 = fobjs.__rdm1.copy()
-        drdm1[numpy.diag_indices(fobjs.nsocc)] -= 2.
-        dm_nc = numpy.einsum('ij,kl->ijkl', drdm1, drdm1, optimize=True) - \
-            0.5*numpy.einsum('ij,kl->iklj', drdm1, drdm1, optimize=True)
-        fobjs.__rdm2 -= dm_nc
+    rdm1f, Kumul = self.rdm1_fullbasis(return_ao =False)    
     Kumul_T = self.rdm1_fullbasis(only_rdm2=True, return_ao=False)
     
     RDM2_full =  numpy.einsum('ij,kl->ijkl', rdm1f, rdm1f, optimize=True) - \
         numpy.einsum('ij,kl->iklj', rdm1f, rdm1f, optimize=True)*0.5
     RDM2_full += Kumul_T
-
+    
     return(rdm1f, RDM2_full)
