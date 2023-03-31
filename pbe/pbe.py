@@ -149,7 +149,7 @@ class pbe:
         # fock
         self.FOCK = self.mf.get_fock(self.hcore, self.S, self.hf_veff, self.hf_dm)
         if not restart or debug00:
-            self.localize(lo_method, mol=self.cell, valence_basis=fobj.valence_basis, iao_wannier=iao_wannier)
+            self.localize(lo_method, mol=self.cell, valence_basis=fobj.valence_basis, valence_only=fobj.valence_only, iao_wannier=iao_wannier)
 
         if save:
             store_ = storePBE(self.Nocc, self.hf_veff, self.hcore,

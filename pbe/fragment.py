@@ -8,7 +8,7 @@ class fragpart:
     def __init__(self, natom=0, dim=1, frag_type='hchain_simple',
                  unitcell=1,auxcell=None,
                  nx=False, ny=False, nz=False,closed=False,
-                 kpt = None, molecule=True,valence_basis=None,
+                 kpt = None, molecule=True,valence_basis=None,valence_only=False,
                  be_type='be2', mol=None, frozen_core=False, self_match=False, allcen=False):
 
         # No. of unitcells to use for fragment construction
@@ -30,6 +30,7 @@ class fragpart:
         self.self_match = self_match
         self.allcen=allcen
         self.valence_basis = valence_basis
+        self.valence_only = valence_only
         if frozen_core:
             self.ncore, self.no_core_idx, self.core_list = get_core(mol)
         if frag_type=='hchain_simple':
@@ -56,7 +57,7 @@ class fragpart:
                     sys.exit()
                     
             fgs = autogen(mol, kpt, be_type=be_type, frozen_core=frozen_core,
-                          valence_basis=valence_basis, unitcell=unitcell,
+                          valence_basis=valence_basis, unitcell=unitcell, valence_only=valence_only,
                           nx=nx, ny=ny, nz=nz,#auxcell=auxcell,
                           molecule=molecule)
             self.fsites, self.edge, self.center, self.edge_idx, self.center_idx, self.centerf_idx, self.ebe_weight = fgs

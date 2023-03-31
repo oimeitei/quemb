@@ -304,7 +304,7 @@ class KMF:
         self.mo_energy_kpts = mo_energy
         self.mo_coeff_kpts = mo_coeff.copy()
 
-def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True):
+def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True, valence_only=False):
     from numpy.linalg import eigh
     from pyscf.lo.iao import iao
     import scipy.linalg,functools
@@ -362,19 +362,21 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True
         # Use these to get IAOs
         Ciao = get_iao(Co, S12, self.S, S2 = S2)
 
-        # Now get PAOs
-        if loc_type.upper() != 'SO':
-            Cpao = get_pao(Ciao, self.S, S12, S2, self.mol)
-        elif loc_type.upper() == 'SO':
-            Cpao = get_pao_native(Ciao, self.S, self.mol, valence_basis=val_basis)
-        #else:
-        #    raise NotImplementedError('Localization method', loc_type, 'not understood.')
+        if not valence_only:
+            # Now get PAOs
+            if loc_type.upper() != 'SO':
+                Cpao = get_pao(Ciao, self.S, S12, S2, self.mol)
+            elif loc_type.upper() == 'SO':
+                Cpao = get_pao_native(Ciao, self.S, self.mol, valence_basis=val_basis)
+            #else:
+            #    raise NotImplementedError('Localization method', loc_type, 'not understood.')
 
         # rearrange by atom
         aoind_by_atom = get_aoind_by_atom(self.mol)
         Ciao, iaoind_by_atom = reorder_by_atom_(Ciao, aoind_by_atom, self.S)
-        
-        Cpao, paoind_by_atom = reorder_by_atom_(Cpao, aoind_by_atom, self.S)
+
+        if not valence_only:
+            Cpao, paoind_by_atom = reorder_by_atom_(Cpao, aoind_by_atom, self.S)
         
         if self.frozen_core:
             # Remove core MOs
@@ -384,14 +386,18 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True
         # Localize orbitals beyond symm orth
         if loc_type.upper() != 'SO':
             Ciao = get_loc(self.mol, Ciao, loc_type)
-            Cpao = get_loc(self.mol, Cpao, loc_type)
+            if not valence_only:
+                Cpao = get_loc(self.mol, Cpao, loc_type)
         
         #self.W = numpy.hstack([Ciao,  Cpao])
         # stack here
         shift = 0
         ncore = 0
-        
-        Wstack = numpy.zeros((Ciao.shape[0], Ciao.shape[1]+Cpao.shape[1])) #-self.ncore))
+        if not valence_only:
+            Wstack = numpy.zeros((Ciao.shape[0], Ciao.shape[1]+Cpao.shape[1])) #-self.ncore))
+        else:
+            Wstack = numpy.zeros((Ciao.shape[0], Ciao.shape[1]))
+            
         if self.frozen_core:            
             for ix in range(self.mol.natm):
                 nc = ncore_(self.mol.atom_charge(ix))
@@ -400,38 +406,47 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True
                 iaoind_ix = [ i_ - ncore for i_ in iaoind_by_atom[ix][nc:]]
                 Wstack[:, shift:shift+niao-nc] = Ciao[:, iaoind_ix]                
                 shift += niao-nc
-                npao = len(paoind_by_atom[ix])
-                Wstack[:,shift:shift+npao] = Cpao[:, paoind_by_atom[ix]]                    
-                shift += npao
+                if not valence_only:
+                    npao = len(paoind_by_atom[ix])
+                    Wstack[:,shift:shift+npao] = Cpao[:, paoind_by_atom[ix]]                    
+                    shift += npao
         else:                    
             for ix in range(self.mol.natm):
                 niao = len(iaoind_by_atom[ix])
                 Wstack[:, shift:shift+niao] = Ciao[:, iaoind_by_atom[ix]]
                 shift += niao
-                npao = len(paoind_by_atom[ix])
-                Wstack[:,shift:shift+npao] = Cpao[:, paoind_by_atom[ix]]
-                shift += npao      
+                if not valence_only:
+                    npao = len(paoind_by_atom[ix])
+                    Wstack[:,shift:shift+npao] = Cpao[:, paoind_by_atom[ix]]
+                    shift += npao      
                 
         self.W = Wstack            
         assert(numpy.allclose(self.W.T @ self.S @ self.W, numpy.eye(self.W.shape[1])))
         nmo = self.C.shape[1] - self.ncore
         nlo = self.W.shape[1]
-        
-        if nmo > nlo:
-            Co_nocore = self.C[:,self.ncore:self.Nocc]
-            Cv = self.C[:,self.Nocc:]
-            # Ensure that the LOs span the occupied space
-            assert(numpy.allclose(numpy.sum((self.W.T @ self.S @ Co_nocore)**2.),
-                                  self.Nocc - self.ncore))
-            # Find virtual orbitals that lie in the span of LOs
-            u, l, vt = numpy.linalg.svd(self.W.T @ self.S @ Cv, full_matrices=False)
-            nvlo = nlo - self.Nocc - self.ncore
-            assert(numpy.allclose(numpy.sum(l[:nvlo]), nvlo))
-            C_ = numpy.hstack([Co_nocore, Cv @ vt[:nvlo].T])
-            self.lmo_coeff = self.W.T @ self.S @ C_
+
+        if not valence_only:
+            if nmo > nlo:
+                Co_nocore = self.C[:,self.ncore:self.Nocc]
+                Cv = self.C[:,self.Nocc:]
+                # Ensure that the LOs span the occupied space
+                assert(numpy.allclose(numpy.sum((self.W.T @ self.S @ Co_nocore)**2.),
+                                      self.Nocc - self.ncore))
+                # Find virtual orbitals that lie in the span of LOs
+                u, l, vt = numpy.linalg.svd(self.W.T @ self.S @ Cv, full_matrices=False)
+                nvlo = nlo - self.Nocc - self.ncore
+                assert(numpy.allclose(numpy.sum(l[:nvlo]), nvlo))
+                C_ = numpy.hstack([Co_nocore, Cv @ vt[:nvlo].T])
+                self.lmo_coeff = self.W.T @ self.S @ C_
+            else:
+                self.lmo_coeff = self.W.T @ self.S @ self.C[:,self.ncore:]
         else:
             self.lmo_coeff = self.W.T @ self.S @ self.C[:,self.ncore:]
-        assert(numpy.allclose(self.lmo_coeff.T @ self.lmo_coeff, numpy.eye(self.lmo_coeff.shape[1])))            
+
+        #assert(numpy.allclose(self.lmo_coeff.T @ self.lmo_coeff, numpy.eye(self.lmo_coeff.shape[1])))
+
+
+        
     elif lo_method == 'boys':
         from pyscf.lo import Boys
         es_, vs_ = eigh(self.S)

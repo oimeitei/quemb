@@ -51,13 +51,13 @@ def get_rdm(self, approx_cumulant=False, use_full_rdm=False, return_ao=True):
         for fobjs in self.Fobjs:
             drdm1 = fobjs.__rdm1.copy()
             drdm1[numpy.diag_indices(fobjs.nsocc)] -= 2.
-            dm_nc = numpy.einsum('ij,kl->ijkl', drdm1, drdm1, optimize=True) - \
-                0.5*numpy.einsum('ij,kl->iklj', drdm1, drdm1, optimize=True)
+            dm_nc = numpy.einsum('ij,kl->ijkl', drdm1, drdm1, dtype=numpy.float64, optimize=True) - \
+                0.5*numpy.einsum('ij,kl->iklj', drdm1, drdm1, dtype=numpy.float64,optimize=True)
             fobjs.__rdm2 -= dm_nc
         Kumul_T = self.rdm1_fullbasis(only_rdm2=True)
         if use_full_rdm:
-            RDM2_full =  numpy.einsum('ij,kl->ijkl', rdm1f, rdm1f, optimize=True) - \
-                numpy.einsum('ij,kl->iklj', rdm1f, rdm1f, optimize=True)*0.5
+            RDM2_full =  numpy.einsum('ij,kl->ijkl', rdm1f, rdm1f, dtype=numpy.float64, optimize=True) - \
+                numpy.einsum('ij,kl->iklj', rdm1f, rdm1f, dtype=numpy.float64, optimize=True)*0.5
             RDM2_full += Kumul_T
 
     del_gamma = rdm1f - self.hf_dm        
@@ -71,7 +71,9 @@ def get_rdm(self, approx_cumulant=False, use_full_rdm=False, return_ao=True):
     eri = ao2mo.restore(1,self.mf._eri, self.mf.mo_coeff.shape[1])
     EKumul = numpy.einsum('pqrs,pqrs', eri,Kumul, optimize=True)
     EKumul_T = numpy.einsum('pqrs,pqrs', eri,Kumul_T, optimize=True)
-    if use_full_rdm: E2 = numpy.einsum('pqrs,pqrs', eri,RDM2_full, optimize=True)
+    if use_full_rdm:
+        E2 = numpy.einsum('pqrs,pqrs', eri,RDM2_full, optimize=True)
+        print(E2*0.5)
     EKapprox = self.ebe_hf + Eh1_dg + Eveff_dg + EKumul/2. 
     EKtrue = Eh1 + EVeff/2. + EKumul_T/2. + self.enuc + self.E_core
     

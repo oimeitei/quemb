@@ -21,7 +21,7 @@ C  4.48470      7.03070      9.10020
 C  3.92620      5.88870      8.53990
 H  4.87720      7.84630      8.50510
 H  4.87720      7.84630     11.11180
-''',basis='sto-3g', charge=0)
+''',basis='6-31g', charge=0)
 
 
 mf = scf.RHF(mol)
@@ -29,9 +29,9 @@ mf.conv_tol = 1e-12
 mf.kernel()
 Natom = 1 # only for Hchain
 fobj = fragpart(Natom, frag_type='autogen',mol=mol,
-                be_type='be2', 
+                be_type='be2',  valence_basis='sto-3g', valence_only=True,
                 frozen_core=True)
 
-mybe = pbe(mf, fobj, super_cell=True)
+
+mybe = pbe(mf, fobj, lo_method='iao', super_cell=True)
 mybe.optimize(solver='CCSD',method='QN', nproc=1)
-mybe.Fobjs = [Frags(fragment-1), Frags(fragment-2)....]

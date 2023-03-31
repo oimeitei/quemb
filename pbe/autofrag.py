@@ -73,12 +73,18 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
             unitcell=1,
             auxcell = None,
             nx=False, ny=False, nz=False,
-            valence_basis = None,
+            valence_basis = None, valence_only = False,
             print_frags=True):
     from pyscf import lib
     from .pbcgeom import printatom, sgeom
-    
-    cell = mol.copy()    
+
+    if not valence_only:
+        cell = mol.copy()
+    else:
+        cell = mol.copy()
+        cell.basis = valence_basis
+        cell.build()
+        
     ncore, no_core_idx, core_list = get_core(cell)
     
     coord = cell.atom_coords()
@@ -213,7 +219,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
                                                                                    coord[k][2]/ang2bohr))
         w.close()
 
-    if not valence_basis is None:
+    if not valence_basis is None and not valence_only:
         pao = True
     else:
         pao = False
