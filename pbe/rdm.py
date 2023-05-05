@@ -1,32 +1,50 @@
 import numpy, sys, scipy
 
-def rdm1_fullbasis(self, return_ao=True, only_rdm1=False, only_rdm2=False):
+def rdm1_fullbasis(self, return_ao=True, only_rdm1=False, only_rdm2=False, return_lo=False):
 
-    C_mo = self.C
+    C_mo = self.C.copy()
+    if self.frozen_core:
+        print('Try frozen_core=False')
+        sys.exit()
+        C_mo = self.C.copy()[:,self.ncore:]
 
-    nao, nmo = self.C.shape
-    rdm1 = numpy.zeros((nao, nao))
-    rdm2 = numpy.zeros((nao, nao, nao, nao))
-    
+    nao, nmo = C_mo.shape
+    rdm1 = numpy.zeros((nao - self.ncore, nao - self.ncore))
+    rdm2 = numpy.zeros((nao- self.ncore, nao- self.ncore, nao- self.ncore, nao- self.ncore))
+
+    if return_lo:
+        rdm1lo = numpy.zeros((nao - self.ncore, nao - self.ncore))
+        rdm2lo = numpy.zeros((nao- self.ncore, nao- self.ncore, nao- self.ncore, nao- self.ncore))
+
     for fobjs in self.Fobjs:
         
         cind = [ fobjs.fsites[i] for i in fobjs.efac[1]]
-        C_f = fobjs.TA @ fobjs.mo_coeffs
-
-        Cf_S_Cl = C_f.T @ self.S @ self.W[:, cind]
-        Cl_S_Cf = self.W[:, cind].T @ self.S @ C_f
-
-        Proj_c = Cf_S_Cl @ Cl_S_Cf                
-        Cmo_S_Cf = self.C.T @ self.S @ C_f    
-
+        
+        Pc_ = fobjs.TA.T @ self.S @ self.W[:, cind] @ self.W[:, cind].T @ self.S @ fobjs.TA
+               
         if not only_rdm2:
-            rdm1_ = Proj_c @ fobjs.__rdm1    
-            rdm1_ = numpy.einsum('ij,pi,qj->pq', rdm1_, Cmo_S_Cf, Cmo_S_Cf, optimize=True)
-            rdm1 += rdm1_
+            
+            rdm1_eo = fobjs.mo_coeffs @ fobjs.__rdm1 @ fobjs.mo_coeffs.T
+            rdm1_center = Pc_ @ rdm1_eo
+            rdm1_lo = fobjs.TA @ rdm1_center @ fobjs.TA.T
+
+            rdm1_mo = self.C.T @ self.S @ rdm1_lo @ self.S @ self.C
+            rdm1 += rdm1_mo
+            if return_lo: rdm1lo += rdm1_lo
+            
         if not only_rdm1:
-            rdm2 += numpy.einsum('xi,ijkl,px,qj,rk,sl->pqrs',
-                                 Proj_c, fobjs.__rdm2, Cmo_S_Cf, Cmo_S_Cf ,
-                                 Cmo_S_Cf, Cmo_S_Cf, optimize=True)
+
+            rdm2s = numpy.einsum("ijkl,pi,qj,rk,sl->pqrs", fobjs.__rdm2,
+                                 *([fobjs.mo_coeffs]*4),optimize=True)
+            rdm2_lo = numpy.einsum('xi,ijkl,px,qj,rk,sl->pqrs',
+                                   Pc_, rdm2s, fobjs.TA, fobjs.TA,
+                                   fobjs.TA, fobjs.TA, optimize=True)
+            CmoT_S = self.C.T @ self.S
+            rdm2_mo = numpy.einsum("ijkl,pi,qj,rk,sl->pqrs",
+                                   rdm2_lo, CmoT_S, CmoT_S,
+                                   CmoT_S, CmoT_S, optimize=True)
+            rdm2 += rdm2_mo
+            if return_lo: rdm2lo += rdm2_lo
 
     if not only_rdm1:
         rdm2 = (rdm2 + rdm2.transpose(1,0,3,2))/2
@@ -37,6 +55,8 @@ def rdm1_fullbasis(self, return_ao=True, only_rdm1=False, only_rdm2=False):
 
     if only_rdm1: return rdm1
     if only_rdm2: return rdm2
+
+    if return_lo: return (rdm1, rdm2, rdm1lo, rdm2lo)
     
     return rdm1, rdm2
 
