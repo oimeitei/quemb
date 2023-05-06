@@ -1,4 +1,4 @@
-from pyscf import gto,scf,mp, cc, fci
+from pyscf import gto,scf,mp, cc, fci, lo
 from pbe.pbe import pbe
 from pbe.fragment import fragpart
 from pbe.helper import *
@@ -37,22 +37,26 @@ H   0.9171145792   4.5073104916  -0.8797333088
 H  -0.9171145792  -4.5073104916   0.8797333088
 H   0.3671153250  -5.3316378285   0.0000000000
 H  -0.3671153250   5.3316378285   0.0000000000
-''',basis='631g', charge=0)
+''',basis='6-31g', charge=0)
 
 mf = scf.RHF(mol)
 mf.conv_tol = 1e-12
 mf.kernel()
 
-dm_hf = mf.make_rdm1()
 
-print(dm_hf.shape)
-fobj = fragpart(1, be_type=be_type, frag_type='autogen', valence_basis='sto-3g',mol=mol,
+#mc = cc.CCSD(mf)
+#mc.verbose=4
+#mc.kernel()
+
+fobj = fragpart(1, be_type=be_type, frag_type='autogen', mol=mol,valence_basis='sto-3g',
                 molecule=True,  valence_only =True,
                 frozen_core=False)
 
 mybe = pbe(mf, fobj, super_cell=True, lo_method='iao')
-
 mybe.optimize(solver='CCSD',method='QN', nproc=1, ompnum=1)
 
-rdm1, rdm2 = mybe.rdm1_fullbasis(return_ao=False)
 
+rdm1, rdm2, rdm1_lo, rdm2_lo = mybe.rdm1_fullbasis(return_ao=False, return_lo=True)
+
+
+mybe.get_rdm(use_full_rdm=True)

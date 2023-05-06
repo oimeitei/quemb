@@ -13,8 +13,9 @@ def rdm1_fullbasis(self, return_ao=True, only_rdm1=False, only_rdm2=False, retur
     rdm2 = numpy.zeros((nao- self.ncore, nao- self.ncore, nao- self.ncore, nao- self.ncore))
 
     if return_lo:
-        rdm1lo = numpy.zeros((nao - self.ncore, nao - self.ncore))
-        rdm2lo = numpy.zeros((nao- self.ncore, nao- self.ncore, nao- self.ncore, nao- self.ncore))
+        nao, nlo = self.W.shape
+        rdm1lo = numpy.zeros((nlo, nlo))
+        rdm2lo = numpy.zeros((nlo, nlo, nlo, nlo))
 
     for fobjs in self.Fobjs:
         
@@ -26,9 +27,13 @@ def rdm1_fullbasis(self, return_ao=True, only_rdm1=False, only_rdm2=False, retur
             
             rdm1_eo = fobjs.mo_coeffs @ fobjs.__rdm1 @ fobjs.mo_coeffs.T
             rdm1_center = Pc_ @ rdm1_eo
-            rdm1_lo = fobjs.TA @ rdm1_center @ fobjs.TA.T
-
-            rdm1_mo = self.C.T @ self.S @ rdm1_lo @ self.S @ self.C
+            rdm1_ao = fobjs.TA @ rdm1_center @ fobjs.TA.T
+            
+            if return_lo:
+                #rdm1_lo = fobjs.C_lo_eo @ rdm1_center @ fobjs.C_lo_eo.T #self.W.T @ self.S @ rdm1_ao @ self.S @ self.W
+                rdm1_lo = self.W.T @ self.S @ rdm1_ao @ self.S @ self.W
+            
+            rdm1_mo = self.C.T @ self.S @ rdm1_ao @ self.S @ self.C
             rdm1 += rdm1_mo
             if return_lo: rdm1lo += rdm1_lo
             
@@ -36,12 +41,18 @@ def rdm1_fullbasis(self, return_ao=True, only_rdm1=False, only_rdm2=False, retur
 
             rdm2s = numpy.einsum("ijkl,pi,qj,rk,sl->pqrs", fobjs.__rdm2,
                                  *([fobjs.mo_coeffs]*4),optimize=True)
-            rdm2_lo = numpy.einsum('xi,ijkl,px,qj,rk,sl->pqrs',
+            rdm2_ao = numpy.einsum('xi,ijkl,px,qj,rk,sl->pqrs',
                                    Pc_, rdm2s, fobjs.TA, fobjs.TA,
                                    fobjs.TA, fobjs.TA, optimize=True)
+            if return_lo:
+                CloT_S = self.W.T @ self.S
+                rdm2_lo = numpy.einsum("ijkl,pi,qj,rk,sl->pqrs",
+                                       rdm2_ao, CloT_S, CloT_S,
+                                       CloT_S, CloT_S, optimize=True)
+            
             CmoT_S = self.C.T @ self.S
             rdm2_mo = numpy.einsum("ijkl,pi,qj,rk,sl->pqrs",
-                                   rdm2_lo, CmoT_S, CmoT_S,
+                                   rdm2_ao, CmoT_S, CmoT_S,
                                    CmoT_S, CmoT_S, optimize=True)
             rdm2 += rdm2_mo
             if return_lo: rdm2lo += rdm2_lo
@@ -64,7 +75,8 @@ def get_rdm(self, approx_cumulant=False, use_full_rdm=False, return_ao=True):
     from pyscf import scf, ao2mo
     
             
-    rdm1f, Kumul = self.rdm1_fullbasis()
+    rdm1f, Kumul, rdm1_lo, rdm2_lo = self.rdm1_fullbasis(return_lo=True)
+
     
     if not approx_cumulant:
 
@@ -93,7 +105,7 @@ def get_rdm(self, approx_cumulant=False, use_full_rdm=False, return_ao=True):
     EKumul_T = numpy.einsum('pqrs,pqrs', eri,Kumul_T, optimize=True)
     if use_full_rdm:
         E2 = numpy.einsum('pqrs,pqrs', eri,RDM2_full, optimize=True)
-        print(E2*0.5)
+        
     EKapprox = self.ebe_hf + Eh1_dg + Eveff_dg + EKumul/2. 
     EKtrue = Eh1 + EVeff/2. + EKumul_T/2. + self.enuc + self.E_core
     
@@ -116,7 +128,9 @@ def get_rdm(self, approx_cumulant=False, use_full_rdm=False, return_ao=True):
     print(' Tr(Veff[g] g)   : {:>12.8f} Ha'.format(EVeff/2.), flush=True)
     print(' Tr(V K_true)    : {:>12.8f} Ha'.format(EKumul_T/2.), flush=True)
     print(' E_BE            : {:>12.8f} Ha'.format(EKtrue), flush=True)
-    if use_full_rdm: print(' E(g+G)          : {:>12.8f} Ha'.format(Eh1 + 0.5*E2 + self.E_core + self.enuc),
+    if use_full_rdm:
+        
+        print(' E(g+G)          : {:>12.8f} Ha'.format(Eh1 + 0.5*E2 + self.E_core + self.enuc),
                            flush=True)
     print(' Ecorr BE        : {:>12.8f} Ha'.format(EKtrue-self.ebe_hf), flush=True)
     print(flush=True)
