@@ -49,13 +49,15 @@ def make_rdm2_urlx(t1, t2, with_dm1=True):
 def be_func(pot, Fobjs, Nocc, solver, enuc,
             only_chem = False, nproc=4,hci_pt=False,
             hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,            
-            eeval=False, ereturn=False, ek = 0., kp=1.,
+            eeval=False, ereturn=False, ek = 0., kp=1.,relax_density=False,
             return_vec=False, ecore=0., ebe_hf=0., be_iter=None, writeh1=False,use_cumulant=True):
     from pyscf import fci
     import h5py,os
     from pyscf import ao2mo
 
     rdm_return = False
+    if relax_density:
+        rdm_return = True
     E = 0.
     
     t1 = time.time()
@@ -75,9 +77,11 @@ def be_func(pot, Fobjs, Nocc, solver, enuc,
             fobj._mc = solve_mp2(fobj._mf, mo_energy=fobj._mf.mo_energy)
         elif solver=='CCSD':
             if rdm_return:
-                fobj.t1, fobj.t2, rdm1_tmp = solve_ccsd(fobj._mf,
-                                                    mo_energy=fobj._mf.mo_energy,
-                                                    rdm_return=True)
+                fobj.t1, fobj.t2, rdm1_tmp, rdm2s = solve_ccsd(fobj._mf,
+                                                               mo_energy=fobj._mf.mo_energy,
+                                                               relax=True, use_cumulant=use_cumulant,
+                                                               rdm2_return=True,
+                                                               rdm_return=True)
             else:
                 fobj.t1, fobj.t2 = solve_ccsd(fobj._mf,
                                               mo_energy=fobj._mf.mo_energy,
@@ -184,11 +188,10 @@ def be_func(pot, Fobjs, Nocc, solver, enuc,
 
         
         if eeval or ereturn:
-            if solver =='CCSD':
-                if not use_cumulant:
-                    rdm2s = make_rdm2_urlx(fobj.t1, fobj.t2)
-                else:
-                    rdm2s = make_rdm2_urlx(fobj.t1, fobj.t2, with_dm1=False)
+            if solver =='CCSD' and not rdm_return:
+                with_dm1 = True
+                if use_cumulant: with_dm=False
+                rdm2s = make_rdm2_urlx(fobj.t1, fobj.t2, with_dm1=with_dm1)
             elif solver == 'MP2':
                 rdm2s = fobj._mc.make_rdm2()
             elif solver =='FCI':
@@ -351,9 +354,11 @@ def solve_mp2(mf, frozen=None, mo_coeff=None, mo_occ=None, mo_energy=None):
 
 
 
-def solve_ccsd(mf, frozen=None, mo_coeff=None,
+def solve_ccsd(mf, frozen=None, mo_coeff=None,relax=False, use_cumulant=False, with_dm1=True,rdm2_return = False,
                mo_occ=None, mo_energy=None, rdm_return=False):
     from pyscf import cc
+    from pyscf.cc.ccsd_rdm import make_rdm2
+    from pbe.external.rdm_ccsd import make_rdm1_ccsd_t1, make_rdm2_urlx
 
     if  mo_coeff is None: mo_coeff = mf.mo_coeff
     if  mo_energy is None: mo_energy = mf.mo_energy
@@ -385,13 +390,21 @@ def solve_ccsd(mf, frozen=None, mo_coeff=None,
     t1 = cc__.t1
     t2 = cc__.t2
     if rdm_return:
-        l1 = numpy.zeros_like(t1)
-        l2 = numpy.zeros_like(t2)
-        rdm1a = cc.ccsd_rdm.make_rdm1(cc__, t1, t2,
-                                      l1,l2)
-        cc__ = None
-        return(t1, t2, rdm1a)
-    cc__ = None
+        if not relax:
+            l1 = numpy.zeros_like(t1)
+            l2 = numpy.zeros_like(t2)
+            rdm1a = cc.ccsd_rdm.make_rdm1(cc__, t1, t2,
+                                          l1,l2)
+        else:
+            rdm1a = cc__.make_rdm1(with_frozen=False)
+                        
+        #cc__ = None
+        if rdm2_return:
+            if use_cumulant: with_dm1 = False
+            rdm2s = make_rdm2(cc__, cc__.t1, cc__.t2, cc__.l1, cc__.l2, with_frozen=False, ao_repr=False, with_dm1=with_dm1)
+            return(t1, t2, rdm1a, rdm2s)
+        return(t1, t2, rdm1a, cc__)
+    #cc__ = None
     return (t1, t2)
 
 def pretty(dm):

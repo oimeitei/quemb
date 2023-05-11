@@ -19,7 +19,7 @@ class BEOPT:
     def __init__(self, pot, Fobjs, Nocc, enuc, kp,solver='MP2',ek=0., ecore=0.,
                  nproc=1,ompnum=4,
                  only_chem=False,hci_pt=False,
-                 max_space=500, conv_tol = 1.e-6,
+                 max_space=500, conv_tol = 1.e-6,relax_density = False,
                  hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
                  self_match=False, ebe_hf =0.):
         
@@ -41,7 +41,7 @@ class BEOPT:
         self.ompnum = ompnum
         self.only_chem=only_chem
         self.conv_tol = conv_tol
-        
+        self.relax_density = relax_density
         # HCI parameters
         self.hci_cutoff = hci_cutoff
         self.ci_coeff_cutoff = ci_coeff_cutoff
@@ -74,7 +74,7 @@ class BEOPT:
                                          eeval=True, kp=self.kp, ek = self.ek, return_vec=True,
                                          only_chem=self.only_chem,
                                          hci_cutoff=self.hci_cutoff,
-                                         nproc=self.ompnum, 
+                                         nproc=self.ompnum, relax_density=self.relax_density,
                                          ci_coeff_cutoff = self.ci_coeff_cutoff,
                                          select_cutoff = self.select_cutoff, hci_pt=self.hci_pt,
                                          ecore=self.ecore, ebe_hf=self.ebe_hf, be_iter=self.iter, writeh1=writeh1)
@@ -83,7 +83,7 @@ class BEOPT:
                                                   eeval=True, kp=self.kp, ek = self.ek, return_vec=True,
                                                   nproc=self.nproc, ompnum=self.ompnum,
                                                   only_chem=self.only_chem,
-                                                  hci_cutoff=self.hci_cutoff,
+                                                  hci_cutoff=self.hci_cutoff,relax_density=self.relax_density,
                                                   ci_coeff_cutoff = self.ci_coeff_cutoff,
                                                   select_cutoff = self.select_cutoff,
                                                   ecore=self.ecore, ebe_hf=self.ebe_hf, be_iter=self.iter,
@@ -179,7 +179,7 @@ class BEOPT:
             
 
 def optimize(self, solver='MP2',method='bfgs',restore_debug=False, save_debug=False,
-             only_chem=False, conv_tol = 1.e-7,
+             only_chem=False, conv_tol = 1.e-7,relax_density=False, use_cumulant=True,
              save_fname='save_optqn_h5file.h5', J0=None, nproc=1, ompnum=4, max_iter=500):
     
     if not only_chem:
@@ -192,7 +192,7 @@ def optimize(self, solver='MP2',method='bfgs',restore_debug=False, save_debug=Fa
                 max_space=max_iter,conv_tol = conv_tol,
                 only_chem=only_chem,
                 hci_cutoff=self.hci_cutoff,
-                ci_coeff_cutoff = self.ci_coeff_cutoff,
+                ci_coeff_cutoff = self.ci_coeff_cutoff,relax_density=relax_density,
                 select_cutoff = self.select_cutoff,hci_pt=self.hci_pt,
                 solver=solver, ek=self.ek, ecore=self.E_core, self_match=self.self_match, ebe_hf=self.ebe_hf)
 

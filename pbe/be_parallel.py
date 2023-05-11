@@ -8,20 +8,30 @@ def run_solver(h1, dm0, dname, nao, nocc,
                solver='MP2',eri_file='eri_file.h5',
                hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
                ompnum=4, writeh1=False,
-               eeval=True, return_rdm_ao=True, use_cumulant=True,):
+               eeval=True, return_rdm_ao=True, use_cumulant=True,relax_density=False):
     
     eri = get_eri(dname, nao, eri_file=eri_file)    
     mf_ = get_scfObj(h1, eri, nocc, dm0=dm0)
+    rdm_return = False
+    if relax_density:
+        rdm_return = True
 
     if solver=='MP2': 
         mc_ = solve_mp2(mf_, mo_energy=mf_.mo_energy)
         rdm1_tmp = mc_.make_rdm1()
         
     elif solver=='CCSD':
-        t1, t2 = solve_ccsd(mf_,
-                            mo_energy=mf_.mo_energy,
-                            rdm_return=False)
-        rdm1_tmp = make_rdm1_ccsd_t1(t1)
+        if not rdm_return:
+            t1, t2 = solve_ccsd(mf_,
+                                mo_energy=mf_.mo_energy,
+                                rdm_return=False)
+            rdm1_tmp = make_rdm1_ccsd_t1(t1)
+        else:
+            t1, t2, rdm1_tmp, rdm2s = solve_ccsd(mf_,
+                                                 mo_energy=mf_.mo_energy,
+                                                 rdm_return=True,
+                                                 rdm2_return = True, use_cumulant=use_cumulant,
+                                                 relax=True)
     elif solver=='FCI':
         from pyscf import fci
         
@@ -103,11 +113,11 @@ def run_solver(h1, dm0, dname, nao, nocc,
                              mf_.mo_coeff.T))*0.5
     
     if eeval:
-        if solver =='CCSD':
-            if not use_cumulant:
-                rdm2s = make_rdm2_urlx(t1, t2)
-            else:
-                rdm2s = make_rdm2_urlx(t1, t2, with_dm1 = False)
+        if solver =='CCSD' and not rdm_return:
+            with_dm1 = True
+            if use_cumulant: with_dm1 = False
+            rdm2s = make_rdm2_urlx(t1, t2, with_dm1 = with_dm1)
+            
         elif solver == 'MP2':
             rdm2s = mc_.make_rdm2()
         elif solver == 'FCI':
@@ -132,7 +142,7 @@ def run_solver(h1, dm0, dname, nao, nocc,
 
 def be_func_parallel(pot, Fobjs, Nocc, solver, enuc,
                      nproc=1, ompnum=4,
-                     only_chem=False,
+                     only_chem=False,relax_density=False,use_cumulant=True,
                      eeval=False, ereturn=False, ek = 0., kp=1.,
                      hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
                      return_vec=False, ecore=0., ebe_hf=0., be_iter=None, writeh1=False):
@@ -170,7 +180,8 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc,
         result = pool_.apply_async(run_solver, [h1, dm0, dname, nao, nocc ,
                                                 solver,Fobjs[nf].eri_file,
                                                 hci_cutoff, ci_coeff_cutoff,select_cutoff,
-                                                ompnum, writeh1])
+                                                ompnum, writeh1, True, True, use_cumulant, relax_density])
+        
         results.append(result)
 
     [rdms.append(result.get()) for result in results]
