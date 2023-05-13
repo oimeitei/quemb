@@ -104,6 +104,9 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
     pedge = []
     cen = []
 
+    open_frag = []
+    open_frag_cen = []
+    
     # Assumes that there can be only 5 member connected system        
     for idx, i in enumerate(normlist):
         if cell.atom_pure_symbol(idx) == 'H':
@@ -125,7 +128,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
 
                             
         flist.append(idx)
-        cen.append(idx)
+        #cen.append(idx) #!
                                     
         for jdx in clist:                  
             dist = numpy.linalg.norm(coord[idx] - coord[jdx])                  
@@ -151,10 +154,37 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
                                               flist.append(ldx)
                                               pedg.append(ldx)
                                               
+
+
+        for pidx, frag_ in enumerate(Frag):
+            if set(flist).issubset(frag_):
+
+                open_frag.append(pidx)
+                open_frag_cen.append(idx)
+                break
+            elif set(frag_).issubset(flist):
+
+                open_frag = [ oidx-1 if oidx > pidx else oidx for oidx in open_frag]
+
+                open_frag.append(len(Frag)-1)
+                open_frag_cen.append(cen[pidx])
+                del cen[pidx]
+                del Frag[pidx]
+                del pedge[pidx]
+        else:
             
-        Frag.append(flist)
-        #edge.append(edg)
-        pedge.append(pedg)
+            Frag.append(flist)
+            #edge.append(edg)
+            pedge.append(pedg)
+            cen.append(idx)
+
+
+
+
+                                              
+        #Frag.append(flist)
+        ##edge.append(edg)
+        #pedge.append(pedg)
 
     hlist = [[] for i in coord]
     for idx, i in enumerate(normlist):
@@ -294,11 +324,24 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
         
         frglist = sites__[cen[idx]].copy()
         frglist.extend(hsites[cen[idx]])
-        ftmp.extend(frglist)
 
         ls = len(sites__[cen[idx]])+len(hsites[cen[idx]])
+        if idx in open_frag:
+            for pidx__,pid__ in enumerate(open_frag):
+                if idx == pid__:
+
+                    frglist.extend(sites__[open_frag_cen[pidx__]])
+                    frglist.extend(hsites[open_frag_cen[pidx__]])
+                    ls += len(sites__[open_frag_cen[pidx__]]) +\
+                        len(hsites[open_frag_cen[pidx__]])
+
+        
+        ftmp.extend(frglist)
+
+        #ls = len(sites__[cen[idx]])+len(hsites[cen[idx]])
         if not pao:
-            centerf_idx.append([pq for pq in range(indix,indix+ls)]) 
+            ls_ = len(sites__[cen[idx]])+len(hsites[cen[idx]])
+            centerf_idx.append([pq for pq in range(indix,indix+ls_)]) 
         else:
             cntlist = sites__[cen[idx]].copy()[:nbas2[cen[idx]]]
             cntlist.extend(hsites[cen[idx]][:nbas2H[cen[idx]]])
@@ -307,6 +350,14 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
         indix += ls
         
         for jdx in pedge[idx]:
+
+            if idx in open_frag:
+
+                if jdx == open_frag_cen[open_frag.index(idx)]:
+                    continue
+                if jdx in open_frag_cen:
+                    continue
+            
             edg.append(jdx)
             frglist = sites__[jdx].copy()            
             frglist.extend(hsites[jdx])
@@ -335,7 +386,13 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
     for ix in edge:
         cen_ = []
         for jx in ix:
-            cen_.append(cen.index(jx))
+            if jx in cen:
+                cen_.append(cen.index(jx))
+            elif jx in open_frag_cen:
+                cen_.append(open_frag[open_frag_cen.index(jx)])
+            else:
+                print(' This is more complicated than I can handle')
+                sys.exit()
         center.append(cen_)
     
     Nfrag = len(fsites)
@@ -346,13 +403,37 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
         
         tmp_ = [i.index(pq) for pq in sites__[cen[ix]]]
         tmp_.extend([i.index(pq) for pq in hsites[cen[ix]]]) 
-                
+        if ix in open_frag:
+            for pidx__,pid__ in enumerate(open_frag):
+                if ix == pid__:
+                    tmp_.extend([i.index(pq) for pq in sites__[open_frag_cen[pidx__]]])
+                    tmp_.extend([i.index(pq) for pq in hsites[open_frag_cen[pidx__]]])    
         ebe_weight.append([1.0, tmp_])
     
     center_idx = []
     for i in range(Nfrag):
         idx = []
-        for j in center[i]:
+        for jdx,j in enumerate(center[i]):
+            jdx_continue = False
+            if j in open_frag:
+                for kdx, k in enumerate(open_frag):
+                    if j == k:
+                        if edge[i][jdx] == open_frag_cen[kdx]:
+                            if not pao:
+                                cntlist = sites__[open_frag_cen[kdx]].copy()
+                                cntlist.extend(hsites[open_frag_cen[kdx]])
+                                idx.append([fsites[j].index(k) for k in cntlist])
+                            else:
+                                cntlist = sites__[open_frag_cen[kdx]].copy()[:nbas2[cen[j]]]
+                                cntlist.extend(hsites[open_frag_cen[kdx]][:nbas2H[cen[j]]])
+                                idx.append([fsites[j].index(k) for k in cntlist])
+                            jdx_continue = True
+                            break
+
+            if jdx_continue: continue
+
+
+        
             if not pao:
                 cntlist = sites__[cen[j]].copy()
                 cntlist.extend(hsites[cen[j]])

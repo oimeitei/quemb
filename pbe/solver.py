@@ -190,7 +190,7 @@ def be_func(pot, Fobjs, Nocc, solver, enuc,
         if eeval or ereturn:
             if solver =='CCSD' and not rdm_return:
                 with_dm1 = True
-                if use_cumulant: with_dm=False
+                if use_cumulant: with_dm1=False
                 rdm2s = make_rdm2_urlx(fobj.t1, fobj.t2, with_dm1=with_dm1)
             elif solver == 'MP2':
                 rdm2s = fobj._mc.make_rdm2()

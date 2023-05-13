@@ -394,11 +394,12 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True
         shift = 0
         ncore = 0
         if not valence_only:
+                        
             Wstack = numpy.zeros((Ciao.shape[0], Ciao.shape[1]+Cpao.shape[1])) #-self.ncore))
         else:
             Wstack = numpy.zeros((Ciao.shape[0], Ciao.shape[1]))
             
-        if self.frozen_core:            
+        if self.frozen_core:    ## Check here ----        
             for ix in range(self.mol.natm):
                 nc = ncore_(self.mol.atom_charge(ix))
                 ncore += nc
@@ -427,6 +428,7 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True
 
         if not valence_only:
             if nmo > nlo:
+                
                 Co_nocore = self.C[:,self.ncore:self.Nocc]
                 Cv = self.C[:,self.Nocc:]
                 # Ensure that the LOs span the occupied space
@@ -441,6 +443,7 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True
             else:
                 self.lmo_coeff = self.W.T @ self.S @ self.C[:,self.ncore:]
         else:
+            
             self.lmo_coeff = self.W.T @ self.S @ self.C[:,self.ncore:]
 
         #assert(numpy.allclose(self.lmo_coeff.T @ self.lmo_coeff, numpy.eye(self.lmo_coeff.shape[1])))

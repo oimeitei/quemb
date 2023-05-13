@@ -179,7 +179,7 @@ class BEOPT:
             
 
 def optimize(self, solver='MP2',method='bfgs',restore_debug=False, save_debug=False,
-             only_chem=False, conv_tol = 1.e-7,relax_density=False, use_cumulant=True,
+             only_chem=False, conv_tol = 1.e-6,relax_density=False, use_cumulant=True,
              save_fname='save_optqn_h5file.h5', J0=None, nproc=1, ompnum=4, max_iter=500):
     
     if not only_chem:

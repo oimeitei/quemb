@@ -74,6 +74,7 @@ class Frags:
 
         if lao.ndim==2:
             TA = schmidt_decomposition(lmo, nocc, self.fsites)
+            self.C_lo_eo = TA
             TA = numpy.dot(lao,TA)
 
             
@@ -86,6 +87,7 @@ class Frags:
     def cons_h1(self, h1, stmp = None, wtmp = None):
 
         if h1.ndim == 2:
+            
             h1_tmp = functools.reduce(numpy.dot,
                                       (self.TA.T, h1, self.TA))
             
@@ -254,6 +256,7 @@ class Frags:
             rdm_hf = numpy.dot(mo_coeffs[:,:self.nsocc],
                                mo_coeffs[:,:self.nsocc].conj().T)
         
+        
         e1 = numpy.einsum('ij,ji->', self.h1, rdm_hf)
         
         
@@ -291,7 +294,7 @@ class Frags:
         etmp = 0.
         for i in self.efac[1]:
             etmp += self.efac[0]*e_[i]
-        
+                
         self.ebe_hf = etmp
         
         if return_e1:
