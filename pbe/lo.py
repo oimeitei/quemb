@@ -51,6 +51,7 @@ def get_symm_orth_mat(A, thr=1.E-6, ovlp=None):
 def symm_orth(A, thr=1.E-6, ovlp=None):
     """ Symmetrically orthogonalize columns of A
     """
+    
     U = get_symm_orth_mat(A, thr, ovlp)
 
     return A @ U
@@ -304,9 +305,10 @@ class KMF:
         self.mo_energy_kpts = mo_energy
         self.mo_coeff_kpts = mo_coeff.copy()
 
-def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True, valence_only=False):
+def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True, valence_only=False, nosave=False):
     from numpy.linalg import eigh
-    from pyscf.lo.iao import iao
+    from pyscf.lo import iao
+    from pyscf.lo import orth
     import scipy.linalg,functools
     from  .helper import ncore_
     from .pbcgeom import sgeom
@@ -361,7 +363,7 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True
         S12, S2 = get_xovlp(self.mol, basis=val_basis)
         # Use these to get IAOs
         Ciao = get_iao(Co, S12, self.S, S2 = S2)
-
+                    
         if not valence_only:
             # Now get PAOs
             if loc_type.upper() != 'SO':
@@ -420,9 +422,12 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True
                     npao = len(paoind_by_atom[ix])
                     Wstack[:,shift:shift+npao] = Cpao[:, paoind_by_atom[ix]]
                     shift += npao      
-                
-        self.W = Wstack            
-        assert(numpy.allclose(self.W.T @ self.S @ self.W, numpy.eye(self.W.shape[1])))
+        if not nosave:       
+            self.W = Wstack            
+            assert(numpy.allclose(self.W.T @ self.S @ self.W, numpy.eye(self.W.shape[1])))
+        else:
+            assert(numpy.allclose(Wstack.T @ self.S @ Wstack, numpy.eye(Wstack.shape[1])))
+            return Wstack
         nmo = self.C.shape[1] - self.ncore
         nlo = self.W.shape[1]
 

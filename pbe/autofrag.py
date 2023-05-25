@@ -207,23 +207,23 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
     if print_frags:
         print(flush=True)
         print('Fragment sites',flush=True)
-        print('-------------------',flush=True)
-        print('Center | Edges ',flush=True)
-        print('-------------------',flush=True)
+        print('--------------------------',flush=True)
+        print('Fragment |   Center | Edges ',flush=True)
+        print('--------------------------',flush=True)
         
         for idx,i in enumerate(Frag):
-            print('  {:>3}  |'.format(cen[idx]+1),end=' ', flush=True)
+            print('   {:>4}  |   {:>5}  |'.format(idx, cell.atom_pure_symbol(cen[idx])+str(cen[idx]+1)),end=' ', flush=True)
             for j in hlist[cen[idx]]:
-                print(' {:>3}  '.format(j+1),end='  ', flush=True)
+                print(' {:>5} '.format('*'+cell.atom_pure_symbol(j)+str(j+1)),end=' ', flush=True)
             for j in i:
                 if j == cen[idx]: continue
-                print(' {:>3}  '.format(j+1),end='  ', flush=True)
+                print(' {:>5} '.format(cell.atom_pure_symbol(j)+str(j+1)),end=' ', flush=True)
                 for k in hlist[j]:
-                    print(' {:>3}  '.format(k+1),end='  ', flush=True)
+                    print(' {:>5} '.format(cell.atom_pure_symbol(k)+str(k+1)),end=' ', flush=True)
             print(flush=True)
-        print('-------------------',flush=True)
-        print('*Center H atoms are printed as Edges above.', flush=True)
+        print('--------------------------',flush=True)
         print(' No. of fragments : ',len(Frag),flush=True)
+        print('*H : Center H atoms (printed as Edges above.)', flush=True)
         print(flush=True)
 
     if write_geom:

@@ -4,7 +4,7 @@ from pbe.fragment import fragpart
 from pbe.helper import *
 from pbe import sgeom, printatom
 import sys, h5py, os
-
+from pyscf.lo import iao
 
 be_type = 'be2' #sys.argv[1]
 
@@ -44,19 +44,17 @@ mf.conv_tol = 1e-12
 mf.kernel()
 
 
-#mc = cc.CCSD(mf)
-#mc.verbose=4
-#mc.kernel()
-
-fobj = fragpart(1, be_type=be_type, frag_type='autogen', mol=mol,valence_basis='sto-3g',
-                molecule=True,  valence_only =True,
-                frozen_core=False)
+fobj = fragpart(1, be_type=be_type, frag_type='autogen', mol=mol,
+                molecule=True, valence_only =True,valence_basis='sto-3g',
+                frozen_core=False)  
 
 mybe = pbe(mf, fobj, super_cell=True, lo_method='iao')
-mybe.optimize(solver='CCSD',method='QN', nproc=1, ompnum=1)
+mybe.optimize(solver='CCSD',method='QN', nproc=1, ompnum=1, relax_density=False)
 
+# Get local orbitals
+C_lo = mybe.Ciao_pao.copy()
 
+# Get RDMs
+# The active space (IAO) RDMs are rdm1_lo, rdm2_lo
 rdm1, rdm2, rdm1_lo, rdm2_lo = mybe.rdm1_fullbasis(return_ao=False, return_lo=True)
 
-
-mybe.get_rdm(use_full_rdm=True)
