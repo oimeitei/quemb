@@ -305,7 +305,9 @@ class KMF:
         self.mo_energy_kpts = mo_energy
         self.mo_coeff_kpts = mo_coeff.copy()
 
-def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True, valence_only=False, nosave=False):
+def localize(self, lo_method, mol=None, valence_basis='sto-3g',
+             hstack=False,
+             iao_wannier=True, valence_only=False, nosave=False):
     from numpy.linalg import eigh
     from pyscf.lo import iao
     from pyscf.lo import orth
@@ -413,15 +415,18 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True
                     npao = len(paoind_by_atom[ix])
                     Wstack[:,shift:shift+npao] = Cpao[:, paoind_by_atom[ix]]                    
                     shift += npao
-        else:                    
-            for ix in range(self.mol.natm):
-                niao = len(iaoind_by_atom[ix])
-                Wstack[:, shift:shift+niao] = Ciao[:, iaoind_by_atom[ix]]
-                shift += niao
-                if not valence_only:
-                    npao = len(paoind_by_atom[ix])
-                    Wstack[:,shift:shift+npao] = Cpao[:, paoind_by_atom[ix]]
-                    shift += npao      
+        else:
+            if not hstack:
+                for ix in range(self.mol.natm):
+                    niao = len(iaoind_by_atom[ix])
+                    Wstack[:, shift:shift+niao] = Ciao[:, iaoind_by_atom[ix]]
+                    shift += niao
+                    if not valence_only:
+                        npao = len(paoind_by_atom[ix])
+                        Wstack[:,shift:shift+npao] = Cpao[:, paoind_by_atom[ix]]
+                        shift += npao
+            else:
+                Wstack = numpy.hstack((Ciao, Cpao))        
         if not nosave:       
             self.W = Wstack            
             assert(numpy.allclose(self.W.T @ self.S @ self.W, numpy.eye(self.W.shape[1])))

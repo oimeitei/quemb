@@ -58,3 +58,8 @@ C_lo = mybe.Ciao_pao.copy()
 # The active space (IAO) RDMs are rdm1_lo, rdm2_lo
 rdm1, rdm2, rdm1_lo, rdm2_lo = mybe.rdm1_fullbasis(return_ao=False, return_lo=True)
 
+nlo = rdm1_lo.shape[1]
+h1_lo = C_lo[:,:nlo].T @ mf.get_hcore() @ C_lo[:,:nlo]
+E1 = numpy.trace(h1_lo @ rdm1_lo)
+
+print(E1)
