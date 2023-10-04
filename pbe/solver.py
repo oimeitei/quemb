@@ -355,7 +355,7 @@ def solve_mp2(mf, frozen=None, mo_coeff=None, mo_occ=None, mo_energy=None):
 
 
 def solve_ccsd(mf, frozen=None, mo_coeff=None,relax=False, use_cumulant=False, with_dm1=True,rdm2_return = False,
-               mo_occ=None, mo_energy=None, rdm_return=False):
+               mo_occ=None, mo_energy=None, rdm_return=False, verbose=0):
     from pyscf import cc
     from pyscf.cc.ccsd_rdm import make_rdm2
     from pbe.external.rdm_ccsd import make_rdm1_ccsd_t1, make_rdm2_urlx
@@ -375,7 +375,7 @@ def solve_ccsd(mf, frozen=None, mo_coeff=None,relax=False, use_cumulant=False, w
     eris.fock = numpy.diag(mo_energy)
 
     try:
-        cc__.verbose=0
+        cc__.verbose=verbose
         cc__.kernel(eris=eris)
     except:
         print(flush=True)

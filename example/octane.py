@@ -43,6 +43,9 @@ mf = scf.RHF(mol)
 mf.conv_tol = 1e-12
 mf.kernel()
 
+mc = cc.CCSD(mf)
+mc.verbose=4
+mc.kernel()
 
 fobj = fragpart(1, be_type=be_type, frag_type='autogen', mol=mol,
                 molecule=True, valence_only =True,valence_basis='sto-3g',

@@ -23,9 +23,10 @@ def rdm1_fullbasis(self, return_ao=True, only_rdm1=False, only_rdm2=False, retur
         cind = [ fobjs.fsites[i] for i in fobjs.efac[1]]
         Pc_ = fobjs.TA.T @ self.S @ self.W[:, cind] @ self.W[:, cind].T @ self.S @ fobjs.TA
 
+
         if not only_rdm2:            
             rdm1_eo = fobjs.mo_coeffs @ fobjs.__rdm1 @ fobjs.mo_coeffs.T                                
-            rdm1_center = Pc_ @ rdm1_eo            
+            rdm1_center = Pc_ @ rdm1_eo
             rdm1_ao = fobjs.TA @ rdm1_center @ fobjs.TA.T
             
             # equivalent to tranform full
