@@ -21,6 +21,33 @@ class Frags:
                  edge_idx=None, center_idx=None, efac=None,
                  eri_file='eri_file.h5',unitcell_nkpt=1,
                  ewald_ek=None, centerf_idx=None, unitcell=1):
+        """Constructor function for `Frags` class
+
+        Parameters
+        ----------
+        fsites : list
+            list of AOs in the fragment (i.e. pbe.fsites[i] or fragpart.fsites[i])
+        ifrag : int
+            fragment index (∈ [0, pbe.Nfrag])
+        edge : list, optional
+            list of lists of edge site AOs for each atom in the fragment, by default None
+        center : list, optional
+            list of fragment indices where edge site AOs are center site, by default None
+        edge_idx : list, optional
+            list of lists of indices for edge site AOs within the fragment, by default None
+        center_idx : list, optional
+            list of lists of indices within the fragment specified in `center` that points to the edge site AOs , by default None
+        efac : list, optional
+            weight used for energy contributions, by default None
+        eri_file : str, optional
+            two-electron integrals stored as h5py file, by default 'eri_file.h5'
+        unitcell_nkpt : int, optional
+            number of k-points in the unit cell; 1 for molecular calculations, by default 1
+        centerf_idx : list, optional
+            indices of the center site atoms in the fragment, by default None
+        unitcell : int, optional
+            number of unitcells used in building the fragment, by default 1
+        """
 
         
         self.fsites = fsites

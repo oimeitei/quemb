@@ -181,6 +181,26 @@ class BEOPT:
 def optimize(self, solver='MP2',method='bfgs',restore_debug=False, save_debug=False,
              only_chem=False, conv_tol = 1.e-6,relax_density=False, use_cumulant=True,
              save_fname='save_optqn_h5file.h5', J0=None, nproc=1, ompnum=4, max_iter=500):
+    """Perform BE optimization
+
+    Parameters
+    ----------
+    solver : str, optional
+        High-level solver for the fragment, by default 'MP2'
+    method : str, optional
+        Optimization method, by default 'bfgs'
+    only_chem : bool, optional
+        If true, density matching is not performed -- only global chemical potential is optimized, by default False
+    conv_tol : _type_, optional
+        Convergence tolerance, by default 1.e-6
+    relax_density : bool, optional
+        Whether to use relaxed or unrelaxed densities, by default False
+        c.f. See http://classic.chem.msu.su/cgi-bin/ceilidh.exe/gran/gamess/forum/?C34df668afbHW-7216-1405+00.htm for the distinction between the two
+    use_cumulant : bool, optional
+        Use cumulant-based energy expression, by default True
+    max_iter : int, optional
+        Maximum number of optimization steps, by default 500
+    """
     
     if not only_chem:
         pot = self.pot

@@ -10,6 +10,21 @@ class fragpart:
                  nx=False, ny=False, nz=False,closed=False,
                  kpt = None, molecule=True,valence_basis=None,valence_only=False,
                  be_type='be2', mol=None, frozen_core=False, self_match=False, allcen=False):
+        """Constructor for fragpart, which forms fragments from a given chemical system
+
+        Parameters
+        ----------
+        frag_type : str, optional
+            For systems with only hydrogen, use 'chain'; everything else should use 'autogen', by default 'hchain_simple'
+        be_type : str, optional
+            Specifies BEn, by default 'be2'
+            For a simple linear system A-B-C-D,
+              BE1 only has fragments [A], [B], [C], [D]
+              BE2 has [A, B, C], [B, C, D]
+              BEn ...
+        mol : pyscf.gto.Molecule, optional
+            pyscf.gto.Molecule object for the chemical system, by default None
+        """
 
         # No. of unitcells to use for fragment construction
         self.unitcell = unitcell
