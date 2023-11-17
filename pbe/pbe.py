@@ -44,6 +44,21 @@ class pbe:
                  save_file='storepbe.pk',hci_pt=False,
                  hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
                  debug00=False, debug001=False):
+        """Constructor for pbe object
+
+        Parameters
+        ----------
+        mf : pyscf.scf.SCF
+          PySCF HF
+        fobj : pbe.fragpart
+          Fragment object containing sites, center, edges and indices
+        lo_method: str
+          Method for orbital localization. Supports 'lowdin', 'boys', and 'wannier'. Defaults to 'lowdin'
+        save : bool
+          Save intermediate objects for a restart. 
+        restart : bool
+          Restart. If set True, HF need not be repeated.
+        """
 
         
         if restart:
