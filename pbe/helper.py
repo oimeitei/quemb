@@ -90,8 +90,6 @@ def get_eri(i_frag, Nao, symm = 8, ignore_symm = False, eri_file='eri_file.h5'):
     return eri__
 
 def ncore_(z):
-
-    
     
     if 1<= z<=2:
         nc = 0
@@ -162,8 +160,7 @@ def be_energy(nfsites, h1, mo_coeffs, rdm1, rdm2s, eri_file='eri_file.h5'):
     e_ = e1+e2+ec        
     etmp = 0.
     for i in self.efac[1]:
-        etmp += self.efac[0]*e_[i]
-        
+        etmp += self.efac[0]*e_[i]        
     
     self.ebe = etmp
     return (e1+e2+ec)

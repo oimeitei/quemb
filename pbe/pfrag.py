@@ -5,12 +5,6 @@ import functools,sys, math
 from pyscf import ao2mo
 from functools import reduce
 
-def K2R(AO_k, phase):
-    Nr, Nk = phase.shape
-    nao = AO_k.shape[-1]
-    AO_r = numpy.einsum('Rk,kuv,Sk->RuSv', phase, AO_k, phase.conj())
-    #AO_r = AO_r.reshape(Nr*nao, Nr*nao)
-    return AO_r
 
 class Frags:
     """
@@ -113,8 +107,7 @@ class Frags:
 
     def cons_h1(self, h1, stmp = None, wtmp = None):
 
-        if h1.ndim == 2:
-            
+        if h1.ndim == 2:            
             h1_tmp = functools.reduce(numpy.dot,
                                       (self.TA.T, h1, self.TA))
             
@@ -122,7 +115,6 @@ class Frags:
         
     def cons_fock(self, hf_veff, S, dm, eri_=None):
 
-        # not yet adapted for k-space
         if eri_ is None:
             eri_ = get_eri(self.dname, self.TA.shape[1], ignore_symm=True, eri_file=self.eri_file)
                 
@@ -219,16 +211,14 @@ class Frags:
         for i in self.edge_idx:
             for j in range(len(i)):
                 for k in range(len(i)):
-                    if j>k :#or j==k:
+                    if j>k :
                         continue
                     cout += 1
         return cout
         
 
     def energy(self,rdm2s, eri=None, print_fragE=False):
-        
-        #rdm2s = make_rdm2_urlx(self.t1, self.t2)
-        
+                
         rdm2s = numpy.einsum("ijkl,pi,qj,rk,sl->pqrs", 0.5*rdm2s,
                              *([self.mo_coeffs]*4),optimize=True)        
         
@@ -311,13 +301,10 @@ class Frags:
                 Gij =  (2.*rdm_hf[i,j]*rdm_hf -
                         numpy.outer(rdm_hf[i], rdm_hf[j]))[:jmax,:jmax] 
                 Gij[numpy.diag_indices(jmax)] *= 0.5
-                Gij += Gij.T
-                
+                Gij += Gij.T                
                 e2[i] += Gij[numpy.tril_indices(jmax)] @ eri[ij]
 
-
-        e_ = e1+e2+ec
-        
+        e_ = e1+e2+ec        
         etmp = 0.
         for i in self.efac[1]:
             etmp += self.efac[0]*e_[i]

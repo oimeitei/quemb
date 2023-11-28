@@ -28,11 +28,7 @@ class storePBE:
         self.core_veff = core_veff
         self.mo_energy = mo_energy
 
-        
-
-
 class pbe:
-
 
     def __init__(self, mf, fobj, eri_file='eri_file.h5', exxdiv='ewald',
                  lo_method='lowdin',compute_hf=True, nkpt = None, kpoint = False,
@@ -59,7 +55,6 @@ class pbe:
         restart : bool
           Restart. If set True, HF need not be repeated.
         """
-
         
         if restart:
             with open(restart_file, 'rb') as rfile:

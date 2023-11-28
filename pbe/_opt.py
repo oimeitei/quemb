@@ -138,9 +138,6 @@ class BEOPT:
                 file_opt.create_dataset('J0', data=J0)
                 file_opt.close()
 
-            
-            #print('BE energy per unit cell        : {:>12.8f} Ha'.format(self.Ebe), flush=True)
-            #print('BE Ecorr  per unit cell        : {:>12.8f} Ha'.format(self.Ebe-self.ebe_hf), flush=True)
             print('Error in density matching      :   {:>2.4e}'.format(self.err), flush=True)
             print(flush=True)
 
@@ -156,15 +153,11 @@ class BEOPT:
                 optQN = FrankQN(self.objfunc_, numpy.array(pot__), f0__, J0__)
                 
             for iter_ in range(self.max_space):
-                
-            
 
                 optQN.next_step(save_debug=save_debug,restore_debug=restore_debug,
                                 save_fname=save_fname)
                 self.iter += 1
-                print('-- In iter ',self.iter, flush=True)                
-                #print('BE energy per unit cell        : {:>12.8f} Ha'.format(self.Ebe), flush=True)
-                #print('BE Ecorr  per unit cell        : {:>12.8f} Ha'.format(self.Ebe-self.ebe_hf), flush=True)
+                print('-- In iter ',self.iter, flush=True)    
                 print('Error in density matching      :   {:>2.4e}'.format(self.err), flush=True)
                 print(flush=True)
                 if self.err < self.conv_tol:
@@ -195,6 +188,7 @@ def optimize(self, solver='MP2',method='bfgs',restore_debug=False, save_debug=Fa
         Convergence tolerance, by default 1.e-6
     relax_density : bool, optional
         Whether to use relaxed or unrelaxed densities, by default False
+        This option is for using CCSD as solver. Relaxed density here uses Lambda amplitudes, whereas unrelaxed density only uses T amplitudes.
         c.f. See http://classic.chem.msu.su/cgi-bin/ceilidh.exe/gran/gamess/forum/?C34df668afbHW-7216-1405+00.htm for the distinction between the two
     use_cumulant : bool, optional
         Use cumulant-based energy expression, by default True
@@ -220,15 +214,13 @@ def optimize(self, solver='MP2',method='bfgs',restore_debug=False, save_debug=Fa
         be_.optimize(method)
     elif method=='QN':
         if not restore_debug:
-
             if only_chem:
                 J0 = [[0.]]
                 J0 = self.get_be_error_jacobian(jac_solver='HF')
                 J0 = [[J0[-1,-1]]]
                 
             else:
-                J0 = self.get_be_error_jacobian(jac_solver='HF')
-                        
+                J0 = self.get_be_error_jacobian(jac_solver='HF')                        
         
         be_.optimize(method, J0=J0, save_debug=save_debug,restore_debug=restore_debug,
                                 save_fname=save_fname)

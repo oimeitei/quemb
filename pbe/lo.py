@@ -3,7 +3,7 @@ Authors: Henry Tran
          Oinam Meitei
 
 func get_symm_mat_pow(), get_aoind_by_atom(), reorder_by_atom_()
-copied from frankestein
+copied from frankestein(private repo)
 
 '''
 

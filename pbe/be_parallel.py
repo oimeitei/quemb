@@ -105,8 +105,7 @@ def run_solver(h1, dm0, dname, nao, nocc,
     else:
         print('Solver not implemented',flush=True)
         print('exiting',flush=True) 
-        sys.exit()
-        
+        sys.exit()        
     rdm1 = functools.reduce(numpy.dot,
                             (mf_.mo_coeff,
                              rdm1_tmp,
@@ -171,7 +170,6 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc,
         
         h1 = Fobjs[nf].fock + Fobjs[nf].heff
 
-        # this is waste of com
         dm0 = Fobjs[nf].dm0.copy()
         dname = Fobjs[nf].dname
         nao = Fobjs[nf].nao
@@ -192,7 +190,6 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc,
         fobj.mo_coeffs = rdms[idx][0]
         fobj._rdm1 = rdms[idx][1]
         fobj.__rdm1 = rdms[idx][3]
-        #fobj.energy(rdms[idx][2])        
         Etot += fobj.ebe
 
     Etot /= Fobjs[0].unitcell_nkpt
@@ -209,8 +206,5 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc,
         return (ernorm, ervec, Ebe)
 
     if eeval:
-        #print('BE energy per unit cell        : {:>12.8f} Ha'.format(Ebe), flush=True)
-        #print('BE Ecorr  per unit cell        : {:>12.8f} Ha'.format(Ebe-ebe_hf), flush=True)
-        print('Error in density matching      :   {:>2.4e}'.format(ernorm), flush=True)
-        
+        print('Error in density matching      :   {:>2.4e}'.format(ernorm), flush=True)        
     return ernorm

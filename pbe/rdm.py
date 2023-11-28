@@ -28,12 +28,6 @@ def rdm1_fullbasis(self, return_ao=True, only_rdm1=False, only_rdm2=False, retur
             rdm1_eo = fobjs.mo_coeffs @ fobjs.__rdm1 @ fobjs.mo_coeffs.T                                
             rdm1_center = Pc_ @ rdm1_eo
             rdm1_ao = fobjs.TA @ rdm1_center @ fobjs.TA.T
-            
-            # equivalent to tranform full
-            #if return_lo:
-            #    rdm1_lo = fobjs.C_lo_eo @ rdm1_center @ fobjs.C_lo_eo.T 
-            #    rdm1_lo = (rdm1_lo + rdm1_lo.T)/2.
-            #    rdm1lo += rdm1_lo
             rdm1AO += rdm1_ao
             
         if not only_rdm1:
@@ -42,16 +36,10 @@ def rdm1_fullbasis(self, return_ao=True, only_rdm1=False, only_rdm2=False, retur
             rdm2_ao = numpy.einsum('xi,ijkl,px,qj,rk,sl->pqrs',
                                    Pc_, rdm2s, fobjs.TA, fobjs.TA,
                                    fobjs.TA, fobjs.TA, optimize=True)
-            #if return_lo:
-            #    CloT_S = self.W.T @ self.S
-            #    rdm2_lo = numpy.einsum("ijkl,pi,qj,rk,sl->pqrs",
-            #                           rdm2_ao, CloT_S, CloT_S,
-            #                           CloT_S, CloT_S, optimize=True)
-            #    rdm2lo += rdm2_lo
             rdm2AO += rdm2_ao
 
     if not only_rdm1:        
-        rdm2AO = (rdm2AO + rdm2AO.transpose(1,0,3,2))/2
+        rdm2AO = (rdm2AO + rdm2AO.T)/2.
         if return_RDM2:
             nc_AO = numpy.einsum('ij,kl->ijkl', rdm1AO, rdm1AO, dtype=numpy.float64, optimize=True) - \
                 numpy.einsum('ij,kl->iklj', rdm1AO, rdm1AO, dtype=numpy.float64, optimize=True)*0.5
@@ -124,12 +112,6 @@ def get_rdm(self, approx_cumulant=False, use_full_rdm=False, return_ao=True):
     print('Eh1 LO ', Eh1_lo)
     if not approx_cumulant:
 
-        #for fobjs in self.Fobjs:
-        #    drdm1 = fobjs.__rdm1.copy()
-        #    drdm1[numpy.diag_indices(fobjs.nsocc)] -= 2.
-        #    dm_nc = numpy.einsum('ij,kl->ijkl', drdm1, drdm1, dtype=numpy.float64, optimize=True) - \
-        #        0.5*numpy.einsum('ij,kl->iklj', drdm1, drdm1, dtype=numpy.float64,optimize=True)
-        #    fobjs.__rdm2 -= dm_nc
         Kumul_T = self.rdm1_fullbasis(only_rdm2=True)
         if use_full_rdm:
             RDM2_full =  numpy.einsum('ij,kl->ijkl', rdm1f, rdm1f, dtype=numpy.float64, optimize=True) - \

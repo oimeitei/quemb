@@ -7,7 +7,7 @@ class fragpart:
 
     def __init__(self, natom=0, dim=1, frag_type='hchain_simple',
                  unitcell=1,auxcell=None,
-                 nx=False, ny=False, nz=False,closed=False,
+                 closed=False,
                  kpt = None, molecule=True,valence_basis=None,valence_only=False,
                  be_type='be2', mol=None, frozen_core=False, self_match=False, allcen=False):
         """Constructor for fragpart, which forms fragments from a given chemical system

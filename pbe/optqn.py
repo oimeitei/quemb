@@ -3,15 +3,12 @@
 # to pbe.optimize().
 '''
 This file is part of frankenstein at
-Source: https://github.com/hongzhouye/frankenstein
+Source: https://github.com/hongzhouye/frankenstein (private repo)
 The code has been slightly adapted.
 
 '''
 
 import numpy,sys, h5py
-
-
-
 
 # opt quasi newton
 
@@ -80,8 +77,6 @@ def line_search_LF(func, xold, fold, dx, iter_, save_debug=False,
 
 def opt_QN(self):
 
-
-
     J0 = self.get_be_error_jacobian(solver)
 
 
@@ -134,9 +129,7 @@ class FrankQN:
         if self.iter_ == 0:            
             self.xnew = self.x0
             
-            self.fnew = self.func(self.xnew) if self.f0 is None else self.f0
-
-            
+            self.fnew = self.func(self.xnew) if self.f0 is None else self.f0            
             #self.fnew =  self.fnew*0.1
             self.fs[0] = self.fnew.copy()
             self.us[0] = numpy.dot(self.B0, self.fnew)
@@ -181,8 +174,6 @@ class FrankQN:
         self.fs[self.iter_+1] = self.fnew.copy()
 
         self.iter_ += 1
-        
-
 
     def get_Bnfn(self, n):
 

@@ -1,17 +1,13 @@
 import pickle
 
-
-
 # pickle
 
 class storePBE:
 
-
     def __init__(self, Nocc, hf_veff, hcore,
                  S, C, hf_dm, hf_etot, W, lmo_coeff,
                  enuc, ek):
-
-
+        
         self.Nocc = Nocc
         self.hf_veff = hf_veff
         self.hcore = hcore

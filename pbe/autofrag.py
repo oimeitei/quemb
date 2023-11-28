@@ -89,10 +89,6 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
     
     coord = cell.atom_coords()
     ang2bohr = 1.88973
-    
-
-                
-    ang2bohr = 1.88973
     normdist = 3.5 * ang2bohr
     bond = 1.8 * ang2bohr
     hbond = 1.2 * ang2bohr
@@ -127,9 +123,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
         flist = []
 
                             
-        flist.append(idx)
-        #cen.append(idx) #!
-                                    
+        flist.append(idx)                                    
         for jdx in clist:                  
             dist = numpy.linalg.norm(coord[idx] - coord[jdx])                  
             if dist <= bond:
@@ -171,20 +165,11 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
                 del cen[pidx]
                 del Frag[pidx]
                 del pedge[pidx]
-        else:
-            
+        else:            
             Frag.append(flist)
-            #edge.append(edg)
             pedge.append(pedg)
             cen.append(idx)
 
-
-
-
-                                              
-        #Frag.append(flist)
-        ##edge.append(edg)
-        #pedge.append(pedg)
 
     hlist = [[] for i in coord]
     for idx, i in enumerate(normlist):
@@ -337,8 +322,6 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
 
         
         ftmp.extend(frglist)
-
-        #ls = len(sites__[cen[idx]])+len(hsites[cen[idx]])
         if not pao:
             ls_ = len(sites__[cen[idx]])+len(hsites[cen[idx]])
             centerf_idx.append([pq for pq in range(indix,indix+ls_)]) 
@@ -356,8 +339,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
                 if jdx == open_frag_cen[open_frag.index(idx)]:
                     continue
                 if jdx in open_frag_cen:
-                    continue
-            
+                    continue            
             edg.append(jdx)
             frglist = sites__[jdx].copy()            
             frglist.extend(hsites[jdx])
@@ -430,10 +412,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
                             jdx_continue = True
                             break
 
-            if jdx_continue: continue
-
-
-        
+            if jdx_continue: continue        
             if not pao:
                 cntlist = sites__[cen[j]].copy()
                 cntlist.extend(hsites[cen[j]])
