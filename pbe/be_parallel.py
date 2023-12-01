@@ -134,7 +134,7 @@ def run_solver(h1, dm0, dname, nao, nocc,
                        numpy.einsum('ij,kl->iklj',del_rdm1, hf_dm))*0.5
                 rdm2s -= nc
     if return_rdm_ao:
-        return(mf._mo_coeff, rdm1, rdm2s, rdm1_tmp)
+        return(mf_.mo_coeff, rdm1, rdm2s, rdm1_tmp)
     
     return (mf_.mo_coeff, rdm1, rdm2s)
     
