@@ -86,7 +86,7 @@ def be2fcidump(be_obj, fcidump_prefix, basis):
     from pyscf.tools import fcidump
     import h5py
 
-    for fidx, frag in enumerate(be_obj.Frags):
+    for fidx, frag in enumerate(be_obj.Fobjs):
         # Read in eri
         read = h5py.File(frag.eri_file, 'r')
         eri = read[frag.dname][()] # 2e in embedding basis
