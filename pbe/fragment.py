@@ -5,7 +5,7 @@ from .autofrag import autogen
 
 class fragpart:
 
-    def __init__(self, natom=0, dim=1, frag_type='hchain_simple',
+    def __init__(self, natom=0, dim=1, frag_type='autogen',
                  unitcell=1,auxcell=None,
                  closed=False,
                  kpt = None, molecule=True,valence_basis=None,valence_only=False,
@@ -64,16 +64,9 @@ class fragpart:
                       flush=True)
                 print('exiting',flush=True)
                 sys.exit()
-            if not molecule:
-                if kpt is None:
-                    print('Provide kpt mesh in fragpart() and restart!',
-                          flush=True)
-                    print('exiting',flush=True)
-                    sys.exit()
                     
             fgs = autogen(mol, kpt, be_type=be_type, frozen_core=frozen_core,
                           valence_basis=valence_basis, unitcell=unitcell, valence_only=valence_only,
-                          nx=nx, ny=ny, nz=nz,#auxcell=auxcell,
                           molecule=molecule)
             self.fsites, self.edge, self.center, self.edge_idx, self.center_idx, self.centerf_idx, self.ebe_weight = fgs
                 

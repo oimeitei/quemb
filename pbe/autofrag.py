@@ -40,7 +40,7 @@ def nearestof2coord(coord1, coord2 , bond=3.401514):
     return(lunit_, runit_)
 
 
-def sidefunc(cell, Idx, unit1, unit2, main_list, sub_list, coord, be_type, bond=3.401514):
+def sidefunc(cell, Idx, unit1, unit2, main_list, sub_list, coord, be_type, bond=3.401514, hchain=False):
 
     main_list.extend(unit2[numpy.where(unit1==Idx)[0]])
     sub_list.extend(unit2[numpy.where(unit1==Idx)[0]])
@@ -50,7 +50,7 @@ def sidefunc(cell, Idx, unit1, unit2, main_list, sub_list, coord, be_type, bond=
     if be_type == 'be3' or be_type == 'be4':
         for lmin1 in unit2[numpy.where(unit1==Idx)[0]]:
             for jdx, j in enumerate(coord):
-                if not jdx in unit1 and not jdx in unit2 and not cell.atom_pure_symbol(jdx) == 'H':
+                if not jdx in unit1 and not jdx in unit2 and (not cell.atom_pure_symbol(jdx) == 'H' or hchain):
                     dist = numpy.linalg.norm(coord[lmin1] - j)
                     if dist <= bond:
                         main_list.append(jdx)
@@ -60,7 +60,7 @@ def sidefunc(cell, Idx, unit1, unit2, main_list, sub_list, coord, be_type, bond=
                             for kdx, k in enumerate(coord):
                                 if kdx == jdx:
                                     continue
-                                if not kdx in unit1 and not kdx in unit2 and not cell.atom_pure_symbol(kdx) == 'H':
+                                if not kdx in unit1 and not kdx in unit2 and (not cell.atom_pure_symbol(kdx) == 'H' or hchain):
                                     dist = numpy.linalg.norm(coord[jdx] - k)
                                     if dist <= bond:
                                         main_list.append(kdx)
@@ -100,12 +100,18 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
     pedge = []
     cen = []
 
+    hchain = True
+    for i in range(cell.natm):
+        if not cell.atom_pure_symbol(i) == 'H':
+            hchain = False
+            break
+
     open_frag = []
     open_frag_cen = []
     
     # Assumes that there can be only 5 member connected system        
     for idx, i in enumerate(normlist):
-        if cell.atom_pure_symbol(idx) == 'H':
+        if cell.atom_pure_symbol(idx) == 'H' and not hchain:
             continue
         
         tmplist = normlist - i
@@ -114,81 +120,85 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
         clist = []
         cout = 0
         for jdx,j in enumerate(tmplist):
-            if not idx==jdx and not cell.atom_pure_symbol(jdx) == 'H':
+            if not idx==jdx and (not cell.atom_pure_symbol(jdx) == 'H' or hchain):
                 if abs(j)< normdist:                  
                     clist.append(jdx)
         
         #edg = []
         pedg = []
         flist = []
+        
+        flist.append(idx)
 
-                            
-        flist.append(idx)                                    
-        for jdx in clist:                  
-            dist = numpy.linalg.norm(coord[idx] - coord[jdx])                  
-            if dist <= bond:
-                  flist.append(jdx)
-                  pedg.append(jdx)
-                  if be_type=='be3' or be_type == 'be4':
-                             
-                      for kdx in clist:
-                          if not kdx == jdx:
-                              dist = numpy.linalg.norm(coord[jdx] - coord[kdx])
-                              if dist <= bond:
-                                  if not kdx in pedg:
-                                      flist.append(kdx)
-                                      pedg.append(kdx)
-                                  if be_type=='be4':                                            
-                                              
-                                      for ldx, l in enumerate(coord):
-                                          if ldx==kdx or ldx==jdx or cell.atom_pure_symbol(ldx) == 'H'or ldx in pedg:
-                                              continue
-                                          dist = numpy.linalg.norm(coord[kdx] - l)
-                                          if dist <= bond:
-                                              flist.append(ldx)
-                                              pedg.append(ldx)
-                                              
-
-
-        for pidx, frag_ in enumerate(Frag):
-            if set(flist).issubset(frag_):
-
-                open_frag.append(pidx)
-                open_frag_cen.append(idx)
-                break
-            elif set(frag_).issubset(flist):
-
-                open_frag = [ oidx-1 if oidx > pidx else oidx for oidx in open_frag]
-
-                open_frag.append(len(Frag)-1)
-                open_frag_cen.append(cen[pidx])
-                del cen[pidx]
-                del Frag[pidx]
-                del pedge[pidx]
-        else:            
+        if not be_type == 'be1':
+            for jdx in clist:                  
+                dist = numpy.linalg.norm(coord[idx] - coord[jdx])                  
+                if dist <= bond:
+                      flist.append(jdx)
+                      pedg.append(jdx)
+                      if be_type=='be3' or be_type == 'be4':
+                                 
+                          for kdx in clist:
+                              if not kdx == jdx:
+                                  dist = numpy.linalg.norm(coord[jdx] - coord[kdx])
+                                  if dist <= bond:
+                                      if not kdx in pedg:
+                                          flist.append(kdx)
+                                          pedg.append(kdx)
+                                      if be_type=='be4':                                            
+                                                  
+                                          for ldx, l in enumerate(coord):
+                                              if ldx==kdx or ldx==jdx or (cell.atom_pure_symbol(ldx) == 'H' and not hchain) or ldx in pedg:
+                                                  continue
+                                              dist = numpy.linalg.norm(coord[kdx] - l)
+                                              if dist <= bond:
+                                                  flist.append(ldx)
+                                                  pedg.append(ldx)
+                                                  
+            
+            
+            for pidx, frag_ in enumerate(Frag):
+                if set(flist).issubset(frag_):
+            
+                    open_frag.append(pidx)
+                    open_frag_cen.append(idx)
+                    break
+                elif set(frag_).issubset(flist):
+            
+                    open_frag = [ oidx-1 if oidx > pidx else oidx for oidx in open_frag]
+            
+                    open_frag.append(len(Frag)-1)
+                    open_frag_cen.append(cen[pidx])
+                    del cen[pidx]
+                    del Frag[pidx]
+                    del pedge[pidx]
+            else:            
+                Frag.append(flist)
+                pedge.append(pedg)
+                cen.append(idx)
+        else:
             Frag.append(flist)
-            pedge.append(pedg)
             cen.append(idx)
 
-
     hlist = [[] for i in coord]
-    for idx, i in enumerate(normlist):
-        if cell.atom_pure_symbol(idx) == 'H':
-            
-            tmplist = normlist - i
-            tmplist = list(tmplist)
-            
-            clist = []
-            for jdx,j in enumerate(tmplist):
-                if not idx==jdx and not cell.atom_pure_symbol(jdx) == 'H':
-                    if abs(j)< normdist:
-                        clist.append(jdx)
-            
-            for jdx in clist:
+    if not hchain:
+        for idx, i in enumerate(normlist):
+            if cell.atom_pure_symbol(idx) == 'H':
                 
-                dist = numpy.linalg.norm(coord[idx] - coord[jdx])
-                if dist <= hbond:
-                    hlist[jdx].append(idx)
+                tmplist = normlist - i
+                tmplist = list(tmplist)
+                
+                clist = []
+                for jdx,j in enumerate(tmplist):
+                    if not idx==jdx and not cell.atom_pure_symbol(jdx) == 'H':
+                        if abs(j)< normdist:
+                            clist.append(jdx)
+                
+                for jdx in clist:
+                    
+                    dist = numpy.linalg.norm(coord[idx] - coord[jdx])
+                    if dist <= hbond:
+                        hlist[jdx].append(idx)
     if print_frags:
         print(flush=True)
         print('Fragment sites',flush=True)
@@ -252,8 +262,20 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
     coreshift = 0
     hshift = [0 for i in coord]
     
-    for adx in range(cell.natm):        
-        if not cell.atom_pure_symbol(adx) == 'H':
+    for adx in range(cell.natm):
+
+        if hchain:            
+            bas = baslist[adx]            
+            start_ = bas[2]
+            stop_ = bas[3]
+            if pao:
+                bas2 = bas2list[adx]
+                nbas2[adx] += bas2[3] - bas2[2]
+            b1list = [i for i in range(start_, stop_)]
+            sites__[adx] = b1list
+            continue
+        
+        if not cell.atom_pure_symbol(adx) == 'H' and not hchain:
             bas = baslist[adx]            
             start_ = bas[2]
             stop_ = bas[3]
@@ -272,13 +294,11 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
             sites__[adx] = b1list
         else:
             hshift[adx] = coreshift
-            
+    
     hsites = [[] for i in coord]
     nbas2H = [0 for i in coord]
     for hdx, h in enumerate(hlist):
-
         for hidx in h:
-
             basH = baslist[hidx]
             startH = basH[2]
             stopH = basH[3]
@@ -331,39 +351,39 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
             ind__ = [ indix+frglist.index(pq) for pq in cntlist] 
             centerf_idx.append(ind__)
         indix += ls
-        
-        for jdx in pedge[idx]:
 
-            if idx in open_frag:
-
-                if jdx == open_frag_cen[open_frag.index(idx)]:
-                    continue
-                if jdx in open_frag_cen:
-                    continue            
-            edg.append(jdx)
-            frglist = sites__[jdx].copy()            
-            frglist.extend(hsites[jdx])
+        if not be_type=='be1':
+            for jdx in pedge[idx]:
             
-            ftmp.extend(frglist)
-            ls = len(sites__[jdx]) + len(hsites[jdx])
-            if not pao:
-                edglist = sites__[jdx].copy()
-                edglist.extend(hsites[jdx])
-                ftmpe.append(edglist)
-                edind.append([pq for pq in range(indix,indix+ls)])
-            else:
-                edglist = sites__[jdx][:nbas2[jdx]].copy()
-                edglist.extend(hsites[jdx][:nbas2H[jdx]])
-                                
-                ftmpe.append(edglist)
-                ind__ = [ indix+frglist.index(pq) for pq in edglist]                
-                edind.append(ind__) 
-            indix += ls                  
-        edge.append(edg)
+                if idx in open_frag:
+            
+                    if jdx == open_frag_cen[open_frag.index(idx)]:
+                        continue
+                    if jdx in open_frag_cen:
+                        continue            
+                edg.append(jdx)
+                frglist = sites__[jdx].copy()            
+                frglist.extend(hsites[jdx])
+                
+                ftmp.extend(frglist)
+                ls = len(sites__[jdx]) + len(hsites[jdx])
+                if not pao:
+                    edglist = sites__[jdx].copy()
+                    edglist.extend(hsites[jdx])
+                    ftmpe.append(edglist)
+                    edind.append([pq for pq in range(indix,indix+ls)])
+                else:
+                    edglist = sites__[jdx][:nbas2[jdx]].copy()
+                    edglist.extend(hsites[jdx][:nbas2H[jdx]])
+                                    
+                    ftmpe.append(edglist)
+                    ind__ = [ indix+frglist.index(pq) for pq in edglist]                
+                    edind.append(ind__) 
+                indix += ls                  
+            edge.append(edg)
+            edgsites.append(ftmpe)
+            edge_idx.append(edind)
         fsites.append(ftmp)
-        edgsites.append(ftmpe)
-        edge_idx.append(edind)
-        
     center = []
     for ix in edge:
         cen_ = []
@@ -377,8 +397,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
                 sys.exit()
         center.append(cen_)
     
-    Nfrag = len(fsites)
-    
+    Nfrag = len(fsites)    
     ebe_weight=[]
     
     for ix, i in enumerate(fsites):
@@ -393,37 +412,38 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
         ebe_weight.append([1.0, tmp_])
     
     center_idx = []
-    for i in range(Nfrag):
-        idx = []
-        for jdx,j in enumerate(center[i]):
-            jdx_continue = False
-            if j in open_frag:
-                for kdx, k in enumerate(open_frag):
-                    if j == k:
-                        if edge[i][jdx] == open_frag_cen[kdx]:
-                            if not pao:
-                                cntlist = sites__[open_frag_cen[kdx]].copy()
-                                cntlist.extend(hsites[open_frag_cen[kdx]])
-                                idx.append([fsites[j].index(k) for k in cntlist])
-                            else:
-                                cntlist = sites__[open_frag_cen[kdx]].copy()[:nbas2[cen[j]]]
-                                cntlist.extend(hsites[open_frag_cen[kdx]][:nbas2H[cen[j]]])
-                                idx.append([fsites[j].index(k) for k in cntlist])
-                            jdx_continue = True
-                            break
-
-            if jdx_continue: continue        
-            if not pao:
-                cntlist = sites__[cen[j]].copy()
-                cntlist.extend(hsites[cen[j]])
-                idx.append([fsites[j].index(k) for k in cntlist])
-            else:
-                cntlist = sites__[cen[j]].copy()[:nbas2[cen[j]]]
-                cntlist.extend(hsites[cen[j]][:nbas2H[cen[j]]])
-                idx.append([fsites[j].index(k) for k in cntlist])
-            
-        center_idx.append(idx)
+    if not be_type=='be1':
+        for i in range(Nfrag):
+            idx = []
+            for jdx,j in enumerate(center[i]):
+                jdx_continue = False
+                if j in open_frag:
+                    for kdx, k in enumerate(open_frag):
+                        if j == k:
+                            if edge[i][jdx] == open_frag_cen[kdx]:
+                                if not pao:
+                                    cntlist = sites__[open_frag_cen[kdx]].copy()
+                                    cntlist.extend(hsites[open_frag_cen[kdx]])
+                                    idx.append([fsites[j].index(k) for k in cntlist])
+                                else:
+                                    cntlist = sites__[open_frag_cen[kdx]].copy()[:nbas2[cen[j]]]
+                                    cntlist.extend(hsites[open_frag_cen[kdx]][:nbas2H[cen[j]]])
+                                    idx.append([fsites[j].index(k) for k in cntlist])
+                                jdx_continue = True
+                                break
         
+                if jdx_continue: continue        
+                if not pao:
+                    cntlist = sites__[cen[j]].copy()
+                    cntlist.extend(hsites[cen[j]])
+                    idx.append([fsites[j].index(k) for k in cntlist])
+                else:
+                    cntlist = sites__[cen[j]].copy()[:nbas2[cen[j]]]
+                    cntlist.extend(hsites[cen[j]][:nbas2H[cen[j]]])
+                    idx.append([fsites[j].index(k) for k in cntlist])
+                
+            center_idx.append(idx)
+
     return(fsites, edgsites, center, edge_idx, center_idx, centerf_idx, ebe_weight)
 
 

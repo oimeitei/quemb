@@ -95,6 +95,7 @@ class pbe:
         self.unitcell_nkpt = unitcell_nkpt
                     
         self.ebe_hf = 0.
+        self.ebe_tot = 0.
         self.super_cell = super_cell
         
         self.kpoint = kpoint         
@@ -215,7 +216,7 @@ class pbe:
                 
         print(flush=True)
         print('            MOLECULAR BOOTSTRAP EMBEDDING',flush=True)            
-        print('           BEn = ',self.be_type,flush=True)
+        print('            BEn = ',self.be_type,flush=True)
         print('-----------------------------------------------------------',
                   flush=True)
         print(flush=True)
@@ -255,8 +256,8 @@ class pbe:
                 
             if not restart:
                 eri = ao2mo.incore.full(eri_, fobjs_.TA, compact=True)                    
-                if fobjs_.dname in eri:
-                    del(file_eri[fobjs_.dname])
+                #if fobjs_.dname in eri:
+                #    del(file_eri[fobjs_.dname])
                 
                 file_eri.create_dataset(fobjs_.dname, data=eri)
             else:
@@ -313,7 +314,6 @@ class pbe:
 
         if nproc == 1:
             E = be_func(None, self.Fobjs, self.Nocc, solver, self.enuc,
-                        ek = self.ek, kp=self.nkpt,
                         hci_cutoff=self.hci_cutoff,
                         ci_coeff_cutoff = self.ci_coeff_cutoff,
                         select_cutoff = self.select_cutoff,
@@ -321,14 +321,12 @@ class pbe:
                         ereturn=True, eeval=True)
         else:
             E = be_func_parallel(None, self.Fobjs, self.Nocc, solver, self.enuc,
-                                 ek = self.ek, kp=self.nkpt,
                                  hci_cutoff=self.hci_cutoff,
                                  ci_coeff_cutoff = self.ci_coeff_cutoff,
                                  select_cutoff = self.select_cutoff,
                                  ereturn=True, eeval=True,
                                  nproc=nproc, ompnum=ompnum)
 
-        print(flush=True)
         print('-----------------------------------------------------',
                   flush=True)
         print('             One Shot BE ', flush=True)
@@ -337,13 +335,10 @@ class pbe:
                   flush=True)
         print(flush=True)
 
-        print('BE energy per unit cell        : {:>12.8f} Ha'.format(E+self.E_core),
-              flush=True)
-        print('BE Ecorr  per unit cell        : {:>12.8f} Ha'.format(E+self.E_core-self.ebe_hf),
-              flush=True)
-        print(flush=True)
-        print('-----------------------------------------------------',
-                  flush=True)
+            
+        self.get_rdm(approx_cumulant=True, return_rdm=False)
+
+
 
     def update_fock(self, heff=None):
 

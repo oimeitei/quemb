@@ -12,8 +12,8 @@ mol, mf = libint2pyscf("h6.xyz", "hcore.dat", "sto-3g", hcore_skiprows=1)
 mf.kernel()
 
 # Construct fragments for BE
-fobj = fragpart(mol.natm, be_type='be2', frag_type='hchain_simple', mol=mol, molecule=True, frozen_core=False)
-hchain_be = pbe(mf, fobj, lo_method='lowdin', iao_val_core=False)
+fobj = fragpart(be_type='be2', mol=mol)
+hchain_be = pbe(mf, fobj)
 
 # Write out fcidump file for each fragment
 be2fcidump(hchain_be, "hchain", "fragment_mo")

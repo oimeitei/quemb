@@ -31,8 +31,8 @@ def get_scfObj(h1, Eri, nocc, dm0=None, enuc=0.):
     mol = gto.M()
 
     mol.nelectron = nocc * 2
-    mol.nao_nr = lambda *args : nao
-    mol.energy_nuc = lambda *args : enuc
+    #mol.nao_nr = lambda *args : nao
+    #mol.energy_nuc = lambda *args : enuc
     mol.incore_anyway = True
     
     

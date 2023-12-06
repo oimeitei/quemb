@@ -1,6 +1,6 @@
 import numpy, sys, scipy
 
-def rdm1_fullbasis(self, return_ao=True, only_rdm1=False, only_rdm2=False, return_lo=False, return_RDM2=True):
+def rdm1_fullbasis(self, return_ao=True, only_rdm1=False, only_rdm2=False, return_lo=False, return_RDM2=True, print_energy=False):
     from pyscf import scf, ao2mo
     
     C_mo = self.C.copy()
@@ -61,7 +61,7 @@ def rdm1_fullbasis(self, return_ao=True, only_rdm1=False, only_rdm2=False, retur
         if not return_ao: rdm1MO = self.C.T @ self.S @ rdm1AO @ self.S @ self.C
         if return_lo: rdm1LO = self.W.T @ self.S @ rdm1AO @ self.S @ self.W
 
-    if return_RDM2:
+    if return_RDM2 and print_energy:
         Eh1 = numpy.einsum('ij,ij', self.hcore, rdm1AO, optimize=True)
         eri = ao2mo.restore(1,self.mf._eri, self.mf.mo_coeff.shape[1])
         E2 = 0.5*numpy.einsum('pqrs,pqrs', eri,rdm2AO, optimize=True)
@@ -100,24 +100,25 @@ def rdm1_fullbasis(self, return_ao=True, only_rdm1=False, only_rdm2=False, retur
     if return_ao: return rdm1AO, rdm2AO
     if not return_ao: return rdm1MO, rdm2MO
 
-def get_rdm(self, approx_cumulant=False, use_full_rdm=False, return_ao=True):
+def get_rdm(self, approx_cumulant=False, use_full_rdm=False, return_rdm=True):
     from pyscf import scf, ao2mo
     
             
     rdm1f, Kumul, rdm1_lo, rdm2_lo = self.rdm1_fullbasis(return_lo=True, return_RDM2=False)
+    if not approx_cumulant:
+        Kumul_T = self.rdm1_fullbasis(only_rdm2=True)
 
     
-    hcore_lo = self.W.T @ self.hcore @ self.W
-    Eh1_lo = numpy.einsum('ij,ij', hcore_lo, rdm1_lo, optimize=True)
-    print('Eh1 LO ', Eh1_lo)
-    if not approx_cumulant:
-
-        Kumul_T = self.rdm1_fullbasis(only_rdm2=True)
-        if use_full_rdm:
-            RDM2_full =  numpy.einsum('ij,kl->ijkl', rdm1f, rdm1f, dtype=numpy.float64, optimize=True) - \
-                numpy.einsum('ij,kl->iklj', rdm1f, rdm1f, dtype=numpy.float64, optimize=True)*0.5
+    if return_rdm:    
+        RDM2_full =  numpy.einsum('ij,kl->ijkl', rdm1f, rdm1f, dtype=numpy.float64, optimize=True) - \
+            numpy.einsum('ij,kl->iklj', rdm1f, rdm1f, dtype=numpy.float64, optimize=True)*0.5
+            
+        if not approx_cumulant:
             RDM2_full += Kumul_T
-
+        else:
+            RDM2_full += Kumul
+        
+        
     del_gamma = rdm1f - self.hf_dm        
     veff = scf.hf.get_veff(self.mol, rdm1f, hermi=0)
     Eh1 = numpy.einsum('ij,ij', self.hcore, rdm1f, optimize=True)
@@ -128,14 +129,18 @@ def get_rdm(self, approx_cumulant=False, use_full_rdm=False, return_ao=True):
     
     eri = ao2mo.restore(1,self.mf._eri, self.mf.mo_coeff.shape[1])
     EKumul = numpy.einsum('pqrs,pqrs', eri,Kumul, optimize=True)
-    EKumul_T = numpy.einsum('pqrs,pqrs', eri,Kumul_T, optimize=True)
-    if use_full_rdm:
+
+    if not approx_cumulant:
+        EKumul_T = numpy.einsum('pqrs,pqrs', eri,Kumul_T, optimize=True)
+    if use_full_rdm and return_rdm:
         E2 = numpy.einsum('pqrs,pqrs', eri,RDM2_full, optimize=True)
         
     EKapprox = self.ebe_hf + Eh1_dg + Eveff_dg + EKumul/2. 
-    EKtrue = Eh1 + EVeff/2. + EKumul_T/2. + self.enuc + self.E_core
+    self.ebe_tot = EKapprox
+    if not approx_cumulant:
+        EKtrue = Eh1 + EVeff/2. + EKumul_T/2. + self.enuc + self.E_core
+        self.ebe_tot = EKtrue
     
-    print(flush=True)    
     print('-----------------------------------------------------',
           flush=True)
     print(' BE ENERGIES with cumulant-based expression', flush=True)
@@ -143,35 +148,29 @@ def get_rdm(self, approx_cumulant=False, use_full_rdm=False, return_ao=True):
     print('-----------------------------------------------------',
           flush=True)
     print(' E_BE = E_HF + Tr(F del g) + Tr(V K_approx)', flush=True)
-    print(' E_HF            : {:>12.8f} Ha'.format(self.ebe_hf), flush=True)
-    print(' Tr(F del g)     : {:>12.8f} Ha'.format(Eh1_dg+Eveff_dg), flush=True)
-    print(' Tr(V K_aprrox)  : {:>12.8f} Ha'.format(EKumul/2.), flush=True)
-    print(' E_BE            : {:>12.8f} Ha'.format(EKapprox), flush=True)
-    print(' Ecorr BE        : {:>12.8f} Ha'.format(EKapprox-self.ebe_hf), flush=True)
-    print(flush=True)
-    print(' E_BE = Tr(F[g] g) + Tr(V K_true)', flush=True)
-    print(' Tr(h1 g)        : {:>12.8f} Ha'.format(Eh1), flush=True)
-    print(' Tr(Veff[g] g)   : {:>12.8f} Ha'.format(EVeff/2.), flush=True)
-    print(' Tr(V K_true)    : {:>12.8f} Ha'.format(EKumul_T/2.), flush=True)
-    print(' E_BE            : {:>12.8f} Ha'.format(EKtrue), flush=True)
-    if use_full_rdm:
-        
-        print(' E(g+G)          : {:>12.8f} Ha'.format(Eh1 + 0.5*E2 + self.E_core + self.enuc),
-                           flush=True)
-    print(' Ecorr BE        : {:>12.8f} Ha'.format(EKtrue-self.ebe_hf), flush=True)
-    print(flush=True)
-    print(' True - approx   : {:>12.4e} Ha'.format(EKtrue-EKapprox))
+    print(' E_HF            : {:>14.8f} Ha'.format(self.ebe_hf), flush=True)
+    print(' Tr(F del g)     : {:>14.8f} Ha'.format(Eh1_dg+Eveff_dg), flush=True)
+    print(' Tr(V K_aprrox)  : {:>14.8f} Ha'.format(EKumul/2.), flush=True)
+    print(' E_BE            : {:>14.8f} Ha'.format(EKapprox), flush=True)
+    print(' Ecorr BE        : {:>14.8f} Ha'.format(EKapprox-self.ebe_hf), flush=True)
+    
+    if not approx_cumulant:
+        print(flush=True)
+        print(' E_BE = Tr(F[g] g) + Tr(V K_true)', flush=True)
+        print(' Tr(h1 g)        : {:>14.8f} Ha'.format(Eh1), flush=True)
+        print(' Tr(Veff[g] g)   : {:>14.8f} Ha'.format(EVeff/2.), flush=True)
+        print(' Tr(V K_true)    : {:>14.8f} Ha'.format(EKumul_T/2.), flush=True)
+        print(' E_BE            : {:>14.8f} Ha'.format(EKtrue), flush=True)
+        if use_full_rdm and return_rdm:            
+            print(' E(g+G)          : {:>14.8f} Ha'.format(Eh1 + 0.5*E2 + self.E_core + self.enuc),
+                               flush=True)
+        print(' Ecorr BE        : {:>14.8f} Ha'.format(EKtrue-self.ebe_hf), flush=True)
+        print(flush=True)
+        print(' True - approx   : {:>14.4e} Ha'.format(EKtrue-EKapprox))
     print('-----------------------------------------------------',
           flush=True)
     
     print(flush=True)
-
-    if return_ao: return(rdm1f, RDM2_full)
-    rdm1f, Kumul = self.rdm1_fullbasis(return_ao =False)    
-    Kumul_T = self.rdm1_fullbasis(only_rdm2=True, return_ao=False)
     
-    RDM2_full =  numpy.einsum('ij,kl->ijkl', rdm1f, rdm1f, optimize=True) - \
-        numpy.einsum('ij,kl->iklj', rdm1f, rdm1f, optimize=True)*0.5
-    RDM2_full += Kumul_T
+    if return_rdm: return(rdm1f, RDM2_full)
     
-    return(rdm1f, RDM2_full)

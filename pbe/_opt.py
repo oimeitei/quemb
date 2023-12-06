@@ -104,11 +104,13 @@ class BEOPT:
     def optimize(self, method, J0 = None, restore_debug=False, save_debug=False,
                  save_fname=None, restore_ = None, file_opt=None):
         from .optqn import FrankQN
-        print(flush=True)
+        
         print('-----------------------------------------------------',
                   flush=True)
         print('             Starting BE optimization ', flush=True)
         print('             Solver : ',self.solver,flush=True)
+        if self.only_chem:
+            print('             Chemical Potential Optimization', flush=True)
         print('-----------------------------------------------------',
                   flush=True)
         print(flush=True)
@@ -163,15 +165,15 @@ class BEOPT:
                 if self.err < self.conv_tol:
                     print(flush=True)
                     print('CONVERGED',flush=True)
-                    print('-----------------------------------------------------',
-                          flush=True)
+                    #print('-----------------------------------------------------',
+                    #      flush=True)
                     print(flush=True)
                     break
             
             
             
 
-def optimize(self, solver='MP2',method='bfgs',restore_debug=False, save_debug=False,
+def optimize(self, solver='MP2',method='QN',restore_debug=False, save_debug=False,
              only_chem=False, conv_tol = 1.e-6,relax_density=False, use_cumulant=True,
              save_fname='save_optqn_h5file.h5', J0=None, nproc=1, ompnum=4, max_iter=500):
     """Perform BE optimization
@@ -198,6 +200,8 @@ def optimize(self, solver='MP2',method='bfgs',restore_debug=False, save_debug=Fa
     
     if not only_chem:
         pot = self.pot
+        if self.be_type=='be1':
+            sys.exit('BE1 only works with chemical potential optimization. Set only_chem=True')
     else:
         pot = [0.]
     
@@ -225,4 +229,5 @@ def optimize(self, solver='MP2',method='bfgs',restore_debug=False, save_debug=Fa
         be_.optimize(method, J0=J0, save_debug=save_debug,restore_debug=restore_debug,
                                 save_fname=save_fname)
 
-        
+        # print energy
+        self.get_rdm(approx_cumulant=True, return_rdm=False)
