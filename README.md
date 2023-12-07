@@ -8,4 +8,10 @@ HZ Ye, HK Tran, T Van Voorhis, Bootstrap embedding for large molecular systems, 
 ## Installation
 Add path/to/pbe to PYTHONPATH 
 
+### Conda
+For conda (or virtual environment) installations, after creating your environment, specify the path to mol-be source as a path file, as in:
+```bash
+echo path/to/pbe > $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/pbe.pth
+```
+
 **Contact** Oinam Meitei oimeitei@mit.edu
