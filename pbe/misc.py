@@ -97,8 +97,8 @@ def be2fcidump(be_obj, fcidump_prefix, basis):
             h2e = eri
         elif basis == 'fragment_mo':
             frag.scf() # make sure that we have mo coefficients
-            h1e = numpy.einsum("ij,ia,jb->ab", frag.fock, frag.mo_coeffs, frag.mo_coeffs)
-            h2e = numpy.einsum("ijkl,ia,jb,kc,ld->abcd", eri, frag.mo_coeffs, frag.mo_coeffs, frag.mo_coeffs, frag.mo_coeffs)
+            h1e = numpy.einsum("ij,ia,jb->ab", frag.fock, frag.mo_coeffs, frag.mo_coeffs, optimize=True)
+            h2e = numpy.einsum("ijkl,ia,jb,kc,ld->abcd", eri, frag.mo_coeffs, frag.mo_coeffs, frag.mo_coeffs, frag.mo_coeffs, optimize=True)
         else: raise Exception("Basis should be either embedding or fragment_mo")
 
         fcidump.from_integrals(fcidump_prefix + 'f' + str(fidx), h1e, h2e, frag.TA.shape[1], frag.nsocc, ms=0)
