@@ -1,7 +1,7 @@
 import numpy, os
 from pyscf import gto, scf
 
-def libint2pyscf(xyzfile, hcore, basis, hcore_skiprows=1):
+def libint2pyscf(xyzfile, hcore, basis, hcore_skiprows=1, use_df=False):
     """Build a pyscf Mole and RHF object using the given xyz file and core Hamiltonian (in libint standard format)
 
     c.f.
@@ -36,6 +36,8 @@ def libint2pyscf(xyzfile, hcore, basis, hcore_skiprows=1):
         Name of the basis set
     hcore_skiprows : int, optional
         # of first rows to skip from the core Hamiltonian file, by default 1
+    use_df : boolean, optional
+        If true, use density-fitting to evaluate the two-electron integrals
 
     Returns
     -------
@@ -63,6 +65,10 @@ def libint2pyscf(xyzfile, hcore, basis, hcore_skiprows=1):
 
     mol.incore_anyway = True
     mf = scf.RHF(mol)
+    if use_df:
+        from pyscf import df
+        mydf = df.DF(mol).build()
+        mf.with_df = mydf
     mf.get_hcore = lambda *args: hcore_pyscf
 
     return mol, mf
