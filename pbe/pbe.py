@@ -77,6 +77,7 @@ class pbe:
             self.core_veff = store_.core_veff
             self.mo_energy = store_.mo_energy
         
+        self.unrestricted = False
         self.self_match = fobj.self_match
         self.frag_type=fobj.frag_type
         self.Nfrag = fobj.Nfrag 
