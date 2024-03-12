@@ -266,22 +266,20 @@ class Frags:
         self.ebe = etmp
         return (e1+e2+ec)
 
-    def energy_hf(self, rdm_hf=None, mo_coeffs = None, eri=None, return_e1=False):
+    def energy_hf(self, rdm_hf=None, mo_coeffs = None, eri=None, return_e1=False, unrestricted = False):
         if mo_coeffs is None:
             mo_coeffs = self._mo_coeffs
 
         if rdm_hf is None:
             rdm_hf = numpy.dot(mo_coeffs[:,:self.nsocc],
                                mo_coeffs[:,:self.nsocc].conj().T)
-        
-        
-        e1 = numpy.einsum('ij,ji->', self.h1, rdm_hf)
-        
-        
-        e1 = 2.*numpy.einsum("ij,ij->i", self.h1[:self.nfsites],
+
+        unrestricted = 1. if unrestricted else 2.
+
+        e1 = unrestricted*numpy.einsum("ij,ij->i", self.h1[:self.nfsites],
                              rdm_hf[:self.nfsites])
 
-        ec = numpy.einsum("ij,ij->i",self.veff[:self.nfsites],
+        ec = 0.5 * unrestricted * numpy.einsum("ij,ij->i",self.veff[:self.nfsites],
                           rdm_hf[:self.nfsites])
 
         if self.TA.ndim == 3:
@@ -303,7 +301,7 @@ class Frags:
                         numpy.outer(rdm_hf[i], rdm_hf[j]))[:jmax,:jmax] 
                 Gij[numpy.diag_indices(jmax)] *= 0.5
                 Gij += Gij.T                
-                e2[i] += Gij[numpy.tril_indices(jmax)] @ eri[ij]
+                e2[i] += 0.5 * unrestricted * Gij[numpy.tril_indices(jmax)] @ eri[ij]
 
         e_ = e1+e2+ec        
         etmp = 0.
