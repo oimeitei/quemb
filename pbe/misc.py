@@ -77,12 +77,13 @@ def libint2pyscf(
     hcore_pyscf = hcore_libint[numpy.ix_(libint2pyscf, libint2pyscf)]
 
     mol.incore_anyway = True
-    mf = scf.UHF(mol) if unrestricted else scf.RHF(mol)
     if use_df:
+        mf = scf.UHF(mol).density_fit() if unrestricted else scf.RHF(mol).density_fit()
         from pyscf import df
 
         mydf = df.DF(mol).build()
         mf.with_df = mydf
+    else: mf = scf.UHF(mol) if unrestricted else scf.RHF(mol)
     mf.get_hcore = lambda *args: hcore_pyscf
 
     return mol, mf
@@ -216,3 +217,86 @@ def ube2fcidump(be_obj, fcidump_prefix, basis):
         fcidump.from_integrals(
             fcidump_prefix + "f" + str(fidx) + "b", h1e, h2e, frag.TA.shape[1], frag.nsocc, ms=0
         )
+
+
+def be2puffin(
+    xyzfile,
+    hcore,
+    basis,
+    jk=None,
+    use_df=False,
+    charge=0,
+    nproc=1,
+    ompnum=1,
+    be_type='be1',
+    frozen_core=True,
+):
+    """Front-facing API bridge tailored for SCINE Puffin
+    Returns the CCSD oneshot energies
+
+    Parameters
+    ----------
+    xyzfile : string
+        Path to the xyz file
+    hcore : numpy.array
+        Two-dimensional array of the core Hamiltonian
+    basis : string
+        Name of the basis set
+    jk : numpy.array
+        Coulomb and Exchange matrices (pyscf will calculate this if not given)
+    use_df : boolean, optional
+        If true, use density-fitting to evaluate the two-electron integrals
+    charge : int, optional
+        Total charge of the system
+    nproc : int, optional
+    ompnum: int, optional
+        Set number of processors and ompnum for the jobs
+    frozen_core: bool, optional
+        Whether frozen core approximation is used or not, by default True
+    """
+    from .fragment import fragpart
+    from .pbe import pbe
+
+    # Check input validity
+    assert os.path.exists(xyzfile), "Input xyz file does not exist"
+
+    mol = gto.M(atom=xyzfile, basis=basis, charge=charge)
+
+    libint2pyscf = []
+    for labelidx, label in enumerate(mol.ao_labels()):
+        # pyscf: px py pz // 1 -1 0
+        # libint: py pz px // -1 0 1
+        if "p" not in label.split()[2]:
+            libint2pyscf.append(labelidx)
+        else:
+            if "x" in label.split()[2]:
+                libint2pyscf.append(labelidx + 2)
+            elif "y" in label.split()[2]:
+                libint2pyscf.append(labelidx - 1)
+            elif "z" in label.split()[2]:
+                libint2pyscf.append(labelidx - 1)
+
+    hcore_pyscf = hcore[numpy.ix_(libint2pyscf, libint2pyscf)]
+    if not jk is None:
+        jk_pyscf = (
+            jk[0][numpy.ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)],
+            jk[1][numpy.ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)],
+        )
+
+    mol.incore_anyway = True
+    if use_df and jk is None:
+        mf = scf.RHF(mol).density_fit()
+        from pyscf import df
+        mydf = df.DF(mol).build()
+        mf.with_df = mydf
+    else: mf = scf.RHF(mol)
+    mf.get_hcore = lambda *args: hcore_pyscf
+    if not jk is None: mf.get_jk = lambda *args: jk_pyscf
+
+    mf.kernel()
+    fobj = fragpart(
+        mol.natm, be_type=be_type, frag_type="autogen", mol=mol, molecule=True, frozen_core=frozen_core
+    )
+    mybe = pbe(mf, fobj, lo_method="lowdin")
+    mybe.oneshot(solver="CCSD", nproc=nproc, ompnum=ompnum)
+    return mybe.ebe_tot
