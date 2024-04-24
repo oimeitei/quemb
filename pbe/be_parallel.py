@@ -189,6 +189,7 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc,
     for idx, fobj in enumerate(Fobjs):
         fobj.mo_coeffs = rdms[idx][0]
         fobj._rdm1 = rdms[idx][1]
+        fobj.__rdm2 = rdms[idx][2]
         fobj.__rdm1 = rdms[idx][3]
         Etot += fobj.ebe
 
