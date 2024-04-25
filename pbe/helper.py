@@ -1,4 +1,4 @@
-import numpy, sys
+import numpy, sys, functools, h5py
 from pyscf import ao2mo
 def get_veff(eri_, dm, S, TA, hf_veff):
     import functools
@@ -128,7 +128,6 @@ def get_core(mol):
 
 
 def be_energy(nfsites, h1, mo_coeffs, rdm1, rdm2s, eri_file='eri_file.h5'):
-        
     rdm2s = numpy.einsum("ijkl,pi,qj,rk,sl->pqrs", 0.5*rdm2s,
                          *([mo_coeffs]*4),optimize=True)        
     
@@ -157,12 +156,63 @@ def be_energy(nfsites, h1, mo_coeffs, rdm1, rdm2s, eri_file='eri_file.h5'):
             Gij += Gij.T            
             e2[i] += Gij[numpy.tril_indices(jmax)] @ eri[ij]
 
+
     e_ = e1+e2+ec        
     etmp = 0.
     for i in self.efac[1]:
         etmp += self.efac[0]*e_[i]        
-    
-    self.ebe = etmp
+
+    self.ebe += etmp
     return (e1+e2+ec)
 
     
+
+def get_frag_energy(mo_coeffs, nsocc, efac, TA, h1, hf_veff, rdm1, rdm2s, dname, eri_file='eri_file.h5'):
+    rdm1s_rot = mo_coeffs @ rdm1 @ mo_coeffs.T * 0.5
+
+    hf_1rdm = numpy.dot(mo_coeffs[:,:nsocc],
+                       mo_coeffs[:,:nsocc].conj().T)
+
+    delta_rdm1 = 2 * (rdm1s_rot - hf_1rdm)
+
+    veff0 = functools.reduce(numpy.dot,(TA.T,hf_veff,TA))
+    e1 = numpy.einsum("ij,ij->i",h1[:nsocc], delta_rdm1[:nsocc])
+    ec = numpy.einsum("ij,ij->i",veff0[:nsocc], delta_rdm1[:nsocc])
+
+    if TA.ndim == 3:
+        jmax = TA[0].shape[1]
+    else:
+        jmax = TA.shape[1]
+
+#    if eri is None:
+    r = h5py.File(eri_file,'r')
+#    eri = r[self.dname][()]
+    eri = r[dname][()]
+    r.close()
+
+    rdm2s = numpy.einsum("ijkl,pi,qj,rk,sl->pqrs", 0.5*rdm2s,
+                         *([mo_coeffs]*4),optimize=True)
+
+    e2 = numpy.zeros_like(e1)
+    for i in range(nsocc):
+        for j in range(jmax):
+            ij = i*(i+1)//2+j if i > j else j*(j+1)//2+i
+            Gij = rdm2s[i,j,:jmax,:jmax].copy()            
+            Gij[numpy.diag_indices(jmax)] *= 0.5
+            Gij += Gij.T            
+            e2[i] += Gij[numpy.tril_indices(jmax)] @ eri[ij]
+
+    e_ = e1+e2+ec        
+    etmp = 0.
+    e1_tmp = 0.
+    e2_tmp = 0.
+    ec_tmp = 0.
+
+    for i in efac[1]:
+        etmp += efac[0]*e_[i]
+        e1_tmp += efac[0]*e1[i] 
+        e2_tmp += efac[0]*e2[i] 
+        ec_tmp += efac[0]*ec[i] 
+
+#    print("e1_tmp,e2_tmp,ec_tmp",e1_tmp,e2_tmp,ec_tmp)
+    return [e1_tmp,e2_tmp,ec_tmp]

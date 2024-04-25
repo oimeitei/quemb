@@ -1,5 +1,15 @@
 import numpy, sys, scipy
 
+def compute_energy_wo_fullrdm(self, return_ao, print_energy=True):
+    from pyscf import scf, ao2mo
+
+    if not self.molecule:
+        print(' compute_energy_full() only works for molecules, exiting', flush=True)
+        sys.exit()
+    for fobjs in self.Fobjs:
+        cind = [ fobjs.fsites[i] for i in fobjs.efac[1]]
+
+
 def rdm1_fullbasis(self, return_ao=True, only_rdm1=False, only_rdm2=False, return_lo=False, return_RDM2=True, print_energy=False):
     from pyscf import scf, ao2mo
     
