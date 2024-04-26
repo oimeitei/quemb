@@ -1,14 +1,16 @@
 from .solver import solve_error
 from .solver import solve_mp2, solve_ccsd,make_rdm1_ccsd_t1
 from .solver import make_rdm2_urlx
+from .helper import get_frag_energy
 import functools, numpy, sys
 from .helper import *
 
-def run_solver(h1, dm0, dname, nao, nocc,               
+def run_solver(h1, dm0, dname, nao, nocc,
+               efac, TA, hf_veff, h1_e,
                solver='MP2',eri_file='eri_file.h5',
                hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
                ompnum=4, writeh1=False,
-               eeval=True, return_rdm_ao=True, use_cumulant=True,relax_density=False):
+               eeval=True, return_rdm_ao=True, use_cumulant=True, relax_density=False, frag_energy=False):
     
     eri = get_eri(dname, nao, eri_file=eri_file)    
     mf_ = get_scfObj(h1, eri, nocc, dm0=dm0)
@@ -133,16 +135,23 @@ def run_solver(h1, dm0, dname, nao, nocc,
                        numpy.einsum('ij,kl->iklj',hf_dm, del_rdm1) + \
                        numpy.einsum('ij,kl->iklj',del_rdm1, hf_dm))*0.5
                 rdm2s -= nc
+        if frag_energy:
+            # I am NOT returning any RDM's here, just the energies! 
+            # We could return both, but I haven't tested it
+            e_f = get_frag_energy(mf_.mo_coeff, nocc, efac, TA, h1_e, hf_veff, rdm1_tmp, rdm2s, dname, eri_file)
+            return e_f
+#            return (mf_.mo_coeff, rdm1, rdm2s, e_f)
+
     if return_rdm_ao:
         return(mf_.mo_coeff, rdm1, rdm2s, rdm1_tmp)
     
     return (mf_.mo_coeff, rdm1, rdm2s)
     
 
-def be_func_parallel(pot, Fobjs, Nocc, solver, enuc,
+def be_func_parallel(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
                      nproc=1, ompnum=4,
                      only_chem=False,relax_density=False,use_cumulant=True,
-                     eeval=False, ereturn=False, ek = 0., kp=1.,
+                     eeval=False, ereturn=False, frag_energy=False, ek = 0., kp=1.,
                      hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
                      return_vec=False, ecore=0., ebe_hf=0., be_iter=None, writeh1=False):
 
@@ -174,16 +183,30 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc,
         dname = Fobjs[nf].dname
         nao = Fobjs[nf].nao
         nocc = Fobjs[nf].nsocc
+        efac = Fobjs[nf].efac
+        TA = Fobjs[nf].TA
+        h1_e = Fobjs[nf].h1
 
-        result = pool_.apply_async(run_solver, [h1, dm0, dname, nao, nocc ,
+        result = pool_.apply_async(run_solver, [h1, dm0, dname, nao, nocc,
+                                                efac, TA, hf_veff, h1_e,
                                                 solver,Fobjs[nf].eri_file,
                                                 hci_cutoff, ci_coeff_cutoff,select_cutoff,
-                                                ompnum, writeh1, True, True, use_cumulant, relax_density])
+                                                ompnum, writeh1, True, True, use_cumulant, relax_density, frag_energy])
         
         results.append(result)
 
     [rdms.append(result.get()) for result in results]
     pool_.close()
+    if frag_energy:
+        #rdms are the energies: trying _not_ to compile all of the rdms, we only need energy
+        e_1 = 0.
+        e_2 = 0.
+        e_c = 0.
+        for i in range(len(rdms)):
+            e_1 += rdms[i][0] 
+            e_2 += rdms[i][1]
+            e_c += rdms[i][2]
+        return (e_1+e_2+e_c, (e_1, e_2, e_c))
 
     Etot = 0.
     for idx, fobj in enumerate(Fobjs):
@@ -194,13 +217,14 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc,
         Etot += fobj.ebe
 
     Etot /= Fobjs[0].unitcell_nkpt
+
     del rdms
     
     Ebe = Etot+enuc+ecore-ek
 
     if ereturn:        
         return Ebe
-      
+
     ernorm, ervec = solve_error(Fobjs,Nocc, only_chem=only_chem)
 
     if return_vec:
@@ -209,3 +233,4 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc,
     if eeval:
         print('Error in density matching      :   {:>2.4e}'.format(ernorm), flush=True)        
     return ernorm
+

@@ -46,20 +46,22 @@ def make_rdm2_urlx(t1, t2, with_dm1=True):
 # end
 
 
-def be_func(pot, Fobjs, Nocc, solver, enuc,
+def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
             only_chem = False, nproc=4,hci_pt=False,
-            hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,            
-            eeval=False, ereturn=False, ek = 0., kp=1.,relax_density=False,
-            return_vec=False, ecore=0., ebe_hf=0., be_iter=None, writeh1=False,use_cumulant=True):
+            hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
+            eeval=False, ereturn=False, frag_energy=False, ek = 0., kp=1.,relax_density=False,
+            return_vec=False, ecore=0., ebe_hf=0., be_iter=None, writeh1=False, use_cumulant=True):
     from pyscf import fci
     import h5py,os
     from pyscf import ao2mo
+    from .helper import get_frag_energy
 
     rdm_return = False
     if relax_density:
         rdm_return = True
     E = 0.
-    
+    if frag_energy:
+        total_e = [0.,0.,0.]
     t1 = time.time()
     for fobj in Fobjs:
         
@@ -70,9 +72,7 @@ def be_func(pot, Fobjs, Nocc, solver, enuc,
             heff_ = None
         
         h1_ = fobj.fock + fobj.heff
-        
         fobj.scf()
-        
         if solver=='MP2': # here
             fobj._mc = solve_mp2(fobj._mf, mo_energy=fobj._mf.mo_energy)
         elif solver=='CCSD':
@@ -186,7 +186,6 @@ def be_func(pot, Fobjs, Nocc, solver, enuc,
                                        rdm1_tmp,
                                        fobj.mo_coeffs.T))*0.5
 
-        
         if eeval or ereturn:
             if solver =='CCSD' and not rdm_return:
                 with_dm1 = True
@@ -209,13 +208,19 @@ def be_func(pot, Fobjs, Nocc, solver, enuc,
                            numpy.einsum('ij,kl->iklj',del_rdm1, hf_dm))*0.5
                     rdm2s -= nc
             fobj.__rdm2 = rdm2s.copy()
-            #fobj.energy_hf()
-            #fobj.energy(rdm2s)
-            
-            E += fobj.ebe
+            if frag_energy:
+                # Find the energy of a given fragment, with the cumulant definition. 
+                # Return [e1, e2, ec] as e_f and add to the running total_e.
+                e_f = get_frag_energy(fobj._mo_coeffs, fobj.nsocc, fobj.efac, fobj.TA, fobj.h1, hf_veff, rdm1_tmp, rdm2s, fobj.dname, eri_file=fobj.eri_file)
+                total_e = [sum(x) for x in zip(total_e, e_f)]
+            if not frag_energy:
+                E += fobj.ebe
 
     E /= Fobjs[0].unitcell_nkpt
-    
+    if frag_energy:
+        E = sum(total_e)
+        return (E, total_e)
+
     if ereturn:
         # this is really a waste of computation        
         return (E+enuc+ecore-ek)#/kp

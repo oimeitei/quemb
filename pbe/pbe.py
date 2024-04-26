@@ -309,24 +309,24 @@ class pbe:
             fobj.udim = couti
             couti = fobj.set_udim(couti)
                         
-    def oneshot(self, solver='MP2',nproc=1, ompnum=4):
+    def oneshot(self, solver='MP2', nproc=1, ompnum=4, calc_frag_energy=False):
         from .solver import be_func
         from .be_parallel import be_func_parallel
 
-
+        print("Calculating Energy by Fragment? ", calc_frag_energy)
         if nproc == 1:
-            E = be_func(None, self.Fobjs, self.Nocc, solver, self.enuc,
+            rets  = be_func(None, self.Fobjs, self.Nocc, solver, self.enuc, hf_veff=self.hf_veff,
                         hci_cutoff=self.hci_cutoff,
                         ci_coeff_cutoff = self.ci_coeff_cutoff,
                         select_cutoff = self.select_cutoff,
-                        nproc=ompnum,
+                        nproc=ompnum, frag_energy=calc_frag_energy,
                         ereturn=True, eeval=True)
         else:
-            E = be_func_parallel(None, self.Fobjs, self.Nocc, solver, self.enuc,
+            rets  = be_func_parallel(None, self.Fobjs, self.Nocc, solver, self.enuc, hf_veff=self.hf_veff,
                                  hci_cutoff=self.hci_cutoff,
                                  ci_coeff_cutoff = self.ci_coeff_cutoff,
                                  select_cutoff = self.select_cutoff,
-                                 ereturn=True, eeval=True,
+                                 ereturn=True, eeval=True, frag_energy=calc_frag_energy,
                                  nproc=nproc, ompnum=ompnum)
 
         print('-----------------------------------------------------',
@@ -336,10 +336,15 @@ class pbe:
         print('-----------------------------------------------------',
                   flush=True)
         print(flush=True)
+        if calc_frag_energy:
+            print("Final Tr(F del g) is         : {:>12.8f} Ha".format(rets[1][0]+rets[1][2]), flush=True)
+            print("Final Tr(V K_approx) is      : {:>12.8f} Ha".format(rets[1][1]), flush=True)
+            print("Final e_corr is              : {:>12.8f} Ha".format(rets[0]), flush=True)
 
-            
-        self.get_rdm(approx_cumulant=True, return_rdm=False)
+            self.ebe_tot = rets[0]
 
+        if not calc_frag_energy:
+            self.get_rdm(approx_cumulant=True, return_rdm=False)
 
 
     def update_fock(self, heff=None):
