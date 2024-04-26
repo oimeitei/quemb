@@ -2,7 +2,7 @@ from .pfrag import Frags
 from .helper import get_core
 import numpy,functools,sys, pickle
 from pyscf import lib
-import h5py,os
+import h5py,os, pbe_var
 
 from .lo import iao_tmp
 
@@ -135,6 +135,19 @@ class pbe:
         self.eri_file = eri_file
         self.ek=0.
 
+        # set scratch dir in pbe_var
+        jobid=''
+        if pbe_var.CREATE_SCRATCH_DIR:
+            try:
+                jobid = str(os.environ['SLURM_JOB_ID'])
+            except:
+                jobid = ''
+        if not pbe_var.SCRATCH=='': os.system('mkdir '+pbe_var.SCRATCH+str(jobid))
+        if jobid == '':
+            self.eri_file = pbe_var.SCRATCH+eri_file
+        else:
+            self.eri_file = pbe_var.SCRATCH+str(jobid)+'/'+eri_file
+            
         self.frozen_core = False if not fobj.frozen_core else True
         self.ncore = 0
         if not restart:

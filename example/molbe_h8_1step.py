@@ -1,6 +1,9 @@
 from pyscf import gto,scf, fci
 from pbe.pbe import pbe
 from pbe.fragment import fragpart
+import pbe_var
+
+pbe_var.SCRATCH = '/scratch' # eri files will be written here, alternately set SCRACT = '/scratch' in pbe_var.py
 
 # PySCF HF
 mol = gto.M(atom='''
