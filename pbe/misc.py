@@ -298,5 +298,5 @@ def be2puffin(
         mol.natm, be_type=be_type, frag_type="autogen", mol=mol, molecule=True, frozen_core=frozen_core
     )
     mybe = pbe(mf, fobj, lo_method="lowdin")
-    mybe.oneshot(solver="CCSD", nproc=nproc, ompnum=ompnum)
+    mybe.oneshot(solver="CCSD", nproc=nproc, ompnum=ompnum, calc_frag_energy=True)
     return mybe.ebe_tot
