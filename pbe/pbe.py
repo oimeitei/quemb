@@ -269,7 +269,7 @@ class pbe:
                       frag_type=self.frag_type)
                 
             if not restart:
-                if eri_ is None and not self.mf.with_df is None: eri = ao2mo.kernel(self.mf.mol, fobjs_.TA, compact=True) # for density-fitted integrals; if mf is provided, pyscf.ao2mo uses DF object in an outcore fashion
+                if eri_ is None and hasattr(self.mf, 'with_df') and not self.mf.with_df is None: eri = ao2mo.kernel(self.mf.mol, fobjs_.TA, compact=True) # for density-fitted integrals; if mf is provided, pyscf.ao2mo uses DF object in an outcore fashion
                 else: eri = ao2mo.incore.full(eri_, fobjs_.TA, compact=True) # otherwise, do an incore ao2mo
                 #if fobjs_.dname in eri:
                 #    del(file_eri[fobjs_.dname])
