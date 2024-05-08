@@ -74,11 +74,14 @@ def get_scfObj(h1, Eri, nocc, dm0=None, enuc=0.):
     return mf_
 
 
-def get_eri(i_frag, Nao, symm = 8, ignore_symm = False, eri_file='eri_file.h5'):
+def get_eri(i_frag, Nao, symm = 8, ignore_symm = False, eri_file='eri_file.h5', eri_files=None):
     from pyscf import ao2mo, lib
     import h5py
     
-    r = h5py.File(eri_file,'r')
+    if eri_files:
+        r = h5py.File(eri_files[i_frag],'r')
+    else:
+        r = h5py.File(eri_file,'r')
     eri__ = numpy.array(r.get(i_frag))
     
     if not ignore_symm:
@@ -167,7 +170,7 @@ def be_energy(nfsites, h1, mo_coeffs, rdm1, rdm2s, eri_file='eri_file.h5'):
 
     
 
-def get_frag_energy(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rdm2s, dname, eri_file='eri_file.h5'):
+def get_frag_energy(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rdm2s, dname, eri_file='eri_file.h5',eri_files=None):
     rdm1s_rot = mo_coeffs @ rdm1 @ mo_coeffs.T * 0.5
 
     hf_1rdm = numpy.dot(mo_coeffs[:,:nsocc],
@@ -184,10 +187,15 @@ def get_frag_energy(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rdm2
     else:
         jmax = TA.shape[1]
 
-#    if eri is None:
-    r = h5py.File(eri_file,'r')
-#    eri = r[self.dname][()]
-    eri = r[dname][()]
+
+    if eri_files:
+        r = h5py.File(eri_files[dname],'r')
+        eri = r[dname][()]
+    else:
+#        if eri is None:
+        r = h5py.File(eri_file,'r')
+#        eri = r[self.dname][()]
+        eri = r[dname][()]
     r.close()
 
     rdm2s = numpy.einsum("ijkl,pi,qj,rk,sl->pqrs", 0.5*rdm2s,

@@ -13,7 +13,7 @@ class Frags:
     
     def __init__(self, fsites, ifrag, edge=None, center=None,
                  edge_idx=None, center_idx=None, efac=None,
-                 eri_file='eri_file.h5',unitcell_nkpt=1,
+                 eri_file='eri_file.h5',eri_files=None,unitcell_nkpt=1,
                  ewald_ek=None, centerf_idx=None, unitcell=1):
         """Constructor function for `Frags` class
 
@@ -35,6 +35,8 @@ class Frags:
             weight used for energy contributions, by default None
         eri_file : str, optional
             two-electron integrals stored as h5py file, by default 'eri_file.h5'
+        eri_files : dict, optional
+            if SEP_SCRATCH_PER_FRAG is chosen, this is the dictionary of all of the fragment ERI files
         unitcell_nkpt : int, optional
             number of k-points in the unit cell; 1 for molecular calculations, by default 1
         centerf_idx : list, optional
@@ -85,6 +87,7 @@ class Frags:
         self.veff = None
         self.dm0 = None
         self.eri_file = eri_file
+        self.eri_files = eri_files
 
     def sd(self, lao, lmo, nocc, nkpt = None, s=None, mo_coeff= None,
            frag_type='autogen', cinv = '',
@@ -116,7 +119,7 @@ class Frags:
     def cons_fock(self, hf_veff, S, dm, eri_=None):
 
         if eri_ is None:
-            eri_ = get_eri(self.dname, self.TA.shape[1], ignore_symm=True, eri_file=self.eri_file)
+            eri_ = get_eri(self.dname, self.TA.shape[1], ignore_symm=True, eri_file=self.eri_file, eri_files=self.eri_files)
                 
         veff_ = get_veff(eri_, dm, S, self.TA, hf_veff)
         self.veff = veff_.real        
@@ -151,7 +154,7 @@ class Frags:
         if heff is None: heff = self.heff
 
         if eri is None:
-            eri = get_eri(self.dname, self.nao, eri_file=self.eri_file)
+            eri = get_eri(self.dname, self.nao, eri_file=self.eri_file, eri_files=self.eri_files)
 
         if dm0 is None:
             dm0 = numpy.dot( self._mo_coeffs[:,:self.nsocc],
@@ -287,7 +290,10 @@ class Frags:
         else:
             jmax = self.TA.shape[1]
         if eri is None:
-            r = h5py.File(self.eri_file,'r')
+            if self.eri_files:
+                r = h5py.File(self.eri_files[self.dname],'r')
+            else:
+                r = h5py.File(self.eri_file,'r')
             eri = r[self.dname][()]
 
             r.close()

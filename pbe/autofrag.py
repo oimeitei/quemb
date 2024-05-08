@@ -443,13 +443,15 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
                     idx.append([fsites[j].index(k) for k in cntlist])
                 
             center_idx.append(idx)
-    #print("fsites", fsites)
-    #print("edgsites",edgsites)
-    #print("center",center)
-    #print("edge_idx",edge_idx)
-    #print("center_idx",center_idx)
-    #print("centerf_idx",centerf_idx)
-    #print("ebe_weight",ebe_weight)
+    """
+    print("fsites", fsites)
+    print("edgsites",edgsites)
+    print("center",center)
+    print("edge_idx",edge_idx)
+    print("center_idx",center_idx)
+    print("centerf_idx",centerf_idx)
+    print("ebe_weight",ebe_weight)
+    """
 
     return(fsites, edgsites, center, edge_idx, center_idx, centerf_idx, ebe_weight)
 

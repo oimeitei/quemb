@@ -7,12 +7,11 @@ from .helper import *
 
 def run_solver(h1, dm0, dname, nao, nocc, nfsites,
                efac, TA, hf_veff, h1_e,
-               solver='MP2',eri_file='eri_file.h5',
+               solver='MP2',eri_file='eri_file.h5',eri_files=None,
                hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
                ompnum=4, writeh1=False,
                eeval=True, return_rdm_ao=True, use_cumulant=True, relax_density=False, frag_energy=False):
-    
-    eri = get_eri(dname, nao, eri_file=eri_file)    
+    eri = get_eri(dname, nao, eri_file=eri_file,eri_files=eri_files)    
     mf_ = get_scfObj(h1, eri, nocc, dm0=dm0)
     rdm_return = False
     if relax_density:
@@ -138,7 +137,7 @@ def run_solver(h1, dm0, dname, nao, nocc, nfsites,
         if frag_energy:
             # I am NOT returning any RDM's here, just the energies! 
             # We could return both, but I haven't tested it
-            e_f = get_frag_energy(mf_.mo_coeff, nocc, nfsites, efac, TA, h1_e, hf_veff, rdm1_tmp, rdm2s, dname, eri_file)
+            e_f = get_frag_energy(mf_.mo_coeff, nocc, nfsites, efac, TA, h1_e, hf_veff, rdm1_tmp, rdm2s, dname, eri_file, eri_files)
             return e_f
 #            return (mf_.mo_coeff, rdm1, rdm2s, e_f)
 
@@ -198,7 +197,7 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
         
         result = pool_.apply_async(run_solver, [h1, dm0, dname, nao, nocc, nfsites,
                                                 efac, TA, hf_veff, h1_e,
-                                                solver,Fobjs[nf].eri_file,
+                                                solver,Fobjs[nf].eri_file,Fobjs[nf].eri_files,
                                                 hci_cutoff, ci_coeff_cutoff,select_cutoff,
                                                 ompnum, writeh1, True, True, use_cumulant, relax_density, frag_energy])
         
