@@ -230,6 +230,7 @@ def be2puffin(
     ompnum=1,
     be_type='be1',
     frozen_core=True,
+    df_aux_basis=None,
 ):
     """Front-facing API bridge tailored for SCINE Puffin
     Returns the CCSD oneshot energies
@@ -285,15 +286,25 @@ def be2puffin(
 
     mol.incore_anyway = True
     if use_df and jk is None:
-        mf = scf.RHF(mol).density_fit()
         from pyscf import df
-        mydf = df.DF(mol).build()
-        mf.with_df = mydf
+        print("df_aux_basis", df_aux_basis)
+        #mf = scf.RHF(mol).density_fit()
+        #mydf = df.DF(mol).build()
+        mf = scf.RHF(mol).density_fit(auxbasis=df_aux_basis)
+#        from pyscf import df
+        #mydf = df.DF(mol).build()
+        #mf.with_df = mydf
+        
+        #mf.with_df.auxbasis = df_aux_basis
+        #print(mf.with_df.auxmol.basis)
+        #print(mf.with_df.auxmol.nao_nr())
     else: mf = scf.RHF(mol)
     mf.get_hcore = lambda *args: hcore_pyscf
     if not jk is None: mf.get_jk = lambda *args: jk_pyscf
     time_pre_mf = time.time()
     mf.kernel()
+    print("Using auxillary basis in density fitting: ", mf.with_df.auxmol.basis)
+    print("DF auxillary nao_nr", mf.with_df.auxmol.nao_nr())
     time_post_mf = time.time()
     print("Time for mf kernel to run: ", time_post_mf - time_pre_mf)
     fobj = fragpart(

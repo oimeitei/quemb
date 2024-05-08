@@ -31,7 +31,7 @@ class storePBE:
 
 class pbe:
 
-    def __init__(self, mf, fobj, eri_file='eri_file.h5', exxdiv='ewald',
+    def __init__(self, mf, fobj, eri_file='eri_file.h5', exxdiv='ewald', eri_files=None,
                  lo_method='lowdin',compute_hf=True, nkpt = None, kpoint = False,
                  super_cell=False, molecule=False,
                  kpts = None, cell=None, kmesh=None,
@@ -134,25 +134,41 @@ class pbe:
         self.Fobjs = []
         self.pot = initialize_pot(self.Nfrag, self.edge_idx)
         self.eri_file = eri_file
+        self.eri_files = None
         self.ek=0.
 
         # set scratch dir in pbe_var
-        jobid=''
-        print("pbe_var.CREATE_SCRATCH_DIR", pbe_var.CREATE_SCRATCH_DIR)
-        print("str(os.environ['SLURM_JOB_ID'])",str(os.environ['SLURM_JOB_ID']))
-        print("pbe_var.SCRATCH",pbe_var.SCRATCH)
-        print("pbe_var.SCRATCH+str(jobid)",pbe_var.SCRATCH+str(jobid))
-        print("eri_file",eri_file)
-        if pbe_var.CREATE_SCRATCH_DIR:
+        if pbe_var.SEP_SCRATCH_PER_FRAG == True:
+            # This will use the slurm ID to make a directory in the assigned scratch
+            # Within that, we will later make an eri_file for each fragment 
             try:
                 jobid = str(os.environ['SLURM_JOB_ID'])
             except:
                 jobid = ''
-        if not pbe_var.SCRATCH=='': os.system('mkdir '+pbe_var.SCRATCH+str(jobid))
-        if jobid == '':
-            self.eri_file = pbe_var.SCRATCH+eri_file
+            self.scratch_dir=pbe_var.SCRATCH+str(jobid)
+            os.system('mkdir '+self.scratch_dir)
+            self.eri_file = pbe_var.SCRATCH+str(jobid)+'/' # +eri_file
+            self.eri_files = {} #library of eri_files
         else:
-            self.eri_file = pbe_var.SCRATCH+str(jobid)+'/'+eri_file
+            jobid=''
+            #print("pbe_var.CREATE_SCRATCH_DIR", pbe_var.CREATE_SCRATCH_DIR)
+            #print("str(os.environ['SLURM_JOB_ID'])",str(os.environ['SLURM_JOB_ID']))
+            #print("pbe_var.SCRATCH",pbe_var.SCRATCH)
+            #print("pbe_var.SCRATCH+str(jobid)",pbe_var.SCRATCH+str(jobid))
+            #print("eri_file",eri_file)
+            self.eri_files = None
+            if pbe_var.CREATE_SCRATCH_DIR:
+                try:
+                    jobid = str(os.environ['SLURM_JOB_ID'])
+                except:
+                    jobid = ''
+            if not pbe_var.SCRATCH=='':
+                self.scratch_dir = pbe_var.SCRATCH+str(jobid)
+                os.system('mkdir '+self.scratch_dir)
+            if jobid == '':
+                self.eri_file = pbe_var.SCRATCH+eri_file
+            else:
+                self.eri_file = pbe_var.SCRATCH+str(jobid)+'/'+eri_file
             
         self.frozen_core = False if not fobj.frozen_core else True
         self.ncore = 0
@@ -215,6 +231,7 @@ class pbe:
            
         if not restart :            
             time_pre_hfinit = time.time()
+            print("initialization self.eri_files", self.eri_files)
             self.initialize(mf._eri,compute_hf)
             time_post_hfinit = time.time()
             print("Time to initialize HF: ",time_post_hfinit - time_pre_hfinit)
@@ -258,24 +275,27 @@ class pbe:
         if compute_hf: E_hf = 0.
         EH1 = 0.
         ECOUL = 0.
-        EF = 0.
+        EF = 0
         
         # from here remove ncore from C
         if not restart:
-            file_eri = h5py.File(self.eri_file,'w')
+            if not pbe_var.SEP_SCRATCH_PER_FRAG:
+                file_eri = h5py.File(self.eri_file,'w')
+#            else: #LPW have to change
+                #file_eri = h5py.File(self.eri_file,'w')
         lentmp = len(self.edge_idx)
+        #print("self.eri_files", self.eri_files)
         for I in range(self.Nfrag):
-            
             if lentmp:
                 fobjs_ = Frags(self.fsites[I], I, edge=self.edge[I],
-                               eri_file=self.eri_file,
+                               eri_file=self.eri_file, eri_files=self.eri_files, #LPW add eri_files
                                center=self.center[I], edge_idx=self.edge_idx[I],
                                center_idx=self.center_idx[I],efac=self.ebe_weight[I],
                                centerf_idx=self.centerf_idx[I], unitcell=self.unitcell,
                                unitcell_nkpt=self.unitcell_nkpt)
             else:
                 fobjs_ = Frags(self.fsites[I],I,edge=[],center=[],
-                               eri_file=self.eri_file,
+                               eri_file=self.eri_file, eri_files=self.eri_files, #LPW add eri_files
                                edge_idx=[],center_idx=[],centerf_idx=[],
                                efac=self.ebe_weight[I], unitcell=self.unitcell,
                                unitcell_nkpt=self.unitcell_nkpt)
@@ -288,7 +308,15 @@ class pbe:
                 #if fobjs_.dname in eri:
                 #    del(file_eri[fobjs_.dname])
                 
-                file_eri.create_dataset(fobjs_.dname, data=eri)
+                if pbe_var.SEP_SCRATCH_PER_FRAG: #LPW
+                    file_eri_name = self.eri_file+"eri_"+str(fobjs_.dname)+".h5"
+                    #print("file_eri_name", file_eri_name)
+                    self.eri_files[fobjs_.dname] = file_eri_name # adding the appropriate h5, called from eri_files
+                    #print("self.eri_files[fobjs_.dname]",self.eri_files[fobjs_.dname])
+                    file_eri = h5py.File(file_eri_name,'w')
+                    file_eri.create_dataset(fobjs_.dname, data=eri) #saving eri to the appropriate file
+                else:
+                    file_eri.create_dataset(fobjs_.dname, data=eri)
             else:
                 eri=None
                 
@@ -308,14 +336,13 @@ class pbe:
                                     fobjs_._mo_coeffs[:,:fobjs_.nsocc].conj().T) *2.
                 
             if compute_hf:
-            
                 eh1, ecoul, ef = fobjs_.energy_hf(return_e1=True)
                 EH1 += eh1
                 ECOUL += ecoul
                 E_hf += fobjs_.ebe_hf
 
             self.Fobjs.append(fobjs_)
-        if not restart:
+        if not restart and not pbe_var.SEP_SCRATCH_PER_FRAG:
             file_eri.close()
         
         if compute_hf:
@@ -373,6 +400,15 @@ class pbe:
         if not calc_frag_energy:
             self.get_rdm(approx_cumulant=True, return_rdm=False)
 
+        # Delete all ERI files: I'm putting this here for the one-shot code to prevent some memory issues
+        # Note: for the "SEP_SCRATCH_PER_FRAG" option, we could delete scratch directly after the fragment
+        #       is evaluated 
+        if self.eri_files:
+            for file in self.eri_files.values():
+                os.remove(file)
+        else:
+            os.remove(self.eri_file)
+        os.rmdir(self.scratch_dir)
 
     def update_fock(self, heff=None):
 
