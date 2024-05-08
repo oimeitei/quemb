@@ -167,7 +167,7 @@ def be_energy(nfsites, h1, mo_coeffs, rdm1, rdm2s, eri_file='eri_file.h5'):
 
     
 
-def get_frag_energy(mo_coeffs, nsocc, efac, TA, h1, hf_veff, rdm1, rdm2s, dname, eri_file='eri_file.h5'):
+def get_frag_energy(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rdm2s, dname, eri_file='eri_file.h5'):
     rdm1s_rot = mo_coeffs @ rdm1 @ mo_coeffs.T * 0.5
 
     hf_1rdm = numpy.dot(mo_coeffs[:,:nsocc],
@@ -176,8 +176,8 @@ def get_frag_energy(mo_coeffs, nsocc, efac, TA, h1, hf_veff, rdm1, rdm2s, dname,
     delta_rdm1 = 2 * (rdm1s_rot - hf_1rdm)
 
     veff0 = functools.reduce(numpy.dot,(TA.T,hf_veff,TA))
-    e1 = numpy.einsum("ij,ij->i",h1[:nsocc], delta_rdm1[:nsocc])
-    ec = numpy.einsum("ij,ij->i",veff0[:nsocc], delta_rdm1[:nsocc])
+    e1 = numpy.einsum("ij,ij->i",h1[:nfsites], delta_rdm1[:nfsites])
+    ec = numpy.einsum("ij,ij->i",veff0[:nfsites], delta_rdm1[:nfsites])
 
     if TA.ndim == 3:
         jmax = TA[0].shape[1]

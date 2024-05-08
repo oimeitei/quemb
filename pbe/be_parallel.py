@@ -5,7 +5,7 @@ from .helper import get_frag_energy
 import functools, numpy, sys
 from .helper import *
 
-def run_solver(h1, dm0, dname, nao, nocc,
+def run_solver(h1, dm0, dname, nao, nocc, nfsites,
                efac, TA, hf_veff, h1_e,
                solver='MP2',eri_file='eri_file.h5',
                hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
@@ -138,7 +138,7 @@ def run_solver(h1, dm0, dname, nao, nocc,
         if frag_energy:
             # I am NOT returning any RDM's here, just the energies! 
             # We could return both, but I haven't tested it
-            e_f = get_frag_energy(mf_.mo_coeff, nocc, efac, TA, h1_e, hf_veff, rdm1_tmp, rdm2s, dname, eri_file)
+            e_f = get_frag_energy(mf_.mo_coeff, nocc, nfsites, efac, TA, h1_e, hf_veff, rdm1_tmp, rdm2s, dname, eri_file)
             return e_f
 #            return (mf_.mo_coeff, rdm1, rdm2s, e_f)
 
@@ -183,16 +183,26 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
         dname = Fobjs[nf].dname
         nao = Fobjs[nf].nao
         nocc = Fobjs[nf].nsocc
+        nfsites = Fobjs[nf].nfsites
+        #print("nocc", nocc)
+        #print("nfsites", nfsites)
         efac = Fobjs[nf].efac
         TA = Fobjs[nf].TA
         h1_e = Fobjs[nf].h1
+        #print("nao", nao)
+        #print("efac[1] nf",nf, efac[1])
+        #print("TA", TA.shape)
+        #print("h1_e", h1_e.shape)
 
-        result = pool_.apply_async(run_solver, [h1, dm0, dname, nao, nocc,
+        #print("BREAK AND CANCEL", Cancel)
+        
+        result = pool_.apply_async(run_solver, [h1, dm0, dname, nao, nocc, nfsites,
                                                 efac, TA, hf_veff, h1_e,
                                                 solver,Fobjs[nf].eri_file,
                                                 hci_cutoff, ci_coeff_cutoff,select_cutoff,
                                                 ompnum, writeh1, True, True, use_cumulant, relax_density, frag_energy])
         
+        #result = 5
         results.append(result)
 
     [rdms.append(result.get()) for result in results]
