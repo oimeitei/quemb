@@ -211,12 +211,14 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
             if frag_energy:
                 # Find the energy of a given fragment, with the cumulant definition. 
                 # Return [e1, e2, ec] as e_f and add to the running total_e.
-                e_f = get_frag_energy(fobj._mo_coeffs, fobj.nsocc, fobj.efac, fobj.TA, fobj.h1, hf_veff, rdm1_tmp, rdm2s, fobj.dname, eri_file=fobj.eri_file)
+                e_f = get_frag_energy(fobj._mo_coeffs, fobj.nsocc, fobj.nfsites, fobj.efac, fobj.TA, fobj.h1, hf_veff, rdm1_tmp, rdm2s, fobj.dname, eri_file=fobj.eri_file)
                 total_e = [sum(x) for x in zip(total_e, e_f)]
             if not frag_energy:
                 E += fobj.ebe
 
     E /= Fobjs[0].unitcell_nkpt
+    t2 = time.time()
+    print("Time to run all fragments: ", t2 - t1)
     if frag_energy:
         E = sum(total_e)
         return (E, total_e)
@@ -426,14 +428,20 @@ def schmidt_decomposition(mo_coeff, nocc, Frag_sites, cinv = None, rdm=None,tmpa
     
     if not mo_coeff is None:
         C = mo_coeff[:,:nocc]   
+        #print("C shape", C.shape)
+        #print("mo_coeff shape", mo_coeff.shape)
+        #print("nocc", nocc)
     if rdm is None:
         Dhf = numpy.dot(C, C.T)
+        #print("Dhf shape", Dhf.shape)
         if not cinv is None:
+            #print("cinv.shape", cinv.shape)
             Dhf = functools.reduce(numpy.dot,
                                    (cinv, Dhf, cinv.conj().T))        
+            #print("Dhf shape 1", Dhf.shape)
     else:
         Dhf = rdm
-
+   
     Tot_sites = Dhf.shape[0]        
     Env_sites1 = numpy.array([i for i in range(Tot_sites)
                               if not i in Frag_sites])
@@ -441,17 +449,23 @@ def schmidt_decomposition(mo_coeff, nocc, Frag_sites, cinv = None, rdm=None,tmpa
                              if not i in Frag_sites])
     Frag_sites1 = numpy.array([[i] for i in Frag_sites])
     Denv = Dhf[Env_sites, Env_sites.T]
+    #print("Is this symmetric? Denv", sum(Denv - Denv.T), Denv - Denv.T)
+    #print("len Denv", Denv.shape)
     Eval, Evec = numpy.linalg.eigh(Denv)
-    
+    #print("len Eval", len(Eval))
+    #print("len Evec", len(Evec))
     Bidx = []
     for i in range(len(Eval)):
         if thres < numpy.abs(Eval[i]) < 1.0 - thres:         
             Bidx.append(i)
-
+    #print("Tot_sites", Tot_sites)
+    #print("Bidx", len(Bidx), Bidx)
+    #print("Frag_sites", len(Frag_sites), Frag_sites)
+    #print("Env_sites1", len(Env_sites1), Env_sites1)
     TA = numpy.zeros([Tot_sites, len(Frag_sites) + len(Bidx)])
     TA[Frag_sites, :len(Frag_sites)] = numpy.eye(len(Frag_sites))
     TA[Env_sites1,len(Frag_sites):] = Evec[:,Bidx]
-    
+    #print("shape TA", TA.shape)
     return TA
 
 

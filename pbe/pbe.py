@@ -3,6 +3,7 @@ from .helper import get_core
 import numpy,functools,sys, pickle
 from pyscf import lib
 import h5py,os, pbe_var
+import time
 
 from .lo import iao_tmp
 
@@ -137,6 +138,11 @@ class pbe:
 
         # set scratch dir in pbe_var
         jobid=''
+        print("pbe_var.CREATE_SCRATCH_DIR", pbe_var.CREATE_SCRATCH_DIR)
+        print("str(os.environ['SLURM_JOB_ID'])",str(os.environ['SLURM_JOB_ID']))
+        print("pbe_var.SCRATCH",pbe_var.SCRATCH)
+        print("pbe_var.SCRATCH+str(jobid)",pbe_var.SCRATCH+str(jobid))
+        print("eri_file",eri_file)
         if pbe_var.CREATE_SCRATCH_DIR:
             try:
                 jobid = str(os.environ['SLURM_JOB_ID'])
@@ -172,13 +178,18 @@ class pbe:
                 self.hf_veff -= self.core_veff
                 self.hcore += self.core_veff
         # fock
+        time_pre_fock = time.time()
         self.FOCK = self.mf.get_fock(self.hcore, self.S, self.hf_veff, self.hf_dm)
+        time_post_fock = time.time()
+        print("Time to get full-system Fock matrix: ", time_post_fock - time_pre_fock)
         if not restart or debug00:
             self.localize(lo_method, mol=self.cell, valence_basis=fobj.valence_basis, valence_only=fobj.valence_only, iao_wannier=iao_wannier)
             if fobj.valence_only and lo_method=='iao':
                 self.Ciao_pao = self.localize(lo_method, mol=self.cell, valence_basis=fobj.valence_basis,
                                               hstack=True,
                                               valence_only=False, nosave=True)
+            time_post_lo = time.time()
+            print("Time to localize:" , time_post_lo - time_post_fock)
         if save:
             store_ = storePBE(self.Nocc, self.hf_veff, self.hcore,
                               self.S, self.C, self.hf_dm, self.hf_etot,
@@ -203,7 +214,10 @@ class pbe:
             self.mf=mf
            
         if not restart :            
+            time_pre_hfinit = time.time()
             self.initialize(mf._eri,compute_hf)
+            time_post_hfinit = time.time()
+            print("Time to initialize HF: ",time_post_hfinit - time_pre_hfinit)
             
         elif debug00:
             self.initialize(eri00,compute_hf)
@@ -269,7 +283,7 @@ class pbe:
                       frag_type=self.frag_type)
                 
             if not restart:
-                if eri_ is None and not self.mf.with_df is None: eri = ao2mo.kernel(self.mf.mol, fobjs_.TA, compact=True) # for density-fitted integrals; if mf is provided, pyscf.ao2mo uses DF object in an outcore fashion
+                if eri_ is None and hasattr(self.mf, 'with_df'): eri = ao2mo.kernel(self.mf.mol, fobjs_.TA, compact=True) # for density-fitted integrals; if mf is provided, pyscf.ao2mo uses DF object in an outcore fashion
                 else: eri = ao2mo.incore.full(eri_, fobjs_.TA, compact=True) # otherwise, do an incore ao2mo
                 #if fobjs_.dname in eri:
                 #    del(file_eri[fobjs_.dname])
@@ -381,9 +395,8 @@ class pbe:
         for fobj in self.Fobjs:
             fobj.heff = filepot.get(fobj.dname)
         filepot.close()
-        
-        
-        
+
+
 def initialize_pot(Nfrag, edge_idx):
     pot_=[]
     

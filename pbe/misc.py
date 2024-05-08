@@ -1,6 +1,6 @@
 import numpy, os
 from pyscf import gto, scf
-
+import time
 
 def libint2pyscf(
     xyzfile, hcore, basis, hcore_skiprows=1, use_df=False, unrestricted=False, spin=0, charge=0
@@ -292,11 +292,15 @@ def be2puffin(
     else: mf = scf.RHF(mol)
     mf.get_hcore = lambda *args: hcore_pyscf
     if not jk is None: mf.get_jk = lambda *args: jk_pyscf
-
+    time_pre_mf = time.time()
     mf.kernel()
+    time_post_mf = time.time()
+    print("Time for mf kernel to run: ", time_post_mf - time_pre_mf)
     fobj = fragpart(
         mol.natm, be_type=be_type, frag_type="autogen", mol=mol, molecule=True, frozen_core=frozen_core
     )
+    time_post_fragpart = time.time()
+    print("Time for fragmentation to run: ", time_post_fragpart - time_post_mf)
     mybe = pbe(mf, fobj, lo_method="lowdin")
     mybe.oneshot(solver="CCSD", nproc=nproc, ompnum=ompnum, calc_frag_energy=True)
     return mybe.ebe_tot
