@@ -304,5 +304,5 @@ def be2puffin(
     time_post_fragpart = time.time()
     print("Time for fragmentation to run: ", time_post_fragpart - time_post_mf)
     mybe = pbe(mf, fobj, lo_method="lowdin")
-    mybe.oneshot(solver="CCSD", nproc=nproc, ompnum=ompnum, calc_frag_energy=True)
+    mybe.oneshot(solver="CCSD", nproc=nproc, ompnum=ompnum, calc_frag_energy=True, clean_eri=True)
     return mybe.ebe_tot
