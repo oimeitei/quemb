@@ -1,6 +1,6 @@
 import numpy, os
 from pyscf import gto, scf
-
+import time
 
 def libint2pyscf(
     xyzfile, hcore, basis, hcore_skiprows=1, use_df=False, unrestricted=False, spin=0, charge=0
@@ -229,6 +229,7 @@ def be2puffin(
     nproc=1,
     ompnum=1,
     be_type='be1',
+    df_aux_basis=None,
     frozen_core=True,
 ):
     """Front-facing API bridge tailored for SCINE Puffin
@@ -285,18 +286,23 @@ def be2puffin(
 
     mol.incore_anyway = True
     if use_df and jk is None:
-        mf = scf.RHF(mol).density_fit()
         from pyscf import df
-        mydf = df.DF(mol).build()
-        mf.with_df = mydf
+        mf = scf.RHF(mol).density_fit(auxbasis=df_aux_basis)
+
     else: mf = scf.RHF(mol)
     mf.get_hcore = lambda *args: hcore_pyscf
     if not jk is None: mf.get_jk = lambda *args: jk_pyscf
-
+    time_pre_mf = time.time()
     mf.kernel()
+    time_post_mf = time.time()
+    print("Time for mf kernel to run: ", time_post_mf - time_pre_mf)
+    print("Using auxillary basis in density fitting: ", mf.with_df.auxmol.basis)
+    print("DF auxillary nao_nr", mf.with_df.auxmol.nao_nr())
     fobj = fragpart(
         mol.natm, be_type=be_type, frag_type="autogen", mol=mol, molecule=True, frozen_core=frozen_core
     )
+    time_post_fragpart = time.time()
+    print("Time for fragmentation to run: ", time_post_fragpart - time_post_mf)
     mybe = pbe(mf, fobj, lo_method="lowdin")
-    mybe.oneshot(solver="CCSD", nproc=nproc, ompnum=ompnum, calc_frag_energy=True)
+    mybe.oneshot(solver="CCSD", nproc=nproc, ompnum=ompnum, calc_frag_energy=True, clean_eri=True)
     return mybe.ebe_tot
