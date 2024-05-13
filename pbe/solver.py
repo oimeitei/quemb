@@ -211,12 +211,14 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
             if frag_energy:
                 # Find the energy of a given fragment, with the cumulant definition. 
                 # Return [e1, e2, ec] as e_f and add to the running total_e.
-                e_f = get_frag_energy(fobj._mo_coeffs, fobj.nsocc, fobj.efac, fobj.TA, fobj.h1, hf_veff, rdm1_tmp, rdm2s, fobj.dname, eri_file=fobj.eri_file)
+                e_f = get_frag_energy(fobj._mo_coeffs, fobj.nsocc, fobjs.nfsites, fobj.efac, fobj.TA, fobj.h1, hf_veff, rdm1_tmp, rdm2s, fobj.dname, eri_file=fobj.eri_file)
                 total_e = [sum(x) for x in zip(total_e, e_f)]
             if not frag_energy:
                 E += fobj.ebe
 
     E /= Fobjs[0].unitcell_nkpt
+    t2 = time.time()
+    print("Time to run all fragments: ", t2 - t1)
     if frag_energy:
         E = sum(total_e)
         return (E, total_e)
