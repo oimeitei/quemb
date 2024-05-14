@@ -142,11 +142,15 @@ class pbe:
                 jobid = str(os.environ['SLURM_JOB_ID'])
             except:
                 jobid = ''
-        if not pbe_var.SCRATCH=='': os.system('mkdir '+pbe_var.SCRATCH+str(jobid))
+        if not pbe_var.SCRATCH=='': 
+            self.scratch_dir = pbe_var.SCRATCH+str(jobid)
+            os.system('mkdir '+self.scratch_dir)
+        else:
+            self.scratch_dir = None
         if jobid == '':
             self.eri_file = pbe_var.SCRATCH+eri_file
         else:
-            self.eri_file = pbe_var.SCRATCH+str(jobid)+'/'+eri_file
+            self.eri_file = self.scratch_dir+'/'+eri_file
             
         self.frozen_core = False if not fobj.frozen_core else True
         self.ncore = 0
@@ -368,8 +372,11 @@ class pbe:
             self.get_rdm(approx_cumulant=True, return_rdm=False)
 
         if clean_eri == True:
-            os.remove(self.eri_file)
-            os.rmdir(self.scratch_dir)
+            try:
+                os.remove(self.eri_file)
+                os.rmdir(self.scratch_dir)
+            except:
+                print("Scratch directory not removed")
 
     def update_fock(self, heff=None):
 
