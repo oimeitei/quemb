@@ -2,7 +2,7 @@ from .pfrag import Frags
 from .helper import get_core
 import numpy,functools,sys, pickle
 from pyscf import lib
-import h5py,os, pbe_var
+import h5py,os,time,pbe_var
 
 from .lo import iao_tmp
 
