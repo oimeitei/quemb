@@ -194,7 +194,7 @@ def get_frag_energy(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rdm2
                          *([mo_coeffs]*4),optimize=True)
 
     e2 = numpy.zeros_like(e1)
-    for i in range(nsocc):
+    for i in range(nfsites):
         for j in range(jmax):
             ij = i*(i+1)//2+j if i > j else j*(j+1)//2+i
             Gij = rdm2s[i,j,:jmax,:jmax].copy()            
