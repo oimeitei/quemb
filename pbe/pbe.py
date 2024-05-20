@@ -279,17 +279,29 @@ class pbe:
                                unitcell_nkpt=self.unitcell_nkpt)
             fobjs_.sd(self.W, self.lmo_coeff, self.Nocc,
                       frag_type=self.frag_type)
+            self.Fobjs.append(fobjs_)
                 
-            if not restart:
-                if eri_ is None and hasattr(self.mf, 'with_df') and not self.mf.with_df is None: eri = ao2mo.kernel(self.mf.mol, fobjs_.TA, compact=True) # for density-fitted integrals; if mf is provided, pyscf.ao2mo uses DF object in an outcore fashion
-                else: eri = ao2mo.incore.full(eri_, fobjs_.TA, compact=True) # otherwise, do an incore ao2mo
-                #if fobjs_.dname in eri:
-                #    del(file_eri[fobjs_.dname])
-                
-                file_eri.create_dataset(fobjs_.dname, data=eri)
-            else:
-                eri=None
-                
+        if not restart:
+            # ERI Transform Decision Tree
+            # Do we have full (ij|kl)?
+            #   Yes -- ao2mo, incore version
+            #   No  -- Do we have (ij|P) from density fitting?
+            #            Yes -- ao2mo, outcore version, using saved (ij|P)
+            assert (not eri_ is None) or (hasattr(self.mf, 'with_df')), "Input mean-field object is missing ERI (mf._eri) or DF (mf.with_df) object. You may want to ensure that incore_anyway was set for non-DF calculations."
+            if not eri_ is None: # incore ao2mo using saved eri from mean-field calculation
+                for I in range(self.Nfrag):
+                    eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
+                    file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
+            elif hasattr(self.mf, 'with_df') and not self.mf.with_df is None:
+                # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P) in pyscf temp directory
+                for I in range(self.Nfrag):
+                    eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
+                    file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
+        else:
+            eri=None
+        
+        for fobjs_ in self.Fobjs:
+            eri = numpy.array(file_eri.get(fobjs_.dname))
             dm_init = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
             
             fobjs_.cons_h1(self.hcore)
@@ -312,7 +324,6 @@ class pbe:
                 ECOUL += ecoul
                 E_hf += fobjs_.ebe_hf
 
-            self.Fobjs.append(fobjs_)
         if not restart:
             file_eri.close()
         
