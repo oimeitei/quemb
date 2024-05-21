@@ -290,6 +290,7 @@ def be2puffin(
     
     if use_df and jk is None:
         from pyscf import df
+<<<<<<< HEAD
         mf = scf.RHF(mol).density_fit(auxbasis=df_aux_basis)
 
     else: mf = scf.RHF(mol)
@@ -302,14 +303,33 @@ def be2puffin(
     mf.kernel()
     #print("Using auxillary basis in density fitting: ", mf.with_df.auxmol.basis)
     #print("DF auxillary nao_nr", mf.with_df.auxmol.nao_nr())
+=======
+        print("df_aux_basis", df_aux_basis)
+        #mf = scf.RHF(mol).density_fit()
+        #mydf = df.DF(mol).build()
+        mf = scf.RHF(mol).density_fit(auxbasis=df_aux_basis)
+#        from pyscf import df
+        #mydf = df.DF(mol).build()
+        #mf.with_df = mydf
+        
+        #mf.with_df.auxbasis = df_aux_basis
+        #print(mf.with_df.auxmol.basis)
+        #print(mf.with_df.auxmol.nao_nr())
+    else: mf = scf.RHF(mol)
+    mf.get_hcore = lambda *args: hcore_pyscf
+    if not jk is None: mf.get_jk = lambda *args: jk_pyscf
+    time_pre_mf = time.time()
+    mf.kernel()
+    print("Using auxillary basis in density fitting: ", mf.with_df.auxmol.basis, flush=True)
+    print("DF auxillary nao_nr", mf.with_df.auxmol.nao_nr(), flush=True)
     time_post_mf = time.time()
-    print("Time for mf kernel to run: ", time_post_mf - time_pre_mf)
+    print("Time for mf kernel to run: ", time_post_mf - time_pre_mf, flush=True)
     fobj = fragpart(
         mol.natm, be_type=be_type, frag_type="autogen", mol=mol, molecule=True, 
         frozen_core=frozen_core, valence_basis=localization_basis
     )
     time_post_fragpart = time.time()
-    print("Time for fragmentation to run: ", time_post_fragpart - time_post_mf)
+    print("Time for fragmentation to run: ", time_post_fragpart - time_post_mf, flush=True)
     mybe = pbe(mf, fobj, lo_method=localization_method)
     mybe.oneshot(solver="CCSD", nproc=nproc, ompnum=ompnum, calc_frag_energy=True)
     return mybe.ebe_tot

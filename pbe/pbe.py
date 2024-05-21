@@ -231,7 +231,6 @@ class pbe:
            
         if not restart :            
             time_pre_hfinit = time.time()
-            #print("initialization self.eri_files", self.eri_files)
             self.initialize(mf._eri,compute_hf)
             time_post_hfinit = time.time()
             print("Time to initialize HF: ",time_post_hfinit - time_pre_hfinit, flush=True)
