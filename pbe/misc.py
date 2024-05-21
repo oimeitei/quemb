@@ -231,6 +231,8 @@ def be2puffin(
     be_type='be1',
     frozen_core=True,
     df_aux_basis=None,
+    localization_method='lowdin',
+    localization_basis=None
 ):
     """Front-facing API bridge tailored for SCINE Puffin
     Returns the CCSD oneshot energies
@@ -262,7 +264,7 @@ def be2puffin(
     assert os.path.exists(xyzfile), "Input xyz file does not exist"
 
     mol = gto.M(atom=xyzfile, basis=basis, charge=charge)
-
+    """
     libint2pyscf = []
     for labelidx, label in enumerate(mol.ao_labels()):
         # pyscf: px py pz // 1 -1 0
@@ -285,33 +287,29 @@ def be2puffin(
         )
 
     mol.incore_anyway = True
+    
     if use_df and jk is None:
         from pyscf import df
-        print("df_aux_basis", df_aux_basis)
-        #mf = scf.RHF(mol).density_fit()
-        #mydf = df.DF(mol).build()
         mf = scf.RHF(mol).density_fit(auxbasis=df_aux_basis)
-#        from pyscf import df
-        #mydf = df.DF(mol).build()
-        #mf.with_df = mydf
-        
-        #mf.with_df.auxbasis = df_aux_basis
-        #print(mf.with_df.auxmol.basis)
-        #print(mf.with_df.auxmol.nao_nr())
+
     else: mf = scf.RHF(mol)
     mf.get_hcore = lambda *args: hcore_pyscf
     if not jk is None: mf.get_jk = lambda *args: jk_pyscf
+    """
+    mol.incore_anyway = True
     time_pre_mf = time.time()
+    mf = scf.RHF(mol)
     mf.kernel()
-    print("Using auxillary basis in density fitting: ", mf.with_df.auxmol.basis)
-    print("DF auxillary nao_nr", mf.with_df.auxmol.nao_nr())
+    #print("Using auxillary basis in density fitting: ", mf.with_df.auxmol.basis)
+    #print("DF auxillary nao_nr", mf.with_df.auxmol.nao_nr())
     time_post_mf = time.time()
     print("Time for mf kernel to run: ", time_post_mf - time_pre_mf)
     fobj = fragpart(
-        mol.natm, be_type=be_type, frag_type="autogen", mol=mol, molecule=True, frozen_core=frozen_core
+        mol.natm, be_type=be_type, frag_type="autogen", mol=mol, molecule=True, 
+        frozen_core=frozen_core, valence_basis=localization_basis
     )
     time_post_fragpart = time.time()
     print("Time for fragmentation to run: ", time_post_fragpart - time_post_mf)
-    mybe = pbe(mf, fobj, lo_method="lowdin")
+    mybe = pbe(mf, fobj, lo_method=localization_method)
     mybe.oneshot(solver="CCSD", nproc=nproc, ompnum=ompnum, calc_frag_energy=True)
     return mybe.ebe_tot

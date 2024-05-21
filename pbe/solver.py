@@ -218,7 +218,7 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
 
     E /= Fobjs[0].unitcell_nkpt
     t2 = time.time()
-    print("Time to run all fragments: ", t2 - t1)
+    print("Time to run all fragments: ", t2 - t1, flush=True)
     if frag_energy:
         E = sum(total_e)
         return (E, total_e)

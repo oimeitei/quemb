@@ -11,6 +11,7 @@ def run_solver(h1, dm0, dname, nao, nocc, nfsites,
                hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
                ompnum=4, writeh1=False,
                eeval=True, return_rdm_ao=True, use_cumulant=True, relax_density=False, frag_energy=False):
+    #print("dname",dname)
     eri = get_eri(dname, nao, eri_file=eri_file,eri_files=eri_files)    
     mf_ = get_scfObj(h1, eri, nocc, dm0=dm0)
     rdm_return = False
@@ -175,7 +176,7 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
     rdms = []
     
     for nf in range(nfrag):
-        
+        print("nf", nf)
         h1 = Fobjs[nf].fock + Fobjs[nf].heff
 
         dm0 = Fobjs[nf].dm0.copy()

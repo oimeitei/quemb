@@ -197,7 +197,7 @@ class pbe:
         time_pre_fock = time.time()
         self.FOCK = self.mf.get_fock(self.hcore, self.S, self.hf_veff, self.hf_dm)
         time_post_fock = time.time()
-        print("Time to get full-system Fock matrix: ", time_post_fock - time_pre_fock)
+        print("Time to get full-system Fock matrix: ", time_post_fock - time_pre_fock, flush=True)
         if not restart or debug00:
             self.localize(lo_method, mol=self.cell, valence_basis=fobj.valence_basis, valence_only=fobj.valence_only, iao_wannier=iao_wannier)
             if fobj.valence_only and lo_method=='iao':
@@ -205,7 +205,7 @@ class pbe:
                                               hstack=True,
                                               valence_only=False, nosave=True)
             time_post_lo = time.time()
-            print("Time to localize:" , time_post_lo - time_post_fock)
+            print("Time to localize:" , time_post_lo - time_post_fock, flush=True)
         if save:
             store_ = storePBE(self.Nocc, self.hf_veff, self.hcore,
                               self.S, self.C, self.hf_dm, self.hf_etot,
@@ -231,10 +231,10 @@ class pbe:
            
         if not restart :            
             time_pre_hfinit = time.time()
-            print("initialization self.eri_files", self.eri_files)
+            #print("initialization self.eri_files", self.eri_files)
             self.initialize(mf._eri,compute_hf)
             time_post_hfinit = time.time()
-            print("Time to initialize HF: ",time_post_hfinit - time_pre_hfinit)
+            print("Time to initialize HF: ",time_post_hfinit - time_pre_hfinit, flush=True)
             
         elif debug00:
             self.initialize(eri00,compute_hf)
@@ -304,6 +304,7 @@ class pbe:
                 
             if not restart:
                 if eri_ is None and hasattr(self.mf, 'with_df'): eri = ao2mo.kernel(self.mf.mol, fobjs_.TA, compact=True) # for density-fitted integrals; if mf is provided, pyscf.ao2mo uses DF object in an outcore fashion
+                elif eri_ is None: eri = ao2mo.kernel(self.mf.mol, fobjs_.TA, compact=True)
                 else: eri = ao2mo.incore.full(eri_, fobjs_.TA, compact=True) # otherwise, do an incore ao2mo
                 #if fobjs_.dname in eri:
                 #    del(file_eri[fobjs_.dname])
@@ -403,12 +404,14 @@ class pbe:
         # Delete all ERI files: I'm putting this here for the one-shot code to prevent some memory issues
         # Note: for the "SEP_SCRATCH_PER_FRAG" option, we could delete scratch directly after the fragment
         #       is evaluated 
+        """
         if self.eri_files:
             for file in self.eri_files.values():
                 os.remove(file)
         else:
             os.remove(self.eri_file)
         os.rmdir(self.scratch_dir)
+        """
 
     def update_fock(self, heff=None):
 
