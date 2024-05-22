@@ -73,7 +73,7 @@ def libint2pyscf(
                 libint2pyscf.append(labelidx - 1)
             elif "z" in label.split()[2]:
                 libint2pyscf.append(labelidx - 1)
-
+    print(libint2pyscf)
     hcore_pyscf = hcore_libint[numpy.ix_(libint2pyscf, libint2pyscf)]
 
     mol.incore_anyway = True
@@ -264,7 +264,7 @@ def be2puffin(
     assert os.path.exists(xyzfile), "Input xyz file does not exist"
 
     mol = gto.M(atom=xyzfile, basis=basis, charge=charge)
-    """
+    
     libint2pyscf = []
     for labelidx, label in enumerate(mol.ao_labels()):
         # pyscf: px py pz // 1 -1 0
@@ -287,34 +287,11 @@ def be2puffin(
         )
 
     mol.incore_anyway = True
-    
+
     if use_df and jk is None:
         from pyscf import df
-<<<<<<< HEAD
         mf = scf.RHF(mol).density_fit(auxbasis=df_aux_basis)
 
-    else: mf = scf.RHF(mol)
-    mf.get_hcore = lambda *args: hcore_pyscf
-    if not jk is None: mf.get_jk = lambda *args: jk_pyscf
-    """
-    mol.incore_anyway = True
-    time_pre_mf = time.time()
-    mf = scf.RHF(mol)
-    mf.kernel()
-    #print("Using auxillary basis in density fitting: ", mf.with_df.auxmol.basis)
-    #print("DF auxillary nao_nr", mf.with_df.auxmol.nao_nr())
-=======
-        print("df_aux_basis", df_aux_basis)
-        #mf = scf.RHF(mol).density_fit()
-        #mydf = df.DF(mol).build()
-        mf = scf.RHF(mol).density_fit(auxbasis=df_aux_basis)
-#        from pyscf import df
-        #mydf = df.DF(mol).build()
-        #mf.with_df = mydf
-        
-        #mf.with_df.auxbasis = df_aux_basis
-        #print(mf.with_df.auxmol.basis)
-        #print(mf.with_df.auxmol.nao_nr())
     else: mf = scf.RHF(mol)
     mf.get_hcore = lambda *args: hcore_pyscf
     if not jk is None: mf.get_jk = lambda *args: jk_pyscf
