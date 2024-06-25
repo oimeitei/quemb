@@ -1,7 +1,8 @@
 from .solver import solve_error
-from .solver import solve_mp2, solve_ccsd,make_rdm1_ccsd_t1
-from .solver import make_rdm2_urlx
-from .helper import get_frag_energy
+from .solver import solve_mp2, solve_ccsd, solve_uccsd
+from .solver import make_rdm1_ccsd_t1, make_rdm1_uccsd, make_rdm2_urlx, make_rdm2_uccsd
+from .helper import get_frag_energy, get_frag_energy_u
+from .frank_sgscf_uhf import make_uhf_obj
 import functools, numpy, sys
 from .helper import *
 
@@ -145,7 +146,85 @@ def run_solver(h1, dm0, dname, nao, nocc, nfsites,
         return(mf_.mo_coeff, rdm1, rdm2s, rdm1_tmp)
     
     return (mf_.mo_coeff, rdm1, rdm2s)
-    
+
+def run_solver_u(fobj_a, fobj_b, nocc, solver, enuc, hf_veff,
+                 frag_energy=True, relax_density=False, frozen=False,
+                 eri_file='eri_file.h5', use_cumulant=True, ereturn=True):
+
+    fobj_a.scf(unrestricted=True, spin_ind=0)
+    fobj_b.scf(unrestricted=True, spin_ind=1)
+
+    full_uhf, eris = make_uhf_obj(fobj_a, fobj_b, frozen=frozen)
+
+    rdm_return = False
+    if relax_density:
+        rdm_return = True
+
+    if solver=='UCCSD':
+        if rdm_return:
+               ucc, rdm1_tmp, rdm2s = solve_uccsd(full_uhf, eris, relax=relax_density,
+                                                    rdm_return=True, rdm2_return=True,
+                                                    frozen=frozen)
+        else:
+               ucc = solve_uccsd(full_uhf, eris, relax = relax_density, rdm_return=False,
+                                                    frozen=frozen)
+               rdm1_tmp = make_rdm1_uccsd(ucc, relax=relax_density)
+
+    else:
+        print('Solver not implemented',flush=True)
+        print('exiting',flush=True) 
+        sys.exit()        
+
+    fobj_a.__rdm1 = rdm1_tmp[0].copy()
+    fobj_b._rdm1 = functools.reduce(numpy.dot,
+                                  (fobj_a._mf.mo_coeff,
+                                   rdm1_tmp[0],
+                                   fobj_a._mf.mo_coeff.T))*0.5
+
+    fobj_b.__rdm1 = rdm1_tmp[1].copy()
+    fobj_b._rdm1 = functools.reduce(numpy.dot,
+                                  (fobj_b._mf.mo_coeff,
+                                   rdm1_tmp[1],
+                                   fobj_b._mf.mo_coeff.T))*0.5
+        
+    if ereturn:
+        if solver =='UCCSD' and not rdm_return:
+            with_dm1 = True
+            if use_cumulant: with_dm1=False
+            rdm2s = make_rdm2_uccsd(ucc, with_dm1=with_dm1)
+        else:
+            print('rdm return not implemented',flush=True)
+            print('exiting',flush=True)
+            sys.exit()
+        fobj_a.__rdm2 = rdm2s[0].copy() 
+        fobj_b.__rdm2 = rdm2s[1].copy()
+
+        if frag_energy:
+            if frozen:
+                h1_ab = [full_uhf.h1[0]+full_uhf.full_gcore[0]+full_uhf.core_veffs[0],
+                        full_uhf.h1[1]+full_uhf.full_gcore[1]+full_uhf.core_veffs[1]]
+            else:
+                h1_ab = [fobj_a.h1, fobj_b.h1]
+            e_f = get_frag_energy_u((fobj_a._mo_coeffs,fobj_b._mo_coeffs),
+                                        (fobj_a.nsocc,fobj_b.nsocc),
+                                        (fobj_a.nfsites, fobj_b.nfsites),
+                                        (fobj_a.efac, fobj_b.efac),
+                                        (fobj_a.TA, fobj_b.TA),
+                                        h1_ab,
+                                        hf_veff,
+                                        rdm1_tmp,
+                                        rdm2s,
+                                        fobj_a.dname,
+                                        eri_file=fobj_a.eri_file,
+                                        gcores=full_uhf.full_gcore,
+                                        frozen=frozen
+                                    )
+            return e_f
+
+        else:
+            print("Non-fragment-wise energy not implemented", flush=True)
+            print("exiting", flush=True)
+
 
 def be_func_parallel(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
                      nproc=1, ompnum=4,
@@ -162,7 +241,6 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
         for nf in range(nfrag):
             dname = Fobjs[nf].dname
             os.system('mkdir '+dname)
-            #os.system('mkdir /scratch/oimeitei/'+dname)
     os.system('export OMP_NUM_THREADS='+str(ompnum))
     nprocs = int(nproc/ompnum)
 
@@ -176,6 +254,7 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
     
     for nf in range(nfrag):
         print("nf", nf)
+        
         h1 = Fobjs[nf].fock + Fobjs[nf].heff
 
         dm0 = Fobjs[nf].dm0.copy()
@@ -186,13 +265,13 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
         efac = Fobjs[nf].efac
         TA = Fobjs[nf].TA
         h1_e = Fobjs[nf].h1
+
         
         result = pool_.apply_async(run_solver, [h1, dm0, dname, nao, nocc, nfsites,
                                                 efac, TA, hf_veff, h1_e,
                                                 solver,Fobjs[nf].eri_file,Fobjs[nf].eri_files,
                                                 hci_cutoff, ci_coeff_cutoff,select_cutoff,
                                                 ompnum, writeh1, True, True, use_cumulant, relax_density, frag_energy])
-        
         results.append(result)
 
     [rdms.append(result.get()) for result in results]
@@ -233,4 +312,66 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
     if eeval:
         print('Error in density matching      :   {:>2.4e}'.format(ernorm), flush=True)        
     return ernorm
+
+def be_func_parallel_u(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
+                     nproc=1, ompnum=4, relax_density=False, use_cumulant=True,
+                     eeval=False, ereturn=False, frag_energy=False,
+                     ecore=0., ebe_hf=0., frozen=False):
+
+    from multiprocessing import Pool
+    import os
+
+    os.system('export OMP_NUM_THREADS='+str(ompnum))
+    nprocs = int(nproc/ompnum)
+
+    pool_ = Pool(nprocs)
+    results = []    
+    energy_list = []
+
+    for (fobj_a, fobj_b) in Fobjs:
+
+        result = pool_.apply_async(run_solver_u, [fobj_a, fobj_b,
+                                                Nocc,
+                                                solver,
+                                                enuc,
+                                                hf_veff,
+                                                frag_energy,
+                                                relax_density,
+                                                frozen,
+                                                use_cumulant,
+                                                True
+                                                ])
+        results.append(result)
+
+    [energy_list.append(result.get()) for result in results]
+    pool_.close()
+
+    if frag_energy:
+        #rdms are the energies: trying _not_ to compile all of the rdms, we only need energy
+        e_1 = 0.
+        e_2 = 0.
+        e_c = 0.
+        for i in range(len(energy_list)):
+            e_1 += energy_list[i][0] 
+            e_2 += energy_list[i][1]
+            e_c += energy_list[i][2]
+        return (e_1+e_2+e_c, (e_1, e_2, e_c))
+
+    Etot = 0.
+    for idx, fobj in enumerate(Fobjs):
+        fobj.mo_coeffs = rdms[idx][0]
+        fobj._rdm1 = rdms[idx][1]
+        fobj.__rdm2 = rdms[idx][2]
+        fobj.__rdm1 = rdms[idx][3]
+        Etot += fobj.ebe
+
+    del energy_list
+    
+    Ebe = Etot+enuc+ecore-ek
+
+    if ereturn:        
+        return Ebe
+    else:
+        print("only returns energy")
+        sys.exit()
 

@@ -41,34 +41,6 @@ def make_rdm2_urlx(t1, t2, with_dm1=True):
                 dm2[i,j,j,i] -= 2
 
     return dm2  
-# end
-
-def make_uhf_obj(fobj_a, fobj_b, h1):
-    from pyscf import scf
-    from .frank_sgscf_uhf import uccsd_restore_eris
-
-    uhf_a = scf.addons.convert_to_uhf(fobj_a._mf)
-    uhf_b = scf.addons.convert_to_uhf(fobj_b._mf)
-    full_uhf = scf.addons.convert_to_uhf(fobj_a._mf)
-
-    new_mo_coeff = (uhf_a.mo_coeff[0], uhf_b.mo_coeff[1])
-
-    full_uhf.mo_coeff = new_mo_coeff
-    full_uhf.mo_occ = (uhf_a.mo_occ[0], uhf_b.mo_occ[1])
-    full_uhf.mo_energy = (uhf_a.mo_energy[0], uhf_b.mo_energy[1])
-    full_uhf.h1 = (fobj_a.h1, fobj_b.h1)
-
-    # Get overlap 
-    #sab = new_mo_coeff[0] @ fobj_a._mf.get_ovlp() @ new_mo_coeff[1]
-
-    full_uhf.veff0_a = functools.reduce(numpy.dot,(fobj_a.TA.T,fobj_a.hf_veff,fobj_a.TA))
-    full_uhf.veff0_b = functools.reduce(numpy.dot,(fobj_b.TA.T,fobj_b.hf_veff,fobj_b.TA))
-
-    Vs = uccsd_restore_eris((1,1,1), fobj_a, fobj_b)
-
-    full_uhf.gcores_raw = [fobj_a.TA.T @ fobj_a.hf_veff @ fobj_a.TA, fobj_b.TA.T @ fobj_b.hf_veff @ fobj_b.TA]
-
-    return full_uhf,  Vs
 
 def be_func_u(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
               nproc=4, eeval=False, ereturn=False, frag_energy=True,
@@ -133,7 +105,6 @@ def be_func_u(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
             fobj_b.__rdm2 = rdm2s[1].copy()
             if frag_energy:
                 if frozen:
-                #if fobj_a.core_veff is not None:
                     h1_ab = [full_uhf.h1[0]+full_uhf.full_gcore[0]+full_uhf.core_veffs[0],
                             full_uhf.h1[1]+full_uhf.full_gcore[1]+full_uhf.core_veffs[1]]
                 else:
@@ -592,7 +563,6 @@ def solve_uccsd(mf, eris_inp, mo_coeff=None,relax=False, use_cumulant=False,
         else:
             raise RuntimeError("moish must be either a numpy array or a list/tuple of 4 numpy arrays.")
 
-    print("STARTING UCCSD")
     ucc = cc.uccsd.UCCSD(mf, mo_coeff=mf.mo_coeff, mo_occ=mf.mo_occ)
     eris = make_eris_incore(ucc, Vss, Vos, mo_coeff=mf.mo_coeff, ao2mofn=ao2mofn, frozen=frozen)
 

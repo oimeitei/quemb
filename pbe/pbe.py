@@ -151,11 +151,6 @@ class pbe:
             self.eri_files = {} #library of eri_files
         else:
             jobid=''
-            #print("pbe_var.CREATE_SCRATCH_DIR", pbe_var.CREATE_SCRATCH_DIR)
-            #print("str(os.environ['SLURM_JOB_ID'])",str(os.environ['SLURM_JOB_ID']))
-            #print("pbe_var.SCRATCH",pbe_var.SCRATCH)
-            #print("pbe_var.SCRATCH+str(jobid)",pbe_var.SCRATCH+str(jobid))
-            #print("eri_file",eri_file)
             self.eri_files = None
             if pbe_var.CREATE_SCRATCH_DIR:
                 try:
@@ -280,10 +275,7 @@ class pbe:
         if not restart:
             if not pbe_var.SEP_SCRATCH_PER_FRAG:
                 file_eri = h5py.File(self.eri_file,'w')
-#            else: #LPW have to change
-                #file_eri = h5py.File(self.eri_file,'w')
         lentmp = len(self.edge_idx)
-        #print("self.eri_files", self.eri_files)
         for I in range(self.Nfrag):
             if lentmp:
                 fobjs_ = Frags(self.fsites[I], I, edge=self.edge[I],
@@ -305,14 +297,10 @@ class pbe:
                 if eri_ is None and hasattr(self.mf, 'with_df'): eri = ao2mo.kernel(self.mf.mol, fobjs_.TA, compact=True) # for density-fitted integrals; if mf is provided, pyscf.ao2mo uses DF object in an outcore fashion
                 elif eri_ is None: eri = ao2mo.kernel(self.mf.mol, fobjs_.TA, compact=True)
                 else: eri = ao2mo.incore.full(eri_, fobjs_.TA, compact=True) # otherwise, do an incore ao2mo
-                #if fobjs_.dname in eri:
-                #    del(file_eri[fobjs_.dname])
                 
                 if pbe_var.SEP_SCRATCH_PER_FRAG: #LPW
                     file_eri_name = self.eri_file+"eri_"+str(fobjs_.dname)+".h5"
-                    #print("file_eri_name", file_eri_name)
                     self.eri_files[fobjs_.dname] = file_eri_name # adding the appropriate h5, called from eri_files
-                    #print("self.eri_files[fobjs_.dname]",self.eri_files[fobjs_.dname])
                     file_eri = h5py.File(file_eri_name,'w')
                     file_eri.create_dataset(fobjs_.dname, data=eri) #saving eri to the appropriate file
                 else:
@@ -363,7 +351,7 @@ class pbe:
             fobj.udim = couti
             couti = fobj.set_udim(couti)
                         
-    def oneshot(self, solver='MP2', nproc=1, ompnum=4, calc_frag_energy=False):
+    def oneshot(self, solver='MP2', nproc=1, ompnum=4, calc_frag_energy=False, clean_eri=False):
         from .solver import be_func
         from .be_parallel import be_func_parallel
 
@@ -400,17 +388,13 @@ class pbe:
         if not calc_frag_energy:
             self.get_rdm(approx_cumulant=True, return_rdm=False)
 
-        # Delete all ERI files: I'm putting this here for the one-shot code to prevent some memory issues
-        # Note: for the "SEP_SCRATCH_PER_FRAG" option, we could delete scratch directly after the fragment
-        #       is evaluated 
-        """
-        if self.eri_files:
-            for file in self.eri_files.values():
-                os.remove(file)
-        else:
-            os.remove(self.eri_file)
-        os.rmdir(self.scratch_dir)
-        """
+        if clean_eri == True:
+            try:
+                os.remove(self.eri_file)
+                os.rmdir(self.scratch_dir)
+            except:
+                print("Scratch directory not removed")
+
 
     def update_fock(self, heff=None):
 

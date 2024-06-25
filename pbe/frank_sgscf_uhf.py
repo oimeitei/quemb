@@ -31,7 +31,6 @@ def make_uhf_obj(fobj_a, fobj_b, frozen=False):
 
     full_uhf.TA = [fobj_a.TA, fobj_b.TA]
     if frozen:
-#    if fobj_a.core_veff is not None:
         full_uhf.gcores_raw = [fobj_a.TA.T @ (fobj_a.hf_veff-fobj_a.core_veff) @ fobj_a.TA,
                                 fobj_b.TA.T @ (fobj_b.hf_veff-fobj_b.core_veff) @ fobj_b.TA]
         full_uhf.core_veffs = [fobj_a.TA.T @ fobj_a.core_veff @ fobj_a.TA,
@@ -42,7 +41,7 @@ def make_uhf_obj(fobj_a, fobj_b, frozen=False):
 
     return full_uhf,  Vs
 
-def uccsd_restore_eris(symm, fobj_a, fobj_b, pad0=True, skip_Vab=False): #Vsfile=None, Vsname=None,  pad0=True, skip_Vab=False):
+def uccsd_restore_eris(symm, fobj_a, fobj_b, pad0=True, skip_Vab=False):
     from pyscf import ao2mo
     # from frankenstein
 
@@ -122,7 +121,6 @@ void AO2MOrestore_nr1to4_gen(double *eri1, double *eri4, int norb1, int norb2)
 }
     """
     fn = getattr(libao2mo, 'AO2MOrestore_nr%sto%s_gen'%(origsym,targetsym))
-    #fn = getattr(libao2mo, 'AO2MOrestore_nr%sto%s'%(origsym,targetsym))
 
     if targetsym == 1:
         eri_out = np.empty([norb1,norb1,norb2,norb2])

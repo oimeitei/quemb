@@ -105,7 +105,6 @@ def make_eris_incore(mycc, Vss, Vos, mo_coeff=None, ao2mofn=None, frozen=False):
 
         OVvv = eris.OVvv.reshape(noccb*nvirb,nvira,nvira)
         eris.OVvv = lib.pack_tril(OVvv).reshape(noccb,nvirb,nvira*(nvira+1)//2)
-    #print("Final made eris", eris)
     return eris
 
 def _get_ovvv_base(ovvv, *slices):

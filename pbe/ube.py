@@ -291,24 +291,18 @@ class ube(pbe):
                     eri_, fobj_a.TA, compact=True)  # otherwise, do an incore ao2mo
                 eri_b = ao2mo.incore.full(
                     eri_, fobj_b.TA, compact=True)
-                #print("fobj_a.TA.shape", fobj_a.TA.shape)
-                #print("fobj_b.TA.shape", fobj_b.TA.shape)
+
                 Csd_A = fobj_a.TA # may have to add in nibath here
                 Csd_B = fobj_b.TA
- #               print("(Csd_A,Csd_A,Csd_B,Csd_B)", (Csd_A,Csd_A,Csd_B,Csd_B).shape)
+
                 eri_ab = ao2mo.incore.general(eri_, (Csd_A,Csd_A,Csd_B,Csd_B), compact=True)
                 # Save cross-eri term here 
 
             #fobj_a.dname = fobj_b.dname: the object is (eri_a, eri_b, eri_ab)
-            print("fobj_a.dname", fobj_a.dname)
             file_eri.create_dataset(fobj_a.dname[0], data=eri_a)
             file_eri.create_dataset(fobj_a.dname[1], data=eri_b)
             file_eri.create_dataset(fobj_a.dname[2], data=eri_ab)
-#            sys.exit()
-#            file_eri.create_dataset(fobj_a.dname, data=(eri_a, eri_b, eri_ab))
-            #dm_init = fobj_b.get_nsocc(self.S, self.C_b, self.Nocc_b, ncore=self.ncore)
 
-            #file_eri.create_dataset(fobj_a.dname, data=(eri_a,eri_ab))
             dm_init = fobj_a.get_nsocc(self.S, self.C_a, self.Nocc[0], ncore=self.ncore)
 
             fobj_a.cons_h1(self.hcore)
@@ -328,7 +322,7 @@ class ube(pbe):
                 EH1 += eh1_a
                 ECOUL += ecoul_a
                 E_hf += fobj_a.ebe_hf
-            print("AAA")
+
             dm_init = fobj_b.get_nsocc(self.S, self.C_b, self.Nocc[1], ncore=self.ncore)
 
             fobj_b.cons_h1(self.hcore)
@@ -337,7 +331,7 @@ class ube(pbe):
             fobj_b.hf_veff = self.hf_veff[1]
             fobj_b.heff = numpy.zeros_like(fobj_b.h1)
             fobj_b.scf(fs=True, eri=eri_b)
-            print("BBB")
+
             fobj_b.dm0 = numpy.dot(
                 fobj_b._mo_coeffs[:, : fobj_b.nsocc], fobj_b._mo_coeffs[:, : fobj_b.nsocc].conj().T
             )
@@ -347,7 +341,6 @@ class ube(pbe):
                 EH1 += eh1_b
                 ECOUL += ecoul_b
                 E_hf += fobj_b.ebe_hf
-            print("CCC")
         file_eri.close()
 
         if compute_hf:
@@ -378,7 +371,7 @@ class ube(pbe):
         # Not ready; Can be used once fobj.energy gets cumulant expression
         # and unrestricted keyword multiplies the RDMs appropriately (see: energy_hf)
         from .solver import be_func, be_func_u
-        #from .be_parallel import be_func_parallel_u
+        from .be_parallel import be_func_parallel_u
         #return NotImplementedError
         print("started oneshot", calc_frag_energy)
         if nproc == 1:
