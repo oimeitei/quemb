@@ -330,6 +330,9 @@ def be2puffin(
         mybe = ube(mf, fobj, lo_method=localization_method)
     time_post_be = time.time()
     print("Time for pbe or ube to run:", time_post_be-time_post_fragpart)
-    mybe.oneshot(solver="UCCSD", nproc=nproc, ompnum=ompnum, calc_frag_energy=True, clean_eri=True)
+    if unrestricted:
+        mybe.oneshot(solver="UCCSD", nproc=nproc, ompnum=ompnum, calc_frag_energy=True, clean_eri=True)
+    else:
+        mybe.oneshot(solver="CCSD", nproc=nproc, ompnum=ompnum, calc_frag_energy=True, clean_eri=True)
 
     return mybe.ebe_tot
