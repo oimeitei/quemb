@@ -73,7 +73,7 @@ def libint2pyscf(
                 libint2pyscf.append(labelidx - 1)
             elif "z" in label.split()[2]:
                 libint2pyscf.append(labelidx - 1)
-    print(libint2pyscf)
+
     hcore_pyscf = hcore_libint[numpy.ix_(libint2pyscf, libint2pyscf)]
 
     mol.incore_anyway = True
@@ -226,13 +226,15 @@ def be2puffin(
     jk=None,
     use_df=False,
     charge=0,
+    spin=0,
     nproc=1,
     ompnum=1,
     be_type='be1',
     frozen_core=True,
     df_aux_basis=None,
     localization_method='lowdin',
-    localization_basis=None
+    localization_basis=None,
+    unrestricted=False
 ):
     """Front-facing API bridge tailored for SCINE Puffin
     Returns the CCSD oneshot energies
@@ -259,27 +261,31 @@ def be2puffin(
     """
     from .fragment import fragpart
     from .pbe import pbe
+    from .ube import ube
 
     # Check input validity
     assert os.path.exists(xyzfile), "Input xyz file does not exist"
 
-    mol = gto.M(atom=xyzfile, basis=basis, charge=charge)
-    
-    libint2pyscf = []
-    for labelidx, label in enumerate(mol.ao_labels()):
-        # pyscf: px py pz // 1 -1 0
-        # libint: py pz px // -1 0 1
-        if "p" not in label.split()[2]:
-            libint2pyscf.append(labelidx)
-        else:
-            if "x" in label.split()[2]:
-                libint2pyscf.append(labelidx + 2)
-            elif "y" in label.split()[2]:
-                libint2pyscf.append(labelidx - 1)
-            elif "z" in label.split()[2]:
-                libint2pyscf.append(labelidx - 1)
+    mol = gto.M(atom=xyzfile, basis=basis, charge=charge, spin=spin)
+    if not hcore is None:
+        libint2pyscf = []
+        for labelidx, label in enumerate(mol.ao_labels()):
+            # pyscf: px py pz // 1 -1 0
+            # libint: py pz px // -1 0 1
+            if "p" not in label.split()[2]:
+                libint2pyscf.append(labelidx)
+            else:
+                if "x" in label.split()[2]:
+                    libint2pyscf.append(labelidx + 2)
+                elif "y" in label.split()[2]:
+                    libint2pyscf.append(labelidx - 1)
+                elif "z" in label.split()[2]:
+                    libint2pyscf.append(labelidx - 1)
 
-    hcore_pyscf = hcore[numpy.ix_(libint2pyscf, libint2pyscf)]
+        hcore_pyscf = hcore[numpy.ix_(libint2pyscf, libint2pyscf)] 
+    else: 
+        hcore_pyscf = None
+
     if not jk is None:
         jk_pyscf = (
             jk[0][numpy.ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)],
@@ -288,25 +294,43 @@ def be2puffin(
 
     mol.incore_anyway = True
 
-    if use_df and jk is None:
-        from pyscf import df
-        mf = scf.RHF(mol).density_fit(auxbasis=df_aux_basis)
+    if not unrestricted:
+        if use_df and jk is None:
+            from pyscf import df
+            mf = scf.RHF(mol).density_fit(auxbasis=df_aux_basis)
 
-    else: mf = scf.RHF(mol)
-    mf.get_hcore = lambda *args: hcore_pyscf
+        else: mf = scf.RHF(mol)
+    else:
+        if use_df and jk is None:
+           print("UHF and df are incompatible: use_df = False")
+           use_df = False
+        mf = scf.UHF(mol)
+
+    if not hcore_pyscf is None: mf.get_hcore = lambda *args: hcore_pyscf
     if not jk is None: mf.get_jk = lambda *args: jk_pyscf
     time_pre_mf = time.time()
     mf.kernel()
-    print("Using auxillary basis in density fitting: ", mf.with_df.auxmol.basis, flush=True)
-    print("DF auxillary nao_nr", mf.with_df.auxmol.nao_nr(), flush=True)
+    if use_df:
+        print("Using auxillary basis in density fitting: ", mf.with_df.auxmol.basis, flush=True)
+        print("DF auxillary nao_nr", mf.with_df.auxmol.nao_nr(), flush=True)
     time_post_mf = time.time()
     print("Time for mf kernel to run: ", time_post_mf - time_pre_mf, flush=True)
+
     fobj = fragpart(
         mol.natm, be_type=be_type, frag_type="autogen", mol=mol, molecule=True, 
         frozen_core=frozen_core, valence_basis=localization_basis
     )
     time_post_fragpart = time.time()
     print("Time for fragmentation to run: ", time_post_fragpart - time_post_mf, flush=True)
-    mybe = pbe(mf, fobj, lo_method=localization_method)
-    mybe.oneshot(solver="CCSD", nproc=nproc, ompnum=ompnum, calc_frag_energy=True)
+
+    if not unrestricted:
+        mybe = pbe(mf, fobj, lo_method=localization_method)
+    else:
+        hc = mf.get_hcore()
+        mybe = ube(mf, fobj, lo_method=localization_method)
+    time_post_be = time.time()
+    print("Time for pbe or ube to run:", time_post_be-time_post_fragpart)
+    print("mybe.oneshot", mybe.oneshot)
+    mybe.oneshot(solver="UCCSD", nproc=nproc, ompnum=ompnum, calc_frag_energy=True, clean_eri=True)
+
     return mybe.ebe_tot

@@ -183,17 +183,9 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
         nao = Fobjs[nf].nao
         nocc = Fobjs[nf].nsocc
         nfsites = Fobjs[nf].nfsites
-        #print("nocc", nocc)
-        #print("nfsites", nfsites)
         efac = Fobjs[nf].efac
         TA = Fobjs[nf].TA
         h1_e = Fobjs[nf].h1
-        #print("nao", nao)
-        #print("efac[1] nf",nf, efac[1])
-        #print("TA", TA.shape)
-        #print("h1_e", h1_e.shape)
-
-        #print("BREAK AND CANCEL", Cancel)
         
         result = pool_.apply_async(run_solver, [h1, dm0, dname, nao, nocc, nfsites,
                                                 efac, TA, hf_veff, h1_e,
@@ -201,7 +193,6 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
                                                 hci_cutoff, ci_coeff_cutoff,select_cutoff,
                                                 ompnum, writeh1, True, True, use_cumulant, relax_density, frag_energy])
         
-        #result = 5
         results.append(result)
 
     [rdms.append(result.get()) for result in results]
