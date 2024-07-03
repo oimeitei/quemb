@@ -584,11 +584,48 @@ def pretty(dm):
         print()
     print()
 
+#from frankenstein: /be/sd.py schmidt_decomposition_new2
+def schmidt_decomposition1(C, no, fragsites, norb=None): #, skip_Te=False, thr_bath=1.E-6,
+#    FragPairP = None, FragPairPOcc = None, NumPNO = None, NumOccPNO = None, # Variables for PNO augmented BE
+#    MixPLO = None, lMix = None, ProjectOV = False, CASS = None,
+#    verbose = 0):
+
+    thr_bath = 1.E-10
+    print("new schmidt decomp")
+    print("new2 C", C)
+    n = C.shape[0]
+    rA = fragsites
+    print("rA", rA)
+    rA_ = [i for i in range(n) if not i in rA]
+    nfA = len(rA)
+    nfA_ = len(rA_)
+    Co = C[:,:no]
+    Cv = C[:,no:]
+    P = Co @ Co.T
+    nocc_full = int(numpy.round(numpy.trace(P)))
+
+    lA, uA = numpy.linalg.eigh(P[numpy.ix_(rA_,rA_)])
+
+    if thr_bath > 0:
+        idx_bA = numpy.where(numpy.logical_and(lA > thr_bath, lA < 1-thr_bath))[0]
+        nbA = len(idx_bA)
+        print("idx_bA,nbA",idx_bA,nbA)
+
+    lfbA = lA[idx_bA]
+    TA = numpy.zeros([n,nfA+nbA])
+    TA[rA,:nfA] = numpy.eye(nfA)
+    TA[rA_,nfA:] = uA[:,idx_bA]
+
+    print("TA", TA)
+    return TA
+
 def schmidt_decomposition(mo_coeff, nocc, Frag_sites, cinv = None, rdm=None,tmpa=None, norb=None):
     import scipy.linalg
     import functools
     thres = 1.0e-10
     
+    print("init mo_coeff", mo_coeff.shape, mo_coeff)
+    print("nocc", nocc)
     if not mo_coeff is None:
         C = mo_coeff[:,:nocc]   
     if rdm is None:
@@ -598,17 +635,25 @@ def schmidt_decomposition(mo_coeff, nocc, Frag_sites, cinv = None, rdm=None,tmpa
                                    (cinv, Dhf, cinv.conj().T))        
     else:
         Dhf = rdm
-   
+    print("sd C", C.shape, C)
+    print("Dhf", Dhf.shape, Dhf)
     Tot_sites = Dhf.shape[0]        
     Env_sites1 = numpy.array([i for i in range(Tot_sites)
                               if not i in Frag_sites])
     Env_sites = numpy.array([[i] for i in range(Tot_sites)
                              if not i in Frag_sites])
     Frag_sites1 = numpy.array([[i] for i in Frag_sites])
+    print("Env_sites", Env_sites.shape, Env_sites)
+    print("Frag_sites1", Frag_sites1.shape, Frag_sites1)
     Denv = Dhf[Env_sites, Env_sites.T]
+    print("Denv", Denv.shape, Denv)
     Eval, Evec = numpy.linalg.eigh(Denv)
+    print("Eval", Eval.shape, Eval)
+    print("Evec", Evec.shape, Evec)
     Bidx = []
     if norb is not None:
+        print("norb not None")
+        print("norb", norb)
         n_frag_ind = len(Frag_sites1)
         n_bath_ind = norb - n_frag_ind
         ind_sort = numpy.argsort(numpy.abs(Eval))
@@ -620,10 +665,12 @@ def schmidt_decomposition(mo_coeff, nocc, Frag_sites, cinv = None, rdm=None,tmpa
         for i in range(len(Eval)):
             if thres < numpy.abs(Eval[i]) < 1.0 - thres:         
                 Bidx.append(i)
+    print("Bidx", len(Bidx), Bidx)
     TA = numpy.zeros([Tot_sites, len(Frag_sites) + len(Bidx)])
+    print("init TA shape", TA.shape)
     TA[Frag_sites, :len(Frag_sites)] = numpy.eye(len(Frag_sites))
     TA[Env_sites1,len(Frag_sites):] = Evec[:,Bidx]
-
+    print("total TA", TA.shape, TA)
     return TA
 
 
