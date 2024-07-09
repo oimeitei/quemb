@@ -316,11 +316,10 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g',
     from .pbcgeom import sgeom
     
     thresh=0.7
-    print("thresh", thresh)
+    #print("thresh", thresh)
     if lo_method == 'lowdin':
         
         es_, vs_ = eigh(self.S)
-        numpy.save("S.npy", self.S)
         #print("es_", es_)
         #print("vs_", vs_)
         edx = es_ > 1.e-15
@@ -330,7 +329,7 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g',
         #print("es_[edx]", es_[edx])
         #print("numpy.sqrt(es_[edx]", numpy.sqrt(es_[edx]))
         #print("vs_[:,edx]/numpy.sqrt(es_[edx])",vs_[:,edx]/numpy.sqrt(es_[edx]))
-        print("pre removal self.W", self.W)
+        #print("pre removal self.W", self.W)
         if self.frozen_core:
             if self.unrestricted:
                 #print("self.P_core", self.P_core)
@@ -343,9 +342,9 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g',
                                     (C_[s].T, self.S, C_[s])) for s in [0,1]]
                 #print("Cpop1", Cpop)
                 Cpop = [numpy.diag(Cpop[s]) for s in [0,1]]
-                print("Cpop2", Cpop)
+                #print("Cpop2", Cpop)
                 no_core_idx = [numpy.where(Cpop[s] > thresh)[0] for s in [0,1]]
-                print("no_core_idx", no_core_idx)
+                #print("no_core_idx", no_core_idx)
                 C_ = [C_[s][:,no_core_idx[s]] for s in [0,1]]
                 #print("C_ 2", C_)
                 S_ = [functools.reduce(numpy.dot, (C_[s].T, self.S, C_[s])) for s in [0,1]]
@@ -363,8 +362,8 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g',
                     W_.append(functools.reduce(numpy.dot, (vs_, s_, vs_.T)))
                     #print("W_", s, W_)
                 self.W = [numpy.dot(C_[s], W_[s]) for s in [0,1]]
-                print("final self.W0", self.W[0].shape, self.W[0])
-                print("final self.W1", self.W[1].shape, self.W[1])
+                #print("final self.W0", self.W[0].shape, self.W[0])
+                #print("final self.W1", self.W[1].shape, self.W[1])
             else:
                 P_core = numpy.eye(self.W.shape[0]) - numpy.dot(self.P_core, self.S)
                 C_ = numpy.dot(P_core, self.W)

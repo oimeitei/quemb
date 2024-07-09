@@ -88,7 +88,7 @@ class ube(pbe):
 
         self.hcore = mf.get_hcore()
         self.S = mf.get_ovlp()
-        print("mf.mo_coeff", mf.mo_coeff)
+        #print("mf.mo_coeff", mf.mo_coeff)
         self.C = [numpy.array(mf.mo_coeff[0]),numpy.array(mf.mo_coeff[1])]
         self.hf_dm = [mf.make_rdm1()[0],mf.make_rdm1()[1]]
         self.hf_veff = [mf.get_veff()[0],mf.get_veff()[1]]
@@ -118,15 +118,15 @@ class ube(pbe):
 
         if self.frozen_core:
             self.ncore = fobj.ncore
-            print("self.ncore", self.ncore)
+            print("ncore", self.ncore)
             self.no_core_idx = fobj.no_core_idx
-            print("self.no_core_idx", self.no_core_idx)
+            print("no_core_idx", self.no_core_idx)
             self.core_list = fobj.core_list
-            print("self.core_list", self.core_list)
-            print("pre Nocc", self.Nocc)
+            print("core_list", self.core_list)
+            print("full Nocc with core", self.Nocc)
             self.Nocc[0] -= self.ncore
             self.Nocc[1] -= self.ncore
-            print("post Nocc", self.Nocc)
+            print("Nocc without core", self.Nocc)
             self.hf_dm = [numpy.dot(self.C[s][:,self.ncore:self.ncore+self.Nocc[s]],
                                         self.C[s][:,self.ncore:self.ncore+self.Nocc[s]].T) for s in [0,1]]
             self.C_core = [self.C[s][:, :self.ncore] for s in [0,1]]
@@ -136,7 +136,6 @@ class ube(pbe):
             self.E_core = sum([numpy.einsum("ji,ji->", 2*self.hcore+self.core_veff[s], self.P_core[s]) for s in [0,1]]) * 0.5
 
         # iao ignored for now
-#        self.C = self.C_a
         self.C_a = numpy.array(mf.mo_coeff[0])
         self.C_b = numpy.array(mf.mo_coeff[1])
         del self.C
@@ -268,13 +267,12 @@ class ube(pbe):
             if self.frozen_core:
                 fobj_a.core_veff = self.core_veff[0]
                 fobj_b.core_veff = self.core_veff[1]
-                print("fobj_a.core_veff", fobj_a.core_veff.shape, fobj_a.core_veff)
-                print("fobj_b.core_veff", fobj_a.core_veff.shape, fobj_b.core_veff)
-                print("self.W[0]", self.W[0].shape, self.W[0])
-                print("self.W[1]", self.W[1].shape, self.W[1])
-                print("self.lmo_coeff_a", self.lmo_coeff_a.shape, self.lmo_coeff_a)
-                print("self.lmo_coeff_b", self.lmo_coeff_b.shape, self.lmo_coeff_b)
-                print("self.Nocc", self.Nocc)
+                #print("fobj_a.core_veff", fobj_a.core_veff.shape, fobj_a.core_veff)
+                #print("fobj_b.core_veff", fobj_a.core_veff.shape, fobj_b.core_veff)
+                #print("self.W[0]", self.W[0].shape, self.W[0])
+                #print("self.W[1]", self.W[1].shape, self.W[1])
+                #print("self.lmo_coeff_a", self.lmo_coeff_a.shape, self.lmo_coeff_a)
+                #print("self.lmo_coeff_b", self.lmo_coeff_b.shape, self.lmo_coeff_b)
                 fobj_a.sd(self.W[0], self.lmo_coeff_a, self.Nocc[0], frag_type=self.frag_type)
                 fobj_b.sd(self.W[1], self.lmo_coeff_b, self.Nocc[1], frag_type=self.frag_type)
             else:
@@ -319,7 +317,7 @@ class ube(pbe):
 
             sab = self.C_a @ self.S @ self.C_b
             #sab = new_mo_coeff[0] @ fobj_a._mf.get_ovlp() @ new_mo_coeff[1]
-            print("self.C_a", self.C_a)
+            #print("self.C_a", self.C_a)
             dm_init = fobj_a.get_nsocc(self.S, self.C_a, self.Nocc[0], ncore=self.ncore, Sab=sab)
 
             fobj_a.cons_h1(self.hcore)
@@ -340,7 +338,7 @@ class ube(pbe):
                 ECOUL += ecoul_a
                 E_hf += fobj_a.ebe_hf
 
-            print("self.C_b", self.C_b)
+            #print("self.C_b", self.C_b)
             dm_init = fobj_b.get_nsocc(self.S, self.C_b, self.Nocc[1], ncore=self.ncore, Sab=sab)
 
             fobj_b.cons_h1(self.hcore)

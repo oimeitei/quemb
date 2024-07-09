@@ -106,6 +106,8 @@ def ncore_(z):
         nc=9
     elif 39<=z<=48:
         nc=14
+    elif 49<=z<=56:
+        nc=18
     else:
         print('Ncore not computed in helper.ncore(), add it yourself!',
               flush=True)

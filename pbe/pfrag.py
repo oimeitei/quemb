@@ -101,14 +101,14 @@ class Frags:
         from scipy import fft
 
         if lao.ndim==2:
-            print("lmo", lmo)
+            #print("lmo", lmo)
             print("nocc", nocc)
             print("norb", norb)
             TA = schmidt_decomposition(lmo, nocc, self.fsites, norb=norb)
             self.C_lo_eo = TA
-            print("self.C_lo_eo", self.C_lo_eo.shape, self.C_lo_eo)
+            #print("self.C_lo_eo", self.C_lo_eo.shape, self.C_lo_eo)
             TA = numpy.dot(lao,TA)
-            print("lao", lao.shape, lao)
+            #print("lao", lao.shape, lao)
             print("TA", TA.shape, TA)
             
             self.nao = TA.shape[1]
@@ -138,32 +138,32 @@ class Frags:
         
         import scipy.linalg
         if self.TA.ndim ==2:
-            print("ncore", ncore)
-            print("nocc", nocc)
+            #print("ncore", ncore)
+            #print("nocc", nocc)
             try:
-                print("Trying original S")
-                print("C", C)
-                print("self.TA.T", self.TA.T)
+                #print("Trying original S")
+                #print("C", C)
+                #print("self.TA.T", self.TA.T)
                 C_ = functools.reduce(numpy.dot,(self.TA.T, S, C[:,ncore:ncore+nocc]))
                 P_ = numpy.dot(C_, C_.T)
-                print("C_", C_)
-                print("S", S)
-                print("P_", P_)
+                #print("C_", C_)
+                #print("S", S)
+                #print("P_", P_)
                 nsocc_ = numpy.trace(P_)
-                print("nsocc_", nsocc_)
+                #print("nsocc_", nsocc_)
                 nsocc = int(numpy.round(nsocc_))
-                print("nsocc", nsocc)
+                #print("nsocc", nsocc)
             except:
                 print("Trying Sab")
                 C_ = functools.reduce(numpy.dot,(self.TA.T, Sab, C[:,ncore:ncore+nocc]))
                 P_ = numpy.dot(C_, C_.T)
-                print("C_", C_)
-                print("Sab", Sab)
-                print("P_", P_)
+                #print("C_", C_)
+                #print("Sab", Sab)
+                #print("P_", P_)
                 nsocc_ = numpy.trace(P_)
-                print("nsocc_", nsocc_)
+                #print("nsocc_", nsocc_)
                 nsocc = int(numpy.round(nsocc_))
-                print("nsocc", nsocc)
+                #print("nsocc", nsocc)
             try:
                 mo_coeffs = scipy.linalg.svd(C_)[0]
             except:

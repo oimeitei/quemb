@@ -237,7 +237,8 @@ def be2puffin(
     localization_basis=None,
     unrestricted=False,
     from_chk=False,
-    checkfile=None
+    checkfile=None,
+    ecp=None
 ):
     """Front-facing API bridge tailored for SCINE Puffin
     Returns the CCSD oneshot energies
@@ -269,13 +270,18 @@ def be2puffin(
     # Check input validity
     assert os.path.exists(xyzfile), "Input xyz file does not exist"
 
-    mol = gto.M(atom=xyzfile, basis=basis, charge=charge, spin=spin, ecp = {'Ru':'def2-SVP'})
+    mol = gto.M(atom=xyzfile, basis=basis, charge=charge, spin=spin, ecp=ecp) #ecp = {'Ru':'def2-SVP', 'I':'def2-SVP'})
+    print("Using ecp?", ecp)
     mol.incore_anyway = True
-    print("from_chk", from_chk, flush=True)
+    mol.verbose = 4
+    print("From_chk:", from_chk, flush=True)
     if not from_chk:
-        print("not from check")
-        if not hcore is None:
-            if not len(hcore)==2: #specified starting hamiltonian, not point charges
+        if hcore is None:
+            hcore_pyscf = None
+        else:
+            if len(hcore)==2: #starting with point charges, QM/MM
+                hcore_pyscf = None
+            else: #specified starting hamiltonian, not point charges
                 libint2pyscf = []
                 for labelidx, label in enumerate(mol.ao_labels()):
                     # pyscf: px py pz // 1 -1 0
@@ -291,9 +297,7 @@ def be2puffin(
                             libint2pyscf.append(labelidx - 1)
 
                 hcore_pyscf = 1.*hcore[numpy.ix_(libint2pyscf, libint2pyscf)] 
-        else: 
-            hcore_pyscf = None
-        print("hcore_pyscf",hcore_pyscf)
+
         if not jk is None:
             jk_pyscf = (
                 jk[0][numpy.ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)],
@@ -312,30 +316,34 @@ def be2puffin(
                 use_df = False
             if hcore:
                 if len(hcore)==2:
-                    """
+                    
                     from pyscf import qmmm
-                    mf1 = scf.UHF(mol).set(max_cycle = 200, level_shift = (0.3, 0.2))
-                    mf = qmmm.mm_charge(mf1, hcore[0], hcore[1])
-                    """
-                    mf = scf.UHF(mol).set(max_cycle = 200, level_shift = (0.3, 0.2))
+                    print("Using QM/MM Point Charges")
+                    mf1 = scf.UHF(mol).set(max_cycle = 200).newton() #using SOSCF is more reliable
+                   #mf1 = scf.UHF(mol).set(max_cycle = 200, level_shift = (0.3, 0.2)) #using level shift helps, 
+                           #but not always. scf.addons.dynamic_level_shift does not work with QM/MM
+                    mf = qmmm.mm_charge(mf1, hcore[0], hcore[1]) #mf object, coordinates, charges
                 else:
                     mf = scf.UHF(mol).set(max_cycle = 200, level_shift = (0.3, 0.2))
             else:
                 mf = scf.UHF(mol).set(max_cycle = 200, level_shift = (0.3, 0.2))
-#           mf = scf.UHF(mol)
 
         if not hcore_pyscf is None: 
-            print("hcore_pyscf is not none")
+            print("hcore_pyscf is not None")
             mf.get_hcore = lambda *args: hcore_pyscf
         if not jk is None: 
             mf.get_jk = lambda *args: jk_pyscf
         time_pre_mf = time.time()
         print("MF type", mf)
         if checkfile:
-            print("saving checkfile:", checkfile)
+            print("Saving checkfile to:", checkfile)
             mf.chkfile = checkfile
         mf.kernel()
-
+        if mf.converged == True:
+            print("mf converged True")
+        else:
+            print("mf converged False -- stopping the calculation")
+            sys.exit()
         if use_df:
             print("Using auxillary basis in density fitting: ", mf.with_df.auxmol.basis, flush=True)
             print("DF auxillary nao_nr", mf.with_df.auxmol.nao_nr(), flush=True)
@@ -343,16 +351,13 @@ def be2puffin(
         print("Time for mf kernel to run: ", time_post_mf - time_pre_mf, flush=True)
 
     elif from_chk:
-        print("From check", flush=True)
+        print("Running from from chkfile", checkfile, flush=True)
         scf_result_dic = chkfile.load(checkfile, 'scf')
         mf = scf.UHF(mol)
         mf.with_df = None
         mf.__dict__.update(scf_result_dic)
         time_post_mf = time.time()
-        print("electronic energy", mf.energy_elec(), flush=True)
-    print("misc mo_coeff", mf.mo_coeff)
-    numpy.save("hcore2.npy", mf.get_hcore())
-#    sys.exit()
+        print("Chkfile electronic energy:", mf.energy_elec(), flush=True)
     fobj = fragpart(
         mol.natm, be_type=be_type, frag_type="autogen", mol=mol, molecule=True, 
         frozen_core=frozen_core, valence_basis=localization_basis
