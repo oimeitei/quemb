@@ -2,6 +2,7 @@ from .pfrag import Frags
 from .helper import get_core
 import numpy,functools,sys, pickle
 from pyscf import lib
+
 import h5py,os, pbe_var
 import time
 
@@ -145,6 +146,7 @@ class pbe:
                 jobid = str(os.environ['SLURM_JOB_ID'])
             except:
                 jobid = ''
+
             self.scratch_dir=pbe_var.SCRATCH+str(jobid)
             os.system('mkdir '+self.scratch_dir)
             self.eri_file = pbe_var.SCRATCH+str(jobid)+'/' # +eri_file
@@ -192,7 +194,9 @@ class pbe:
         time_pre_fock = time.time()
         self.FOCK = self.mf.get_fock(self.hcore, self.S, self.hf_veff, self.hf_dm)
         time_post_fock = time.time()
+
         print("Time to get full-system Fock matrix: ", time_post_fock - time_pre_fock, flush=True)
+
         if not restart or debug00:
             self.localize(lo_method, mol=self.cell, valence_basis=fobj.valence_basis, valence_only=fobj.valence_only, iao_wannier=iao_wannier)
             if fobj.valence_only and lo_method=='iao':
@@ -200,7 +204,9 @@ class pbe:
                                               hstack=True,
                                               valence_only=False, nosave=True)
             time_post_lo = time.time()
+
             print("Time to localize:" , time_post_lo - time_post_fock, flush=True)
+
         if save:
             store_ = storePBE(self.Nocc, self.hf_veff, self.hcore,
                               self.S, self.C, self.hf_dm, self.hf_etot,
@@ -228,8 +234,9 @@ class pbe:
             time_pre_hfinit = time.time()
             self.initialize(mf._eri,compute_hf)
             time_post_hfinit = time.time()
+
             print("Time to initialize HF: ",time_post_hfinit - time_pre_hfinit, flush=True)
-            
+     
         elif debug00:
             self.initialize(eri00,compute_hf)
         else:            
@@ -292,7 +299,8 @@ class pbe:
                                unitcell_nkpt=self.unitcell_nkpt)
             fobjs_.sd(self.W, self.lmo_coeff, self.Nocc,
                       frag_type=self.frag_type)
-                
+            self.Fobjs.append(fobjs_)
+                            
             if not restart:
                 if eri_ is None and hasattr(self.mf, 'with_df'): eri = ao2mo.kernel(self.mf.mol, fobjs_.TA, compact=True) # for density-fitted integrals; if mf is provided, pyscf.ao2mo uses DF object in an outcore fashion
                 elif eri_ is None: eri = ao2mo.kernel(self.mf.mol, fobjs_.TA, compact=True)
@@ -308,6 +316,29 @@ class pbe:
             else:
                 eri=None
                 
+# TODO: NEED TO RESOLVE ERI TRANSFORM DECISION TREE WITH PBE_VAR.SEP_SCRATCH_PER_FRAG
+#        if not restart:
+#            # ERI Transform Decision Tree
+#            # Do we have full (ij|kl)?
+#            #   Yes -- ao2mo, incore version
+#            #   No  -- Do we have (ij|P) from density fitting?
+#            #            Yes -- ao2mo, outcore version, using saved (ij|P)
+#            assert (not eri_ is None) or (hasattr(self.mf, 'with_df')), "Input mean-field object is missing ERI (mf._eri) or DF (mf.with_df) object. You may want to ensure that incore_anyway was set for non-DF calculations."
+#            if not eri_ is None: # incore ao2mo using saved eri from mean-field calculation
+#                for I in range(self.Nfrag):
+#                    eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
+#                    file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
+#            elif hasattr(self.mf, 'with_df') and not self.mf.with_df is None:
+#                # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P) in pyscf temp directory
+#                for I in range(self.Nfrag):
+#                    eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
+#                    file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
+#        else:
+#            eri=None
+        
+#        for fobjs_ in self.Fobjs:
+#            eri = numpy.array(file_eri.get(fobjs_.dname))
+
             dm_init = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
             
             fobjs_.cons_h1(self.hcore)
@@ -394,7 +425,6 @@ class pbe:
                 os.rmdir(self.scratch_dir)
             except:
                 print("Scratch directory not removed")
-
 
     def update_fock(self, heff=None):
 

@@ -138,6 +138,7 @@ def run_solver(h1, dm0, dname, nao, nocc, nfsites,
         if frag_energy:
             # I am NOT returning any RDM's here, just the energies! 
             # We could return both, but I haven't tested it
+
             e_f = get_frag_energy(mf_.mo_coeff, nocc, nfsites, efac, TA, h1_e, hf_veff, rdm1_tmp, rdm2s, dname, eri_file, eri_files)
             return e_f
 #            return (mf_.mo_coeff, rdm1, rdm2s, e_f)
@@ -266,7 +267,6 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
         TA = Fobjs[nf].TA
         h1_e = Fobjs[nf].h1
 
-        
         result = pool_.apply_async(run_solver, [h1, dm0, dname, nao, nocc, nfsites,
                                                 efac, TA, hf_veff, h1_e,
                                                 solver,Fobjs[nf].eri_file,Fobjs[nf].eri_files,

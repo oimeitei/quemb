@@ -1,7 +1,9 @@
 import numpy, os, sys
 from pyscf import gto, scf
 import time
+
 from pyscf.lib import chkfile
+
 
 def libint2pyscf(
     xyzfile, hcore, basis, hcore_skiprows=1, use_df=False, unrestricted=False, spin=0, charge=0
@@ -231,6 +233,7 @@ def be2puffin(
     nproc=1,
     ompnum=1,
     be_type='be1',
+    df_aux_basis=None,
     frozen_core=True,
     df_aux_basis=None,
     localization_method='lowdin',
@@ -308,7 +311,7 @@ def be2puffin(
             if use_df and jk is None:
                 from pyscf import df
                 mf = scf.RHF(mol).density_fit(auxbasis=df_aux_basis)
-
+                
             else: mf = scf.RHF(mol)
         else:
             if use_df and jk is None:
@@ -358,11 +361,13 @@ def be2puffin(
         mf.__dict__.update(scf_result_dic)
         time_post_mf = time.time()
         print("Chkfile electronic energy:", mf.energy_elec(), flush=True)
+
     fobj = fragpart(
         mol.natm, be_type=be_type, frag_type="autogen", mol=mol, molecule=True, 
         frozen_core=frozen_core, valence_basis=localization_basis
     )
     time_post_fragpart = time.time()
+
     print("Time for fragmentation to run: ", time_post_fragpart - time_post_mf, flush=True)
 
     if not unrestricted:

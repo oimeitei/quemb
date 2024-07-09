@@ -183,6 +183,7 @@ def get_frag_energy_u(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rd
 
     veff0 = [functools.reduce(numpy.dot,(TA[s].T,hf_veff[s],TA[s])) for s in [0,1]]
 
+
     if frozen:
         for s in [0,1]:
             veff0[s] -= gcores[s]
@@ -269,6 +270,7 @@ def get_frag_energy_u(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rd
 def get_frag_energy(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rdm2s, dname, 
                     eri_file='eri_file.h5',eri_files=None):
     rdm1s_rot = mo_coeffs @ rdm1 @ mo_coeffs.T # for unrestricted, removing factor * 0.5
+
 
     hf_1rdm = numpy.dot(mo_coeffs[:,:nsocc],
                        mo_coeffs[:,:nsocc].conj().T)
