@@ -1,6 +1,9 @@
-import numpy, os
+import numpy, os, sys
 from pyscf import gto, scf
 import time
+
+from pyscf.lib import chkfile
+
 
 def libint2pyscf(
     xyzfile, hcore, basis, hcore_skiprows=1, use_df=False, unrestricted=False, spin=0, charge=0
@@ -226,11 +229,19 @@ def be2puffin(
     jk=None,
     use_df=False,
     charge=0,
+    spin=0,
     nproc=1,
     ompnum=1,
     be_type='be1',
     df_aux_basis=None,
     frozen_core=True,
+    df_aux_basis=None,
+    localization_method='lowdin',
+    localization_basis=None,
+    unrestricted=False,
+    from_chk=False,
+    checkfile=None,
+    ecp=None
 ):
     """Front-facing API bridge tailored for SCINE Puffin
     Returns the CCSD oneshot energies
@@ -257,52 +268,117 @@ def be2puffin(
     """
     from .fragment import fragpart
     from .pbe import pbe
+    from .ube import ube
 
     # Check input validity
     assert os.path.exists(xyzfile), "Input xyz file does not exist"
 
-    mol = gto.M(atom=xyzfile, basis=basis, charge=charge)
-
-    libint2pyscf = []
-    for labelidx, label in enumerate(mol.ao_labels()):
-        # pyscf: px py pz // 1 -1 0
-        # libint: py pz px // -1 0 1
-        if "p" not in label.split()[2]:
-            libint2pyscf.append(labelidx)
-        else:
-            if "x" in label.split()[2]:
-                libint2pyscf.append(labelidx + 2)
-            elif "y" in label.split()[2]:
-                libint2pyscf.append(labelidx - 1)
-            elif "z" in label.split()[2]:
-                libint2pyscf.append(labelidx - 1)
-
-    hcore_pyscf = hcore[numpy.ix_(libint2pyscf, libint2pyscf)]
-    if not jk is None:
-        jk_pyscf = (
-            jk[0][numpy.ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)],
-            jk[1][numpy.ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)],
-        )
-
+    mol = gto.M(atom=xyzfile, basis=basis, charge=charge, spin=spin, ecp=ecp) #ecp = {'Ru':'def2-SVP', 'I':'def2-SVP'})
+    print("Using ecp?", ecp)
     mol.incore_anyway = True
-    if use_df and jk is None:
-        from pyscf import df
-        mf = scf.RHF(mol).density_fit(auxbasis=df_aux_basis)
+    mol.verbose = 4
+    print("From_chk:", from_chk, flush=True)
+    if not from_chk:
+        if hcore is None:
+            hcore_pyscf = None
+        else:
+            if len(hcore)==2: #starting with point charges, QM/MM
+                hcore_pyscf = None
+            else: #specified starting hamiltonian, not point charges
+                libint2pyscf = []
+                for labelidx, label in enumerate(mol.ao_labels()):
+                    # pyscf: px py pz // 1 -1 0
+                    # libint: py pz px // -1 0 1
+                    if "p" not in label.split()[2]:
+                        libint2pyscf.append(labelidx)
+                    else:
+                        if "x" in label.split()[2]:
+                            libint2pyscf.append(labelidx + 2)
+                        elif "y" in label.split()[2]:
+                            libint2pyscf.append(labelidx - 1)
+                        elif "z" in label.split()[2]:
+                            libint2pyscf.append(labelidx - 1)
 
-    else: mf = scf.RHF(mol)
-    mf.get_hcore = lambda *args: hcore_pyscf
-    if not jk is None: mf.get_jk = lambda *args: jk_pyscf
-    time_pre_mf = time.time()
-    mf.kernel()
-    time_post_mf = time.time()
-    print("Time for mf kernel to run: ", time_post_mf - time_pre_mf)
-    print("Using auxillary basis in density fitting: ", mf.with_df.auxmol.basis)
-    print("DF auxillary nao_nr", mf.with_df.auxmol.nao_nr())
+                hcore_pyscf = 1.*hcore[numpy.ix_(libint2pyscf, libint2pyscf)] 
+
+        if not jk is None:
+            jk_pyscf = (
+                jk[0][numpy.ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)],
+                jk[1][numpy.ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)],
+            )
+
+        if not unrestricted:
+            if use_df and jk is None:
+                from pyscf import df
+                mf = scf.RHF(mol).density_fit(auxbasis=df_aux_basis)
+                
+            else: mf = scf.RHF(mol)
+        else:
+            if use_df and jk is None:
+                print("UHF and df are incompatible: use_df = False")
+                use_df = False
+            if hcore:
+                if len(hcore)==2:
+                    
+                    from pyscf import qmmm
+                    print("Using QM/MM Point Charges")
+                    mf1 = scf.UHF(mol).set(max_cycle = 200).newton() #using SOSCF is more reliable
+                   #mf1 = scf.UHF(mol).set(max_cycle = 200, level_shift = (0.3, 0.2)) #using level shift helps, 
+                           #but not always. scf.addons.dynamic_level_shift does not work with QM/MM
+                    mf = qmmm.mm_charge(mf1, hcore[0], hcore[1]) #mf object, coordinates, charges
+                else:
+                    mf = scf.UHF(mol).set(max_cycle = 200, level_shift = (0.3, 0.2))
+            else:
+                mf = scf.UHF(mol).set(max_cycle = 200, level_shift = (0.3, 0.2))
+
+        if not hcore_pyscf is None: 
+            print("hcore_pyscf is not None")
+            mf.get_hcore = lambda *args: hcore_pyscf
+        if not jk is None: 
+            mf.get_jk = lambda *args: jk_pyscf
+        time_pre_mf = time.time()
+        print("MF type", mf)
+        if checkfile:
+            print("Saving checkfile to:", checkfile)
+            mf.chkfile = checkfile
+        mf.kernel()
+        if mf.converged == True:
+            print("mf converged True")
+        else:
+            print("mf converged False -- stopping the calculation")
+            sys.exit()
+        if use_df:
+            print("Using auxillary basis in density fitting: ", mf.with_df.auxmol.basis, flush=True)
+            print("DF auxillary nao_nr", mf.with_df.auxmol.nao_nr(), flush=True)
+        time_post_mf = time.time()
+        print("Time for mf kernel to run: ", time_post_mf - time_pre_mf, flush=True)
+
+    elif from_chk:
+        print("Running from from chkfile", checkfile, flush=True)
+        scf_result_dic = chkfile.load(checkfile, 'scf')
+        mf = scf.UHF(mol)
+        mf.with_df = None
+        mf.__dict__.update(scf_result_dic)
+        time_post_mf = time.time()
+        print("Chkfile electronic energy:", mf.energy_elec(), flush=True)
+
     fobj = fragpart(
-        mol.natm, be_type=be_type, frag_type="autogen", mol=mol, molecule=True, frozen_core=frozen_core
+        mol.natm, be_type=be_type, frag_type="autogen", mol=mol, molecule=True, 
+        frozen_core=frozen_core, valence_basis=localization_basis
     )
     time_post_fragpart = time.time()
-    print("Time for fragmentation to run: ", time_post_fragpart - time_post_mf)
-    mybe = pbe(mf, fobj, lo_method="lowdin")
-    mybe.oneshot(solver="CCSD", nproc=nproc, ompnum=ompnum, calc_frag_energy=True, clean_eri=True)
+
+    print("Time for fragmentation to run: ", time_post_fragpart - time_post_mf, flush=True)
+
+    if not unrestricted:
+        mybe = pbe(mf, fobj, lo_method=localization_method)
+    else:
+        mybe = ube(mf, fobj, lo_method=localization_method)
+    time_post_be = time.time()
+    print("Time for pbe or ube to run:", time_post_be-time_post_fragpart)
+    if unrestricted:
+        mybe.oneshot(solver="UCCSD", nproc=nproc, ompnum=ompnum, calc_frag_energy=True, clean_eri=True)
+    else:
+        mybe.oneshot(solver="CCSD", nproc=nproc, ompnum=ompnum, calc_frag_energy=True, clean_eri=True)
+
     return mybe.ebe_tot

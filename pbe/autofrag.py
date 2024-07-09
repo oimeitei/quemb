@@ -74,7 +74,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
             auxcell = None,
             nx=False, ny=False, nz=False,
             valence_basis = None, valence_only = False,
-            print_frags=True):
+            print_frags=True, split_basis_return = False):
     from pyscf import lib
     from .pbcgeom import printatom, sgeom
 
@@ -179,7 +179,6 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
         else:
             Frag.append(flist)
             cen.append(idx)
-
     hlist = [[] for i in coord]
     if not hchain:
         for idx, i in enumerate(normlist):
@@ -329,7 +328,6 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
         
         frglist = sites__[cen[idx]].copy()
         frglist.extend(hsites[cen[idx]])
-
         ls = len(sites__[cen[idx]])+len(hsites[cen[idx]])
         if idx in open_frag:
             for pidx__,pid__ in enumerate(open_frag):
@@ -443,8 +441,20 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
                     idx.append([fsites[j].index(k) for k in cntlist])
                 
             center_idx.append(idx)
+    """
+    print("fsites", fsites)
+    print("edgsites",edgsites)
+    print("center",center)
+    print("edge_idx",edge_idx)
+    print("center_idx",center_idx)
+    print("centerf_idx",centerf_idx)
+    print("ebe_weight",ebe_weight)
+    """
 
-    return(fsites, edgsites, center, edge_idx, center_idx, centerf_idx, ebe_weight)
+    if split_basis_return:
+        return Frag, cen, hlist  #frag_info
+    else:
+        return(fsites, edgsites, center, edge_idx, center_idx, centerf_idx, ebe_weight)
 
 
 

@@ -2,7 +2,9 @@ from .pfrag import Frags
 from .helper import get_core
 import numpy,functools,sys, pickle
 from pyscf import lib
-import h5py,os,time,pbe_var
+
+import h5py,os, pbe_var
+import time
 
 from .lo import iao_tmp
 
@@ -30,7 +32,7 @@ class storePBE:
 
 class pbe:
 
-    def __init__(self, mf, fobj, eri_file='eri_file.h5', exxdiv='ewald',
+    def __init__(self, mf, fobj, eri_file='eri_file.h5', exxdiv='ewald', eri_files=None,
                  lo_method='lowdin',compute_hf=True, nkpt = None, kpoint = False,
                  super_cell=False, molecule=False,
                  kpts = None, cell=None, kmesh=None,
@@ -133,24 +135,37 @@ class pbe:
         self.Fobjs = []
         self.pot = initialize_pot(self.Nfrag, self.edge_idx)
         self.eri_file = eri_file
+        self.eri_files = None
         self.ek=0.
 
         # set scratch dir in pbe_var
-        jobid=''
-        if pbe_var.CREATE_SCRATCH_DIR:
+        if pbe_var.SEP_SCRATCH_PER_FRAG == True:
+            # This will use the slurm ID to make a directory in the assigned scratch
+            # Within that, we will later make an eri_file for each fragment 
             try:
                 jobid = str(os.environ['SLURM_JOB_ID'])
             except:
                 jobid = ''
-        if not pbe_var.SCRATCH=='': 
-            self.scratch_dir = pbe_var.SCRATCH+str(jobid)
+
+            self.scratch_dir=pbe_var.SCRATCH+str(jobid)
             os.system('mkdir '+self.scratch_dir)
+            self.eri_file = pbe_var.SCRATCH+str(jobid)+'/' # +eri_file
+            self.eri_files = {} #library of eri_files
         else:
-            self.scratch_dir = None
-        if jobid == '':
-            self.eri_file = pbe_var.SCRATCH+eri_file
-        else:
-            self.eri_file = self.scratch_dir+'/'+eri_file
+            jobid=''
+            self.eri_files = None
+            if pbe_var.CREATE_SCRATCH_DIR:
+                try:
+                    jobid = str(os.environ['SLURM_JOB_ID'])
+                except:
+                    jobid = ''
+            if not pbe_var.SCRATCH=='':
+                self.scratch_dir = pbe_var.SCRATCH+str(jobid)
+                os.system('mkdir '+self.scratch_dir)
+            if jobid == '':
+                self.eri_file = pbe_var.SCRATCH+eri_file
+            else:
+                self.eri_file = pbe_var.SCRATCH+str(jobid)+'/'+eri_file
             
         self.frozen_core = False if not fobj.frozen_core else True
         self.ncore = 0
@@ -179,7 +194,9 @@ class pbe:
         time_pre_fock = time.time()
         self.FOCK = self.mf.get_fock(self.hcore, self.S, self.hf_veff, self.hf_dm)
         time_post_fock = time.time()
-        print("Time to get full-system Fock matrix: ", time_post_fock - time_pre_fock)
+
+        print("Time to get full-system Fock matrix: ", time_post_fock - time_pre_fock, flush=True)
+
         if not restart or debug00:
             self.localize(lo_method, mol=self.cell, valence_basis=fobj.valence_basis, valence_only=fobj.valence_only, iao_wannier=iao_wannier)
             if fobj.valence_only and lo_method=='iao':
@@ -187,7 +204,9 @@ class pbe:
                                               hstack=True,
                                               valence_only=False, nosave=True)
             time_post_lo = time.time()
-            print("Time to localize:" , time_post_lo - time_post_fock)
+
+            print("Time to localize:" , time_post_lo - time_post_fock, flush=True)
+
         if save:
             store_ = storePBE(self.Nocc, self.hf_veff, self.hcore,
                               self.S, self.C, self.hf_dm, self.hf_etot,
@@ -215,8 +234,9 @@ class pbe:
             time_pre_hfinit = time.time()
             self.initialize(mf._eri,compute_hf)
             time_post_hfinit = time.time()
-            print("Time to initialize HF: ",time_post_hfinit - time_pre_hfinit)
-            
+
+            print("Time to initialize HF: ",time_post_hfinit - time_pre_hfinit, flush=True)
+     
         elif debug00:
             self.initialize(eri00,compute_hf)
         else:            
@@ -256,52 +276,69 @@ class pbe:
         if compute_hf: E_hf = 0.
         EH1 = 0.
         ECOUL = 0.
-        EF = 0.
+        EF = 0
         
         # from here remove ncore from C
         if not restart:
-            file_eri = h5py.File(self.eri_file,'w')
+            if not pbe_var.SEP_SCRATCH_PER_FRAG:
+                file_eri = h5py.File(self.eri_file,'w')
         lentmp = len(self.edge_idx)
         for I in range(self.Nfrag):
-            
             if lentmp:
                 fobjs_ = Frags(self.fsites[I], I, edge=self.edge[I],
-                               eri_file=self.eri_file,
+                               eri_file=self.eri_file, eri_files=self.eri_files, #LPW add eri_files
                                center=self.center[I], edge_idx=self.edge_idx[I],
                                center_idx=self.center_idx[I],efac=self.ebe_weight[I],
                                centerf_idx=self.centerf_idx[I], unitcell=self.unitcell,
                                unitcell_nkpt=self.unitcell_nkpt)
             else:
                 fobjs_ = Frags(self.fsites[I],I,edge=[],center=[],
-                               eri_file=self.eri_file,
+                               eri_file=self.eri_file, eri_files=self.eri_files, #LPW add eri_files
                                edge_idx=[],center_idx=[],centerf_idx=[],
                                efac=self.ebe_weight[I], unitcell=self.unitcell,
                                unitcell_nkpt=self.unitcell_nkpt)
             fobjs_.sd(self.W, self.lmo_coeff, self.Nocc,
                       frag_type=self.frag_type)
             self.Fobjs.append(fobjs_)
+                            
+            if not restart:
+                if eri_ is None and hasattr(self.mf, 'with_df'): eri = ao2mo.kernel(self.mf.mol, fobjs_.TA, compact=True) # for density-fitted integrals; if mf is provided, pyscf.ao2mo uses DF object in an outcore fashion
+                elif eri_ is None: eri = ao2mo.kernel(self.mf.mol, fobjs_.TA, compact=True)
+                else: eri = ao2mo.incore.full(eri_, fobjs_.TA, compact=True) # otherwise, do an incore ao2mo
                 
-        if not restart:
-            # ERI Transform Decision Tree
-            # Do we have full (ij|kl)?
-            #   Yes -- ao2mo, incore version
-            #   No  -- Do we have (ij|P) from density fitting?
-            #            Yes -- ao2mo, outcore version, using saved (ij|P)
-            assert (not eri_ is None) or (hasattr(self.mf, 'with_df')), "Input mean-field object is missing ERI (mf._eri) or DF (mf.with_df) object. You may want to ensure that incore_anyway was set for non-DF calculations."
-            if not eri_ is None: # incore ao2mo using saved eri from mean-field calculation
-                for I in range(self.Nfrag):
-                    eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
-                    file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
-            elif hasattr(self.mf, 'with_df') and not self.mf.with_df is None:
-                # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P) in pyscf temp directory
-                for I in range(self.Nfrag):
-                    eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
-                    file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
-        else:
-            eri=None
+                if pbe_var.SEP_SCRATCH_PER_FRAG: #LPW
+                    file_eri_name = self.eri_file+"eri_"+str(fobjs_.dname)+".h5"
+                    self.eri_files[fobjs_.dname] = file_eri_name # adding the appropriate h5, called from eri_files
+                    file_eri = h5py.File(file_eri_name,'w')
+                    file_eri.create_dataset(fobjs_.dname, data=eri) #saving eri to the appropriate file
+                else:
+                    file_eri.create_dataset(fobjs_.dname, data=eri)
+            else:
+                eri=None
+                
+# TODO: NEED TO RESOLVE ERI TRANSFORM DECISION TREE WITH PBE_VAR.SEP_SCRATCH_PER_FRAG
+#        if not restart:
+#            # ERI Transform Decision Tree
+#            # Do we have full (ij|kl)?
+#            #   Yes -- ao2mo, incore version
+#            #   No  -- Do we have (ij|P) from density fitting?
+#            #            Yes -- ao2mo, outcore version, using saved (ij|P)
+#            assert (not eri_ is None) or (hasattr(self.mf, 'with_df')), "Input mean-field object is missing ERI (mf._eri) or DF (mf.with_df) object. You may want to ensure that incore_anyway was set for non-DF calculations."
+#            if not eri_ is None: # incore ao2mo using saved eri from mean-field calculation
+#                for I in range(self.Nfrag):
+#                    eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
+#                    file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
+#            elif hasattr(self.mf, 'with_df') and not self.mf.with_df is None:
+#                # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P) in pyscf temp directory
+#                for I in range(self.Nfrag):
+#                    eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
+#                    file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
+#        else:
+#            eri=None
         
-        for fobjs_ in self.Fobjs:
-            eri = numpy.array(file_eri.get(fobjs_.dname))
+#        for fobjs_ in self.Fobjs:
+#            eri = numpy.array(file_eri.get(fobjs_.dname))
+
             dm_init = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
             
             fobjs_.cons_h1(self.hcore)
@@ -318,13 +355,13 @@ class pbe:
                                     fobjs_._mo_coeffs[:,:fobjs_.nsocc].conj().T) *2.
                 
             if compute_hf:
-            
                 eh1, ecoul, ef = fobjs_.energy_hf(return_e1=True)
                 EH1 += eh1
                 ECOUL += ecoul
                 E_hf += fobjs_.ebe_hf
 
-        if not restart:
+            self.Fobjs.append(fobjs_)
+        if not restart and not pbe_var.SEP_SCRATCH_PER_FRAG:
             file_eri.close()
         
         if compute_hf:
@@ -410,9 +447,8 @@ class pbe:
         for fobj in self.Fobjs:
             fobj.heff = filepot.get(fobj.dname)
         filepot.close()
-        
-        
-        
+
+
 def initialize_pot(Nfrag, edge_idx):
     pot_=[]
     

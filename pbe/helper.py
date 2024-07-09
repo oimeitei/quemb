@@ -12,11 +12,10 @@ def get_veff(eri_, dm, S, TA, hf_veff):
     eri_ = numpy.asarray(eri_, dtype=numpy.double)
     vj, vk = scf.hf.dot_eri_dm(eri_, P_, hermi=1, with_j=True, with_k=True)
     Veff_ = vj - 0.5 * vk
-    
     # remove core contribution from hf_veff
     if dm.ndim == 2:
         Veff = functools.reduce(numpy.dot,(TA.T, hf_veff, TA)) - Veff_
-    
+
     return Veff
 
 # create pyscf pbc scf object
@@ -73,20 +72,24 @@ def get_scfObj(h1, Eri, nocc, dm0=None, enuc=0.):
                     
     return mf_
 
-
-def get_eri(i_frag, Nao, symm = 8, ignore_symm = False, eri_file='eri_file.h5'):
+def get_eri(i_frag, Nao, symm = 8, ignore_symm = False, eri_file='eri_file.h5', eri_files=None, unrestricted=False, spin_ind=None):
     from pyscf import ao2mo, lib
     import h5py
     
-    r = h5py.File(eri_file,'r')
+    if eri_files:
+        r = h5py.File(eri_files[i_frag],'r')
+    else:
+        r = h5py.File(eri_file,'r')
     eri__ = numpy.array(r.get(i_frag))
-    
+
     if not ignore_symm:
         lib.num_threads(1)
-        eri__ = ao2mo.restore(symm, eri__, Nao)
+        if unrestricted:
+            eri__ = ao2mo.restore(symm, eri__, Nao)
+        else:
+            eri__ = ao2mo.restore(symm, eri__, Nao)
 
     r.close()
-
     return eri__
 
 def ncore_(z):
@@ -103,6 +106,8 @@ def ncore_(z):
         nc=9
     elif 39<=z<=48:
         nc=14
+    elif 49<=z<=56:
+        nc=18
     else:
         print('Ncore not computed in helper.ncore(), add it yourself!',
               flush=True)
@@ -166,9 +171,106 @@ def be_energy(nfsites, h1, mo_coeffs, rdm1, rdm2s, eri_file='eri_file.h5'):
     return (e1+e2+ec)
 
     
+def get_frag_energy_u(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rdm2s, dname, 
+                    eri_file='eri_file.h5',eri_files=None, gcores=None, frozen=False):
 
-def get_frag_energy(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rdm2s, dname, eri_file='eri_file.h5'):
-    rdm1s_rot = mo_coeffs @ rdm1 @ mo_coeffs.T * 0.5
+    rdm1s_rot = [mo_coeffs[s] @ rdm1[s] @ mo_coeffs[s].T for s in [0,1] ]# for unrestricted, removing factor * 0.5
+
+    hf_1rdm = [numpy.dot(mo_coeffs[s][:,:nsocc[s]],
+                       mo_coeffs[s][:,:nsocc[s]].conj().T) for s in [0,1]]
+
+    delta_rdm1 = [2 * (rdm1s_rot[s] - hf_1rdm[s]) for s in [0,1]]
+
+    veff0 = [functools.reduce(numpy.dot,(TA[s].T,hf_veff[s],TA[s])) for s in [0,1]]
+
+
+    if frozen:
+        for s in [0,1]:
+            veff0[s] -= gcores[s]
+            h1[s] -= gcores[s]
+
+    e1 = [numpy.einsum("ij,ij->i",h1[s][:nfsites[s]], delta_rdm1[s][:nfsites[s]]) for s in [0,1]]
+    ec = [numpy.einsum("ij,ij->i",veff0[s][:nfsites[s]], delta_rdm1[s][:nfsites[s]]) for s in [0,1]]
+   
+    jmax = [TA[0].shape[1],TA[1].shape[1]]
+
+    if eri_files:
+        r = h5py.File(eri_files[dname[0]],'r')
+        Vs = r[dname[0]][()]
+    else:
+        r = h5py.File(eri_file,'r')
+        Vs = [r[dname[0]][()],r[dname[1]][()],r[dname[2]][()]]
+    r.close()
+
+    rdm2s_k = [numpy.einsum("ijkl,pi,qj,rk,sl->pqrs", rdm2s[s],
+                            *([mo_coeffs[s12[0]]]*2+[mo_coeffs[s12[1]]]*2), optimize=True)
+                            for s,s12 in zip([0,1,2],[[0,0],[0,1],[1,1]])]
+
+    # From Frankenstein!
+    e2 = [numpy.zeros(h1[0].shape[0]),numpy.zeros(h1[1].shape[0])]
+
+    def contract_2e(jmaxs, rdm2_, V_, s, sym):
+        e2_ = numpy.zeros(nfsites[s])
+        jmax1,jmax2 = [jmaxs]*2 if isinstance(jmaxs,int) else jmaxs
+        for i in range(nfsites[s]):
+            for j in range(jmax1):
+                # By default, Vs is stored in the "compact" format. S$
+                ij = i*(i+1)//2+j if i > j else j*(j+1)//2+i
+                if sym in [4,2]:
+                    Gij = rdm2_[i,j,:jmax2,:jmax2].copy()
+                    Vij = V_[ij]
+                else:
+                    Gij = rdm2_[:jmax2,:jmax2,i,j].copy()
+                    Vij = V_[:,ij]
+                Gij[numpy.diag_indices(jmax2)] *= 0.5
+                Gij += Gij.T
+                e2_[i] += Gij[numpy.tril_indices(jmax2)] @ Vij
+        e2_ *= 0.5
+
+        return e2_
+
+    # the first nf are frag sites
+    e2ss = [0.,0.]
+    e2os = [0.,0.]
+
+    for s in [0,1]:
+        e2ss[s] += contract_2e(jmax[s], rdm2s_k[2*s], Vs[s], s, sym=4)
+    V = Vs[2]
+
+    # ab
+    e2os[0] += contract_2e(jmax, rdm2s_k[1], V, 0, sym=2)
+    # ba
+    e2os[1] += contract_2e(jmax[::-1], rdm2s_k[1], V, 1, sym=-2)
+
+    e2 = sum(e2ss) + sum(e2os)
+    #ending frankenstein
+
+    e_ = e1+e2+ec        
+    etmp = 0.
+    e1_tmp = 0.
+    e2_tmp = 0.
+    ec_tmp = 0.
+
+    for i in efac[0][1]:
+        e2_tmp += efac[0][0]*e2[i]
+        for s in [0,1]:
+            etmp += efac[s][0]*e_[s][i]
+            e1_tmp += efac[s][0]*e1[s][i]
+            ec_tmp += efac[s][0]*ec[s][i]
+
+    print("fragment number", dname[0].split('/')[0])
+    print("e1_tmp",e1_tmp)
+    print("e2_tmp",e2_tmp)
+    print("ec_tmp",ec_tmp)
+    print("sum e",e1_tmp+e2_tmp+ec_tmp)
+    return [e1_tmp,e2_tmp,ec_tmp]
+
+
+
+def get_frag_energy(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rdm2s, dname, 
+                    eri_file='eri_file.h5',eri_files=None):
+    rdm1s_rot = mo_coeffs @ rdm1 @ mo_coeffs.T # for unrestricted, removing factor * 0.5
+
 
     hf_1rdm = numpy.dot(mo_coeffs[:,:nsocc],
                        mo_coeffs[:,:nsocc].conj().T)
@@ -176,6 +278,7 @@ def get_frag_energy(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rdm2
     delta_rdm1 = 2 * (rdm1s_rot - hf_1rdm)
 
     veff0 = functools.reduce(numpy.dot,(TA.T,hf_veff,TA))
+
     e1 = numpy.einsum("ij,ij->i",h1[:nfsites], delta_rdm1[:nfsites])
     ec = numpy.einsum("ij,ij->i",veff0[:nfsites], delta_rdm1[:nfsites])
 
@@ -184,10 +287,13 @@ def get_frag_energy(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rdm2
     else:
         jmax = TA.shape[1]
 
-#    if eri is None:
-    r = h5py.File(eri_file,'r')
-#    eri = r[self.dname][()]
-    eri = r[dname][()]
+
+    if eri_files:
+        r = h5py.File(eri_files[dname],'r')
+        eri = r[dname][()]
+    else:
+        r = h5py.File(eri_file,'r')
+        eri = r[dname][()]
     r.close()
 
     rdm2s = numpy.einsum("ijkl,pi,qj,rk,sl->pqrs", 0.5*rdm2s,
@@ -214,5 +320,8 @@ def get_frag_energy(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rdm2
         e2_tmp += efac[0]*e2[i] 
         ec_tmp += efac[0]*ec[i] 
 
-#    print("e1_tmp,e2_tmp,ec_tmp",e1_tmp,e2_tmp,ec_tmp)
+    print("e1_tmp",e1_tmp)
+    print("e2_tmp",e2_tmp)
+    print("ec_tmp",ec_tmp)
+    print("sum e",e1_tmp+e2_tmp+ec_tmp)
     return [e1_tmp,e2_tmp,ec_tmp]

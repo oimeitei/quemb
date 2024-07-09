@@ -13,8 +13,9 @@ class Frags:
     
     def __init__(self, fsites, ifrag, edge=None, center=None,
                  edge_idx=None, center_idx=None, efac=None,
-                 eri_file='eri_file.h5',unitcell_nkpt=1,
-                 ewald_ek=None, centerf_idx=None, unitcell=1):
+                 eri_file='eri_file.h5',eri_files=None,unitcell_nkpt=1,
+                 ewald_ek=None, centerf_idx=None, unitcell=1,
+                 unrestricted=False):
         """Constructor function for `Frags` class
 
         Parameters
@@ -35,6 +36,8 @@ class Frags:
             weight used for energy contributions, by default None
         eri_file : str, optional
             two-electron integrals stored as h5py file, by default 'eri_file.h5'
+        eri_files : dict, optional
+            if SEP_SCRATCH_PER_FRAG is chosen, this is the dictionary of all of the fragment ERI files
         unitcell_nkpt : int, optional
             number of k-points in the unit cell; 1 for molecular calculations, by default 1
         centerf_idx : list, optional
@@ -52,7 +55,10 @@ class Frags:
         self.TA_lo_eo = None
         self.h1 = None
         self.ifrag = ifrag
-        self.dname = 'f'+str(ifrag)
+        if unrestricted:
+            self.dname = ['f'+str(ifrag)+'/aa', 'f'+str(ifrag)+'/bb', 'f'+str(ifrag)+'/ab']
+        else:
+            self.dname = 'f'+str(ifrag)
         self.nao = None
         self.mo_coeffs = None 
         self._mo_coeffs = None 
@@ -85,19 +91,25 @@ class Frags:
         self.veff = None
         self.dm0 = None
         self.eri_file = eri_file
+        self.eri_files = eri_files
 
     def sd(self, lao, lmo, nocc, nkpt = None, s=None, mo_coeff= None,
            frag_type='autogen', cinv = '',
-           cell=None, kpts = None, kmesh=None, rdm=None, mo_energy=None, h1=None):
+           cell=None, kpts = None, kmesh=None, rdm=None, mo_energy=None, h1=None, norb=None):
         from pyscf import lib
         from pyscf.pbc.tools.k2gamma import mo_k2gamma
         from scipy import fft
 
         if lao.ndim==2:
-            TA = schmidt_decomposition(lmo, nocc, self.fsites)
+            #print("lmo", lmo)
+            print("nocc", nocc)
+            print("norb", norb)
+            TA = schmidt_decomposition(lmo, nocc, self.fsites, norb=norb)
             self.C_lo_eo = TA
+            #print("self.C_lo_eo", self.C_lo_eo.shape, self.C_lo_eo)
             TA = numpy.dot(lao,TA)
-
+            #print("lao", lao.shape, lao)
+            print("TA", TA.shape, TA)
             
             self.nao = TA.shape[1]
             self.TA = TA
@@ -106,7 +118,6 @@ class Frags:
             sys.exit()
 
     def cons_h1(self, h1, stmp = None, wtmp = None):
-
         if h1.ndim == 2:            
             h1_tmp = functools.reduce(numpy.dot,
                                       (self.TA.T, h1, self.TA))
@@ -116,22 +127,43 @@ class Frags:
     def cons_fock(self, hf_veff, S, dm, eri_=None):
 
         if eri_ is None:
-            eri_ = get_eri(self.dname, self.TA.shape[1], ignore_symm=True, eri_file=self.eri_file)
+            eri_ = get_eri(self.dname, self.TA.shape[1], ignore_symm=True, eri_file=self.eri_file, eri_files=self.eri_files)
                 
         veff_ = get_veff(eri_, dm, S, self.TA, hf_veff)
         self.veff = veff_.real        
         self.fock = self.h1 + veff_.real
         
 
-    def get_nsocc(self, S, C, nocc,ncore=0, tdebug=None, wdebug=None, hf_dm = None):
+    def get_nsocc(self, S, C, nocc,ncore=0, Sab=None, tdebug=None, wdebug=None, hf_dm = None):
         
         import scipy.linalg
         if self.TA.ndim ==2:
-            C_ = functools.reduce(numpy.dot,(self.TA.T, S, C[:,ncore:ncore+nocc]))
-            P_ = numpy.dot(C_, C_.T)
-            nsocc_ = numpy.trace(P_)
-            nsocc = int(numpy.round(nsocc_))
-            
+            #print("ncore", ncore)
+            #print("nocc", nocc)
+            try:
+                #print("Trying original S")
+                #print("C", C)
+                #print("self.TA.T", self.TA.T)
+                C_ = functools.reduce(numpy.dot,(self.TA.T, S, C[:,ncore:ncore+nocc]))
+                P_ = numpy.dot(C_, C_.T)
+                #print("C_", C_)
+                #print("S", S)
+                #print("P_", P_)
+                nsocc_ = numpy.trace(P_)
+                #print("nsocc_", nsocc_)
+                nsocc = int(numpy.round(nsocc_))
+                #print("nsocc", nsocc)
+            except:
+                print("Trying Sab")
+                C_ = functools.reduce(numpy.dot,(self.TA.T, Sab, C[:,ncore:ncore+nocc]))
+                P_ = numpy.dot(C_, C_.T)
+                #print("C_", C_)
+                #print("Sab", Sab)
+                #print("P_", P_)
+                nsocc_ = numpy.trace(P_)
+                #print("nsocc_", nsocc_)
+                nsocc = int(numpy.round(nsocc_))
+                #print("nsocc", nsocc)
             try:
                 mo_coeffs = scipy.linalg.svd(C_)[0]
             except:
@@ -143,20 +175,21 @@ class Frags:
             
             return P_
             
-            
-    def scf(self, heff=None, fs=False, eri=None, dm0 = None):
+    def scf(self, heff=None, fs=False, eri=None, dm0 = None, unrestricted=False, spin_ind=None):
         import copy
         if self._mf is not None: self._mf = None
         if self._mc is not None: self._mc = None
         if heff is None: heff = self.heff
 
         if eri is None:
-            eri = get_eri(self.dname, self.nao, eri_file=self.eri_file)
+            if unrestricted:
+                eri = get_eri(self.dname[spin_ind], self.nao, eri_file=self.eri_file, eri_files=self.eri_files, unrestricted=unrestricted, spin_ind=spin_ind)
+            else:
+                eri = get_eri(self.dname, self.nao, eri_file=self.eri_file, eri_files=self.eri_files, unrestricted=unrestricted, spin_ind=spin_ind)
 
         if dm0 is None:
             dm0 = numpy.dot( self._mo_coeffs[:,:self.nsocc],
                              self._mo_coeffs[:,:self.nsocc].conj().T) *2.
-        
         mf_ = get_scfObj(self.fock + heff, eri, self.nsocc, dm0 = dm0)
         if not fs:
             self._mf = mf_
@@ -266,7 +299,7 @@ class Frags:
         self.ebe = etmp
         return (e1+e2+ec)
 
-    def energy_hf(self, rdm_hf=None, mo_coeffs = None, eri=None, return_e1=False, unrestricted = False):
+    def energy_hf(self, rdm_hf=None, mo_coeffs = None, eri=None, return_e1=False, unrestricted = False, spin_ind=None):
         if mo_coeffs is None:
             mo_coeffs = self._mo_coeffs
 
@@ -274,12 +307,12 @@ class Frags:
             rdm_hf = numpy.dot(mo_coeffs[:,:self.nsocc],
                                mo_coeffs[:,:self.nsocc].conj().T)
 
-        unrestricted = 1. if unrestricted else 2.
+        unrestricted_fac = 1. if unrestricted else 2.
 
-        e1 = unrestricted*numpy.einsum("ij,ij->i", self.h1[:self.nfsites],
+        e1 = unrestricted_fac * numpy.einsum("ij,ij->i", self.h1[:self.nfsites],
                              rdm_hf[:self.nfsites])
 
-        ec = 0.5 * unrestricted * numpy.einsum("ij,ij->i",self.veff[:self.nfsites],
+        ec = 0.5 * unrestricted_fac * numpy.einsum("ij,ij->i",self.veff[:self.nfsites],
                           rdm_hf[:self.nfsites])
 
         if self.TA.ndim == 3:
@@ -287,8 +320,14 @@ class Frags:
         else:
             jmax = self.TA.shape[1]
         if eri is None:
-            r = h5py.File(self.eri_file,'r')
-            eri = r[self.dname][()]
+            if self.eri_files:
+                r = h5py.File(self.eri_files[self.dname],'r')
+            else:
+                r = h5py.File(self.eri_file,'r')
+            if len(self.dname) > 1:
+                eri = [r[self.dname[0]][()],r[self.dname[1]][()]]
+            else:
+                eri = r[self.dname][()]
 
             r.close()
 
@@ -301,7 +340,10 @@ class Frags:
                         numpy.outer(rdm_hf[i], rdm_hf[j]))[:jmax,:jmax] 
                 Gij[numpy.diag_indices(jmax)] *= 0.5
                 Gij += Gij.T                
-                e2[i] += 0.5 * unrestricted * Gij[numpy.tril_indices(jmax)] @ eri[ij]
+                if unrestricted: #unrestricted ERI file has 3 spin components: a, b, ab
+                    e2[i] += 0.5 * unrestricted_fac * Gij[numpy.tril_indices(jmax)] @ eri[spin_ind][ij]
+                else:
+                    e2[i] += 0.5 * unrestricted_fac * Gij[numpy.tril_indices(jmax)] @ eri[ij]
 
         e_ = e1+e2+ec        
         etmp = 0.

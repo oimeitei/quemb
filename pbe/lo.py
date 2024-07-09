@@ -315,40 +315,94 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g',
     from  .helper import ncore_
     from .pbcgeom import sgeom
     
+    thresh=0.7
+    #print("thresh", thresh)
     if lo_method == 'lowdin':
         
         es_, vs_ = eigh(self.S)
-        edx = es_ > 1.e-15                
+        #print("es_", es_)
+        #print("vs_", vs_)
+        edx = es_ > 1.e-15
+        #print("edx", edx)
         self.W = numpy.dot(vs_[:,edx]/numpy.sqrt(es_[edx]), vs_[:,edx].T)
+        #print("vs_[:,edx]", vs_[:,edx])
+        #print("es_[edx]", es_[edx])
+        #print("numpy.sqrt(es_[edx]", numpy.sqrt(es_[edx]))
+        #print("vs_[:,edx]/numpy.sqrt(es_[edx])",vs_[:,edx]/numpy.sqrt(es_[edx]))
+        #print("pre removal self.W", self.W)
         if self.frozen_core:
-                
-            P_core = numpy.eye(self.W.shape[0]) - numpy.dot(self.P_core, self.S)
-            C_ = numpy.dot(P_core, self.W)
+            if self.unrestricted:
+                #print("self.P_core", self.P_core)
+                P_core = [numpy.eye(self.W.shape[0]) - numpy.dot(self.P_core[s], self.S) for s in [0,1]]
+                C_ = numpy.dot(P_core, self.W)
+                #print("numpy.dot(self.P_core[0], self.S)", numpy.dot(self.P_core[0], self.S))
+                #print("numpy.dot(self.P_core[1], self.S)", numpy.dot(self.P_core[1], self.S))
+                #print("C_", C_)
+                Cpop = [functools.reduce(numpy.dot,
+                                    (C_[s].T, self.S, C_[s])) for s in [0,1]]
+                #print("Cpop1", Cpop)
+                Cpop = [numpy.diag(Cpop[s]) for s in [0,1]]
+                #print("Cpop2", Cpop)
+                no_core_idx = [numpy.where(Cpop[s] > thresh)[0] for s in [0,1]]
+                #print("no_core_idx", no_core_idx)
+                C_ = [C_[s][:,no_core_idx[s]] for s in [0,1]]
+                #print("C_ 2", C_)
+                S_ = [functools.reduce(numpy.dot, (C_[s].T, self.S, C_[s])) for s in [0,1]]
+                #print("S_ 2", S_)
+                W_ = []
+                for s in [0,1]:
+                    es_, vs_ = eigh(S_[s])
+                    #print("es_, vs_", s, es_, vs_)
+                    #es_[es_ < -1.] = 1e-8
+                    #print("replaced es_", es_)
+                    s_ = numpy.sqrt(es_)
+                    #print("s_ 1", s_)
+                    s_ = numpy.diag(1.0/s_)
+                    #print("s_ 2", s_)
+                    W_.append(functools.reduce(numpy.dot, (vs_, s_, vs_.T)))
+                    #print("W_", s, W_)
+                self.W = [numpy.dot(C_[s], W_[s]) for s in [0,1]]
+                #print("final self.W0", self.W[0].shape, self.W[0])
+                #print("final self.W1", self.W[1].shape, self.W[1])
+            else:
+                P_core = numpy.eye(self.W.shape[0]) - numpy.dot(self.P_core, self.S)
+                C_ = numpy.dot(P_core, self.W)
 
-            # PYSCF has basis in 1s2s3s2p2p2p3p3p3p format
-            # fix no_core_idx - use population for now
-            #C_ = C_[:,self.no_core_idx]
-            Cpop = functools.reduce(numpy.dot,
-                                    (C_.T, self.S, C_))
-            Cpop = numpy.diag(Cpop)
-            no_core_idx = numpy.where(Cpop > 0.7)[0]
-            C_ = C_[:,no_core_idx]
+                # PYSCF has basis in 1s2s3s2p2p2p3p3p3p format
+                # fix no_core_idx - use population for now
+                #C_ = C_[:,self.no_core_idx]
+                Cpop = functools.reduce(numpy.dot,
+                                        (C_.T, self.S, C_))
+                Cpop = numpy.diag(Cpop)
+                no_core_idx = numpy.where(Cpop > 0.7)[0]
+                C_ = C_[:,no_core_idx]
 
-            S_ = functools.reduce(numpy.dot, (C_.T, self.S, C_))
-            es_, vs_ = eigh(S_)
-            s_ = numpy.sqrt(es_)
-            s_ = numpy.diag(1.0/s_)
-            W_ = functools.reduce(numpy.dot,
-                                  (vs_, s_, vs_.T))
-            self.W = numpy.dot(C_, W_)
-                
-            
-        if not self.frozen_core:                 
-            self.lmo_coeff = functools.reduce(numpy.dot,
-                                              (self.W.T, self.S, self.C))
-        else:            
-            self.lmo_coeff = functools.reduce(numpy.dot,
-                                              (self.W.T, self.S, self.C[:,self.ncore:]))            
+                S_ = functools.reduce(numpy.dot, (C_.T, self.S, C_))
+                es_, vs_ = eigh(S_)
+                s_ = numpy.sqrt(es_)
+                s_ = numpy.diag(1.0/s_)
+                W_ = functools.reduce(numpy.dot,
+                                      (vs_, s_, vs_.T))
+                self.W = numpy.dot(C_, W_)
+
+        if self.unrestricted:
+            if self.frozen_core:
+                self.lmo_coeff_a = functools.reduce(numpy.dot,
+                                          (self.W[0].T, self.S, self.C_a[:,self.ncore:]))
+                self.lmo_coeff_b = functools.reduce(numpy.dot,
+                                          (self.W[1].T, self.S, self.C_b[:,self.ncore:]))
+            else:
+                self.lmo_coeff_a = functools.reduce(numpy.dot,
+                                          (self.W.T, self.S, self.C_a))
+                self.lmo_coeff_b = functools.reduce(numpy.dot,
+                                          (self.W.T, self.S, self.C_b))
+        else:
+            if self.frozen_core:
+                self.lmo_coeff = functools.reduce(numpy.dot,
+                                                  (self.W.T, self.S, self.C[:,self.ncore:]))
+            else:
+                self.lmo_coeff = functools.reduce(numpy.dot,
+                                                  (self.W.T, self.S, self.C))            
 
     elif lo_method=='iao':
         

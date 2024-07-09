@@ -1,7 +1,5 @@
 import numpy,functools,sys, time,os
 
-# from frankestein
-# start
 def make_rdm1_ccsd_t1(t1):
     nocc, nvir = t1.shape
     nmo = nocc + nvir
@@ -43,8 +41,93 @@ def make_rdm2_urlx(t1, t2, with_dm1=True):
                 dm2[i,j,j,i] -= 2
 
     return dm2  
-# end
 
+def be_func_u(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
+              nproc=4, eeval=False, ereturn=False, frag_energy=True,
+              relax_density=False, ecore=0., ebe_hf=0., use_cumulant=True,
+              frozen=False):
+              # This only works for 1 shot BE-UCCSD!
+    import h5py,os
+    from pyscf import scf
+    from pyscf import ao2mo
+    from .helper import get_frag_energy_u
+    from .frank_sgscf_uhf import make_uhf_obj
+
+    rdm_return = False
+    if relax_density:
+        rdm_return = True
+    E = 0.
+    if frag_energy:
+        total_e = [0.,0.,0.]
+    t1 = time.time()
+    print("relax density", relax_density)
+    print("rdm return", rdm_return)
+    for (fobj_a, fobj_b) in Fobjs:
+        heff_ = None # No outside chemical potential implemented for unrestricted
+
+        fobj_a.scf(unrestricted=True, spin_ind=0)
+        fobj_b.scf(unrestricted=True, spin_ind=1)
+
+        full_uhf, eris = make_uhf_obj(fobj_a, fobj_b, frozen=frozen)
+
+        if solver == 'UCCSD':
+            if rdm_return:
+                ucc, rdm1_tmp, rdm2s = solve_uccsd(full_uhf, eris, relax=relax_density,
+                                                    rdm_return=True, rdm2_return=True,
+                                                    frozen=frozen)
+            else:
+                ucc = solve_uccsd(full_uhf, eris, relax = relax_density, rdm_return=False,
+                                                    frozen=frozen)
+                rdm1_tmp = make_rdm1_uccsd(ucc, relax=relax_density)
+        else:
+            print('Solver not implemented',flush=True)
+            print('exiting',flush=True)
+            sys.exit()
+
+        fobj_a.__rdm1 = rdm1_tmp[0].copy()
+        fobj_b._rdm1 = functools.reduce(numpy.dot,
+                                      (fobj_a._mf.mo_coeff,
+                                       rdm1_tmp[0],
+                                       fobj_a._mf.mo_coeff.T))*0.5
+
+        fobj_b.__rdm1 = rdm1_tmp[1].copy()
+        fobj_b._rdm1 = functools.reduce(numpy.dot,
+                                      (fobj_b._mf.mo_coeff,
+                                       rdm1_tmp[1],
+                                       fobj_b._mf.mo_coeff.T))*0.5
+
+        if eeval or ereturn:
+            if solver =='UCCSD' and not rdm_return:
+                with_dm1 = True
+                if use_cumulant: with_dm1=False
+                rdm2s = make_rdm2_uccsd(ucc, with_dm1=with_dm1)
+            fobj_a.__rdm2 = rdm2s[0].copy()
+            fobj_b.__rdm2 = rdm2s[1].copy()
+            if frag_energy:
+                if frozen:
+                    h1_ab = [full_uhf.h1[0]+full_uhf.full_gcore[0]+full_uhf.core_veffs[0],
+                            full_uhf.h1[1]+full_uhf.full_gcore[1]+full_uhf.core_veffs[1]]
+                else:
+                    h1_ab = [fobj_a.h1, fobj_b.h1]
+                e_f = get_frag_energy_u((fobj_a._mo_coeffs,fobj_b._mo_coeffs),
+                                            (fobj_a.nsocc,fobj_b.nsocc),
+                                            (fobj_a.nfsites, fobj_b.nfsites),
+                                            (fobj_a.efac, fobj_b.efac),
+                                            (fobj_a.TA, fobj_b.TA),
+                                            h1_ab,
+                                            hf_veff,
+                                            rdm1_tmp,
+                                            rdm2s,
+                                            fobj_a.dname,
+                                            eri_file=fobj_a.eri_file,
+                                            gcores=full_uhf.full_gcore,
+                                            frozen=frozen
+                                        )
+                total_e = [sum(x) for x in zip(total_e, e_f)]
+
+    if frag_energy:
+        E = sum(total_e)
+        return (E, total_e)
 
 def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
             only_chem = False, nproc=4,hci_pt=False,
@@ -64,7 +147,6 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
         total_e = [0.,0.,0.]
     t1 = time.time()
     for fobj in Fobjs:
-        
         if not pot is None:
             heff_ = fobj.update_heff(pot, return_heff=True,
                                      only_chem=only_chem)
@@ -79,7 +161,7 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
             if rdm_return:
                 fobj.t1, fobj.t2, rdm1_tmp, rdm2s = solve_ccsd(fobj._mf,
                                                                mo_energy=fobj._mf.mo_energy,
-                                                               relax=True, use_cumulant=use_cumulant,
+                                                               relax=False, use_cumulant=use_cumulant, #relax = False
                                                                rdm2_return=True,
                                                                rdm_return=True)
             else:
@@ -211,14 +293,14 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
             if frag_energy:
                 # Find the energy of a given fragment, with the cumulant definition. 
                 # Return [e1, e2, ec] as e_f and add to the running total_e.
-                e_f = get_frag_energy(fobj._mo_coeffs, fobj.nsocc, fobj.nfsites, fobj.efac, fobj.TA, fobj.h1, hf_veff, rdm1_tmp, rdm2s, fobj.dname, eri_file=fobj.eri_file)
+                e_f = get_frag_energy(fobj._mo_coeffs, fobj.nsocc, fobj.nfsites, fobj.efac, fobj.TA, fobj.h1, hf_veff, rdm1_tmp, rdm2s, fobj.dname, eri_file=fobj.eri_file, eri_files=fobj.eri_files)
                 total_e = [sum(x) for x in zip(total_e, e_f)]
             if not frag_energy:
                 E += fobj.ebe
 
     E /= Fobjs[0].unitcell_nkpt
     t2 = time.time()
-    print("Time to run all fragments: ", t2 - t1)
+    print("Time to run all fragments: ", t2 - t1, flush=True)
     if frag_energy:
         E = sum(total_e)
         return (E, total_e)
@@ -404,7 +486,7 @@ def solve_ccsd(mf, frozen=None, mo_coeff=None,relax=False, use_cumulant=False, w
                                           l1,l2)
         else:
             rdm1a = cc__.make_rdm1(with_frozen=False)
-                        
+
         #cc__ = None
         if rdm2_return:
             if use_cumulant: with_dm1 = False
@@ -414,6 +496,87 @@ def solve_ccsd(mf, frozen=None, mo_coeff=None,relax=False, use_cumulant=False, w
     #cc__ = None
     return (t1, t2)
 
+def make_rdm1_uccsd(ucc, relax=False):
+    from pyscf.cc.uccsd_rdm import make_rdm1
+    if relax==True:
+        rdm1 = make_rdm1(ucc, ucc.t1, ucc.t2, ucc.l1, ucc.l2)
+    else:
+        l1 = [numpy.zeros_like(ucc.t1[s]) for s in [0,1]]
+        l2 = [numpy.zeros_like(ucc.t2[s]) for s in [0,1,2]]
+        rdm1 = make_rdm1(ucc, ucc.t1, ucc.t2, l1, l2)
+    return rdm1
+
+def make_rdm2_uccsd(ucc, relax=False, with_dm1=True):
+    from pyscf.cc.uccsd_rdm import make_rdm2
+    if relax==True:
+        rdm2 = make_rdm2(ucc, ucc.t1, ucc.t2, ucc.l1, ucc.l2, with_dm1=with_dm1)
+    else:
+        l1 = [numpy.zeros_like(ucc.t1[s]) for s in [0,1]]
+        l2 = [numpy.zeros_like(ucc.t2[s]) for s in [0,1,2]]
+        rdm2 = make_rdm2(ucc, ucc.t1, ucc.t2, l1, l2, with_dm1=with_dm1)
+    return rdm2
+
+def solve_uccsd(mf, eris_inp, mo_coeff=None,relax=False, use_cumulant=False, 
+                with_dm1=True, rdm2_return = False, mo_occ=None, 
+                mo_energy=None, rdm_return=False, frozen=False, verbose=0):
+    # Adapted from frankenstein (private): Hongzhou Ye, Henry Tran, Leah Weisburn
+    from pyscf import cc, ao2mo
+    from pyscf.cc.uccsd_rdm import make_rdm1, make_rdm2
+    from .custom_make_eris_incore import make_eris_incore
+
+    C = mf.mo_coeff
+    nao = [C[s].shape[0] for s in [0,1]]
+
+    Vss = eris_inp[:2]
+    Vos = eris_inp[-1]
+
+    def ao2mofn(moish):
+        if isinstance(moish, numpy.ndarray):
+            # Since inside '_make_eris_incore' it does not differentiate spin
+            # for the two same-spin components, we here brute-forcely determine
+            # what spin component we are dealing with by comparing the first
+            # 2-by-2 block of the mo coeff matrix.
+            # Note that this assumes we have at least two basis functions, which
+            # seem to be totally fine...
+            moish_feature = moish[:2,:2]
+            s = -1
+            for ss in [0,1]:
+                if numpy.allclose(moish_feature, C[ss][:2,:2]):
+                    s = ss
+                    break
+            if s < 0:
+                raise RuntimeError("Input mo coeff matrix matches neither moa nor mob.")
+            return ao2mo.incore.full(Vss[s], moish, compact=False)
+        elif isinstance(moish, list) or isinstance(moish, tuple):
+            if len(moish) != 4:
+                raise RuntimeError("Expect a list/tuple of 4 numpy arrays but get %d of them." % len(moish))
+            moish_feature = [mo[:2,:2] for mo in moish]
+            for s in [0,1]:
+                Cs_feature = C[s][:2,:2]
+                if not (numpy.allclose(moish_feature[2*s], Cs_feature) and
+                    numpy.allclose(moish_feature[2*s+1], Cs_feature)):
+                    raise RuntimeError("Expect a list/tuple of 4 numpy arrays in the order (moa,moa,mob,mob).")
+            try:
+                return ao2mo.incore.general(Vos, moish, compact=False)
+            except:
+                return numpy.einsum('ijkl,ip,jq,kr,ls->pqrs', Vos, moish[0], moish[1], moish[2], moish[3], optimize=True)
+        else:
+            raise RuntimeError("moish must be either a numpy array or a list/tuple of 4 numpy arrays.")
+
+    ucc = cc.uccsd.UCCSD(mf, mo_coeff=mf.mo_coeff, mo_occ=mf.mo_occ)
+    eris = make_eris_incore(ucc, Vss, Vos, mo_coeff=mf.mo_coeff, ao2mofn=ao2mofn, frozen=frozen)
+
+    ucc.kernel(eris=eris)
+
+    if rdm_return:
+        rdm1 = make_rdm1_uccsd(ucc, relax=relax)
+        if rdm2_return:
+            if use_cumulant: with_dm1=False
+            rdm2 = make_rdm2_uccsd(ucc, relax=relax, with_dm1=with_dm1)
+            return (ucc, rdm1, rdm2)
+        return (ucc, rdm1, None)
+    return ucc
+
 def pretty(dm):
     for i in dm:
         for j in i:
@@ -421,11 +584,43 @@ def pretty(dm):
         print()
     print()
 
-def schmidt_decomposition(mo_coeff, nocc, Frag_sites, cinv = None, rdm=None,tmpa=None):
+#from frankenstein: /be/sd.py schmidt_decomposition_new2
+def schmidt_decomposition1(C, no, fragsites, norb=None): #, skip_Te=False, thr_bath=1.E-6,
+#    FragPairP = None, FragPairPOcc = None, NumPNO = None, NumOccPNO = None, # Variables for PNO augmented BE
+#    MixPLO = None, lMix = None, ProjectOV = False, CASS = None,
+#    verbose = 0):
+
+    thr_bath = 1.E-10
+    n = C.shape[0]
+    rA = fragsites
+    rA_ = [i for i in range(n) if not i in rA]
+    nfA = len(rA)
+    nfA_ = len(rA_)
+    Co = C[:,:no]
+    Cv = C[:,no:]
+    P = Co @ Co.T
+    nocc_full = int(numpy.round(numpy.trace(P)))
+
+    lA, uA = numpy.linalg.eigh(P[numpy.ix_(rA_,rA_)])
+
+    if thr_bath > 0:
+        idx_bA = numpy.where(numpy.logical_and(lA > thr_bath, lA < 1-thr_bath))[0]
+        nbA = len(idx_bA)
+
+    lfbA = lA[idx_bA]
+    TA = numpy.zeros([n,nfA+nbA])
+    TA[rA,:nfA] = numpy.eye(nfA)
+    TA[rA_,nfA:] = uA[:,idx_bA]
+
+    return TA
+
+def schmidt_decomposition(mo_coeff, nocc, Frag_sites, cinv = None, rdm=None,tmpa=None, norb=None):
     import scipy.linalg
     import functools
     thres = 1.0e-10
     
+    #print("init mo_coeff", mo_coeff.shape, mo_coeff)
+    #print("nocc", nocc)
     if not mo_coeff is None:
         C = mo_coeff[:,:nocc]   
     if rdm is None:
@@ -435,25 +630,45 @@ def schmidt_decomposition(mo_coeff, nocc, Frag_sites, cinv = None, rdm=None,tmpa
                                    (cinv, Dhf, cinv.conj().T))        
     else:
         Dhf = rdm
-
+    #print("sd C", C.shape, C)
+    #print("Dhf", Dhf.shape, Dhf)
     Tot_sites = Dhf.shape[0]        
     Env_sites1 = numpy.array([i for i in range(Tot_sites)
                               if not i in Frag_sites])
     Env_sites = numpy.array([[i] for i in range(Tot_sites)
                              if not i in Frag_sites])
     Frag_sites1 = numpy.array([[i] for i in Frag_sites])
+    #print("Env_sites", Env_sites.shape, Env_sites)
+    #print("Frag_sites1", Frag_sites1.shape, Frag_sites1)
+    print("Number of fragsites:", Frag_sites1.shape[0])
     Denv = Dhf[Env_sites, Env_sites.T]
+    #print("Denv", Denv.shape, Denv)
     Eval, Evec = numpy.linalg.eigh(Denv)
-    
+    #print("Eval", Eval.shape, Eval)
+    #print("Evec", Evec.shape, Evec)
     Bidx = []
-    for i in range(len(Eval)):
-        if thres < numpy.abs(Eval[i]) < 1.0 - thres:         
-            Bidx.append(i)
-
+    if norb is not None:
+        print("norb not None")
+        print("norb", norb)
+        n_frag_ind = len(Frag_sites1)
+        n_bath_ind = norb - n_frag_ind
+        ind_sort = numpy.argsort(numpy.abs(Eval))
+        first_el = [x for x in ind_sort if x < 1.0 - thres][-1 * n_bath_ind]
+        for i in range(len(Eval)):
+            if numpy.abs(Eval[i]) >= first_el:
+                Bidx.append(i)
+    else:
+        for i in range(len(Eval)):
+            if thres < numpy.abs(Eval[i]) < 1.0 - thres:         
+                Bidx.append(i)
+    print("Number of bath indices", len(Bidx))
+    print("Total number of Schmidt orbitals", len(Frag_sites) + len(Bidx))
+    #print("Bidx", len(Bidx), Bidx)
     TA = numpy.zeros([Tot_sites, len(Frag_sites) + len(Bidx)])
+#    print("init TA shape", TA.shape)
     TA[Frag_sites, :len(Frag_sites)] = numpy.eye(len(Frag_sites))
     TA[Env_sites1,len(Frag_sites):] = Evec[:,Bidx]
-    
+#    print("total TA", TA.shape, TA)
     return TA
 
 
