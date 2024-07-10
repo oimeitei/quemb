@@ -235,7 +235,6 @@ def be2puffin(
     be_type='be1',
     df_aux_basis=None,
     frozen_core=True,
-    df_aux_basis=None,
     localization_method='lowdin',
     localization_basis=None,
     unrestricted=False,
