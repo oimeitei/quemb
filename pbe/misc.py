@@ -321,10 +321,11 @@ def be2puffin(
                     
                     from pyscf import qmmm
                     print("Using QM/MM Point Charges")
-                    mf1 = scf.UHF(mol).set(max_cycle = 200).newton() #using SOSCF is more reliable
-                   #mf1 = scf.UHF(mol).set(max_cycle = 200, level_shift = (0.3, 0.2)) #using level shift helps, 
+                    mf1 = scf.UHF(mol).set(max_cycle = 200) #using SOSCF is more reliable
+                   #mf1 = scf.UHF(mol).set(max_cycle = 200, level_shift = (0.3, 0.2)) 
+                           #using level shift helps, 
                            #but not always. scf.addons.dynamic_level_shift does not work with QM/MM
-                    mf = qmmm.mm_charge(mf1, hcore[0], hcore[1]) #mf object, coordinates, charges
+                    mf = qmmm.mm_charge(mf1, hcore[0], hcore[1]).newton() #mf object, coordinates, charges
                 else:
                     mf = scf.UHF(mol).set(max_cycle = 200, level_shift = (0.3, 0.2))
             else:
