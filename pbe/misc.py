@@ -264,6 +264,27 @@ def be2puffin(
         Set number of processors and ompnum for the jobs
     frozen_core: bool, optional
         Whether frozen core approximation is used or not, by default True
+        Potential problems in big basis sets with UHF
+    localization_method: string, optional
+        For now, lowdin is best supported for all cases. IAOs to be expanded
+        By default 'lowdin'
+    localization_basis: string, optional
+        IAO minimal-like basis, only nead specification with IAO localization
+        By default None
+    unrestricted: bool, optional
+        Unrestricted vs restricted HF and CCSD, by default False
+    from_chk: bool, optional
+        Run calculation from converged RHF/UHF checkpoint. By default False
+    checkfile: string, optional 
+        if not None:
+            if from_chk: specify the checkfile to run the embedding calculation
+            if not from_chk: specify where to save the checkfile
+        By default None
+    ecp: string, optional
+        specify the ECP for any atoms, accompanying the basis set
+        syntax: {'Atom_X': 'ECP_for_X'; 'Atom_Y': 'ECP_for_Y'}
+        By default None
+
     """
     from .fragment import fragpart
     from .pbe import pbe
@@ -271,8 +292,8 @@ def be2puffin(
 
     # Check input validity
     assert os.path.exists(xyzfile), "Input xyz file does not exist"
-
-    mol = gto.M(atom=xyzfile, basis=basis, charge=charge, spin=spin, ecp=ecp) #ecp = {'Ru':'def2-SVP', 'I':'def2-SVP'})
+    print("Running mol-ube!", flush=True)
+    mol = gto.M(atom=xyzfile, basis=basis, charge=charge, spin=spin, ecp=ecp)
     print("Using ecp?", ecp)
     mol.incore_anyway = True
     mol.verbose = 4
@@ -282,7 +303,7 @@ def be2puffin(
             hcore_pyscf = None
         else:
             if len(hcore)==2: #starting with point charges, QM/MM
-                hcore_pyscf = None
+                hcore_pyscf = None # not starting from a hamiltonian
             else: #specified starting hamiltonian, not point charges
                 libint2pyscf = []
                 for labelidx, label in enumerate(mol.ao_labels()):
@@ -298,7 +319,7 @@ def be2puffin(
                         elif "z" in label.split()[2]:
                             libint2pyscf.append(labelidx - 1)
 
-                hcore_pyscf = 1.*hcore[numpy.ix_(libint2pyscf, libint2pyscf)] 
+                hcore_pyscf = hcore[numpy.ix_(libint2pyscf, libint2pyscf)] 
 
         if not jk is None:
             jk_pyscf = (
@@ -306,34 +327,45 @@ def be2puffin(
                 jk[1][numpy.ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)],
             )
 
-        if not unrestricted:
-            if use_df and jk is None:
-                from pyscf import df
-                mf = scf.RHF(mol).density_fit(auxbasis=df_aux_basis)
-                
-            else: mf = scf.RHF(mol)
-        else:
+        if unrestricted:
             if use_df and jk is None:
                 print("UHF and df are incompatible: use_df = False")
                 use_df = False
-            if hcore:
-                if len(hcore)==2:
-                    
+            if hcore is not None:
+                if len(hcore)==2: # running QM/MM
                     from pyscf import qmmm
-                    print("Using QM/MM Point Charges")
+                    print("Using QM/MM Point Charges: Assuming QM structure in Angstrom and MM Coordinates in Bohr !!!")
                     mf1 = scf.UHF(mol).set(max_cycle = 200) #using SOSCF is more reliable
-                   #mf1 = scf.UHF(mol).set(max_cycle = 200, level_shift = (0.3, 0.2)) 
-                           #using level shift helps, 
-                           #but not always. scf.addons.dynamic_level_shift does not work with QM/MM
-                    mf = qmmm.mm_charge(mf1, hcore[0], hcore[1]).newton() #mf object, coordinates, charges
+                   #mf1 = scf.UHF(mol).set(max_cycle = 200, level_shift = (0.3, 0.2))
+                    # using level shift helps, but not always. level_shift and
+                    # scf.addons.dynamic_level_shift do not seem to work with QM/MM
+                    # note: from the SCINE database, the structure is in Angstrom but the MM point charges
+                    # are in Bohr !!
+                    mf = qmmm.mm_charge(mf1, hcore[0], hcore[1], unit='bohr').newton() #mf object, coordinates, charges
                 else:
-                    mf = scf.UHF(mol).set(max_cycle = 200, level_shift = (0.3, 0.2))
+                    mf = scf.UHF(mol).set(max_cycle = 200).newton()
             else:
                 mf = scf.UHF(mol).set(max_cycle = 200, level_shift = (0.3, 0.2))
 
-        if not hcore_pyscf is None: 
-            print("hcore_pyscf is not None")
+        else: # restricted
+            if len(hcore)==2: # running QM/MM
+                from pyscf import qmmm
+                print("Using QM/MM Point Charges: Assuming QM structure in Angstrom and MM Coordinates in Bohr !!!")
+                mf1 = scf.RHF(mol).set(max_cycle = 200)
+                mf = qmmm.mm_charge(mf1, hcore[0], hcore[1], unit='bohr').newton()
+                print("Setting use_df to false and jk to none: have not tested DF and QM/MM from point charges at the same time")
+                use_df = False
+                jk = None
+            elif use_df and jk is None:
+                from pyscf import df
+                mf = scf.RHF(mol).density_fit(auxbasis=df_aux_basis)
+            else: mf = scf.RHF(mol)
+
+        if not hcore_pyscf is None: #running from a starting hcore
+            print("hcore_pyscf is not None: Please check if using with UHF! Newton method hcore not overwritten correctly")
             mf.get_hcore = lambda *args: hcore_pyscf
+        
+        print("HF get_hcore", mf.get_hcore())
         if not jk is None: 
             mf.get_jk = lambda *args: jk_pyscf
         time_pre_mf = time.time()
@@ -341,12 +373,15 @@ def be2puffin(
         if checkfile:
             print("Saving checkfile to:", checkfile)
             mf.chkfile = checkfile
+
         mf.kernel()
+
         if mf.converged == True:
             print("mf converged True")
         else:
             print("mf converged False -- stopping the calculation")
             sys.exit()
+
         if use_df:
             print("Using auxillary basis in density fitting: ", mf.with_df.auxmol.basis, flush=True)
             print("DF auxillary nao_nr", mf.with_df.auxmol.nao_nr(), flush=True)
@@ -354,13 +389,20 @@ def be2puffin(
         print("Time for mf kernel to run: ", time_post_mf - time_pre_mf, flush=True)
 
     elif from_chk:
-        print("Running from from chkfile", checkfile, flush=True)
+        print("Running from chkfile", checkfile, flush=True)
         scf_result_dic = chkfile.load(checkfile, 'scf')
-        mf = scf.UHF(mol)
+        if unrestricted:
+            mf = scf.UHF(mol)
+        else:
+            mf = scf.RHF(mol)
+        print("Running from chkfile not tested with density fitting: DF set to None")
         mf.with_df = None
         mf.__dict__.update(scf_result_dic)
         time_post_mf = time.time()
         print("Chkfile electronic energy:", mf.energy_elec(), flush=True)
+        print("Chkfile e_tot:", mf.e_tot, flush=True)
+
+    # Finished initial SCF: Now, fragmentation
 
     fobj = fragpart(
         mol.natm, be_type=be_type, frag_type="autogen", mol=mol, molecule=True, 
@@ -370,12 +412,17 @@ def be2puffin(
 
     print("Time for fragmentation to run: ", time_post_fragpart - time_post_mf, flush=True)
 
-    if not unrestricted:
-        mybe = pbe(mf, fobj, lo_method=localization_method)
-    else:
+    # Run embedding setup
+
+    if unrestricted:
         mybe = ube(mf, fobj, lo_method=localization_method)
+    else:
+        mybe = pbe(mf, fobj, lo_method=localization_method)
     time_post_be = time.time()
     print("Time for pbe or ube to run:", time_post_be-time_post_fragpart)
+
+    # Run oneshot BE and return energy
+
     if unrestricted:
         mybe.oneshot(solver="UCCSD", nproc=nproc, ompnum=ompnum, calc_frag_energy=True, clean_eri=True)
     else:

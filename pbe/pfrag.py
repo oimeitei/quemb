@@ -95,24 +95,30 @@ class Frags:
 
     def sd(self, lao, lmo, nocc, nkpt = None, s=None, mo_coeff= None,
            frag_type='autogen', cinv = '',
-           cell=None, kpts = None, kmesh=None, rdm=None, mo_energy=None, h1=None, norb=None):
+           cell=None, kpts = None, kmesh=None, rdm=None, mo_energy=None, h1=None, norb=None,
+           return_orb_count = False):
         from pyscf import lib
         from pyscf.pbc.tools.k2gamma import mo_k2gamma
         from scipy import fft
 
         if lao.ndim==2:
             #print("lmo", lmo)
-            print("nocc", nocc)
-            print("norb", norb)
-            TA = schmidt_decomposition(lmo, nocc, self.fsites, norb=norb)
+            #print("nocc", nocc)
+            #print("norb", norb)
+            if return_orb_count:
+                TA, n_f, n_b = schmidt_decomposition(lmo, nocc, self.fsites, norb=norb, return_orb_count=return_orb_count)
+            else:
+                TA = schmidt_decomposition(lmo, nocc, self.fsites, norb=norb, return_orb_count=return_orb_count)
             self.C_lo_eo = TA
             #print("self.C_lo_eo", self.C_lo_eo.shape, self.C_lo_eo)
             TA = numpy.dot(lao,TA)
             #print("lao", lao.shape, lao)
-            print("TA", TA.shape, TA)
+            #print("TA", TA.shape, TA)
             
             self.nao = TA.shape[1]
             self.TA = TA
+            if return_orb_count:
+                return [n_f, n_b]
         else:
             print(' Only molecular BE is supported! ')
             sys.exit()
