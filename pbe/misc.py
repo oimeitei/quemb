@@ -292,7 +292,7 @@ def be2puffin(
 
     # Check input validity
     assert os.path.exists(xyzfile), "Input xyz file does not exist"
-    print("Running mol-ube!", flush=True)
+
     mol = gto.M(atom=xyzfile, basis=basis, charge=charge, spin=spin, ecp=ecp)
     print("Using ecp?", ecp)
     mol.incore_anyway = True
