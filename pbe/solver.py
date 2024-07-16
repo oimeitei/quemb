@@ -584,37 +584,7 @@ def pretty(dm):
         print()
     print()
 
-#from frankenstein: /be/sd.py schmidt_decomposition_new2
-def schmidt_decomposition1(C, no, fragsites, norb=None): #, skip_Te=False, thr_bath=1.E-6,
-#    FragPairP = None, FragPairPOcc = None, NumPNO = None, NumOccPNO = None, # Variables for PNO augmented BE
-#    MixPLO = None, lMix = None, ProjectOV = False, CASS = None,
-#    verbose = 0):
-
-    thr_bath = 1.E-10
-    n = C.shape[0]
-    rA = fragsites
-    rA_ = [i for i in range(n) if not i in rA]
-    nfA = len(rA)
-    nfA_ = len(rA_)
-    Co = C[:,:no]
-    Cv = C[:,no:]
-    P = Co @ Co.T
-    nocc_full = int(numpy.round(numpy.trace(P)))
-
-    lA, uA = numpy.linalg.eigh(P[numpy.ix_(rA_,rA_)])
-
-    if thr_bath > 0:
-        idx_bA = numpy.where(numpy.logical_and(lA > thr_bath, lA < 1-thr_bath))[0]
-        nbA = len(idx_bA)
-
-    lfbA = lA[idx_bA]
-    TA = numpy.zeros([n,nfA+nbA])
-    TA[rA,:nfA] = numpy.eye(nfA)
-    TA[rA_,nfA:] = uA[:,idx_bA]
-
-    return TA
-
-def schmidt_decomposition(mo_coeff, nocc, Frag_sites, cinv = None, rdm=None,tmpa=None, norb=None):
+def schmidt_decomposition(mo_coeff, nocc, Frag_sites, cinv = None, rdm=None,tmpa=None, norb=None, return_orb_count=False):
     import scipy.linalg
     import functools
     thres = 1.0e-10
@@ -640,7 +610,7 @@ def schmidt_decomposition(mo_coeff, nocc, Frag_sites, cinv = None, rdm=None,tmpa
     Frag_sites1 = numpy.array([[i] for i in Frag_sites])
     #print("Env_sites", Env_sites.shape, Env_sites)
     #print("Frag_sites1", Frag_sites1.shape, Frag_sites1)
-    print("Number of fragsites:", Frag_sites1.shape[0])
+    #print("Number of fragsites:", Frag_sites1.shape[0])
     Denv = Dhf[Env_sites, Env_sites.T]
     #print("Denv", Denv.shape, Denv)
     Eval, Evec = numpy.linalg.eigh(Denv)
@@ -648,8 +618,8 @@ def schmidt_decomposition(mo_coeff, nocc, Frag_sites, cinv = None, rdm=None,tmpa
     #print("Evec", Evec.shape, Evec)
     Bidx = []
     if norb is not None:
-        print("norb not None")
-        print("norb", norb)
+        #print("norb not None")
+        #print("norb", norb)
         n_frag_ind = len(Frag_sites1)
         n_bath_ind = norb - n_frag_ind
         ind_sort = numpy.argsort(numpy.abs(Eval))
@@ -661,15 +631,19 @@ def schmidt_decomposition(mo_coeff, nocc, Frag_sites, cinv = None, rdm=None,tmpa
         for i in range(len(Eval)):
             if thres < numpy.abs(Eval[i]) < 1.0 - thres:         
                 Bidx.append(i)
-    print("Number of bath indices", len(Bidx))
-    print("Total number of Schmidt orbitals", len(Frag_sites) + len(Bidx))
+    #print("Number of bath indices", len(Bidx))
+    #print("Total number of Schmidt orbitals", len(Frag_sites) + len(Bidx))
     #print("Bidx", len(Bidx), Bidx)
     TA = numpy.zeros([Tot_sites, len(Frag_sites) + len(Bidx)])
 #    print("init TA shape", TA.shape)
     TA[Frag_sites, :len(Frag_sites)] = numpy.eye(len(Frag_sites))
     TA[Env_sites1,len(Frag_sites):] = Evec[:,Bidx]
 #    print("total TA", TA.shape, TA)
-    return TA
+    if return_orb_count:
+        # return TA, norbs_frag, norbs_bath norbs_schmidt 
+        return TA, Frag_sites1.shape[0], len(Bidx)
+    else:
+        return TA
 
 
 def schmidt_decomp_rdm1_new(rdm, Frag_sites):

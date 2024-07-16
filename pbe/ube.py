@@ -260,6 +260,11 @@ class ube(pbe):
                 )
             self.Fobjs_b.append(fobjs_b)
 
+        orb_count_a = []
+        orb_count_b = []
+
+        all_noccs = []
+
         for I in range(self.Nfrag):
             fobj_a = self.Fobjs_a[I]
             fobj_b = self.Fobjs_b[I]
@@ -273,18 +278,21 @@ class ube(pbe):
                 #print("self.W[1]", self.W[1].shape, self.W[1])
                 #print("self.lmo_coeff_a", self.lmo_coeff_a.shape, self.lmo_coeff_a)
                 #print("self.lmo_coeff_b", self.lmo_coeff_b.shape, self.lmo_coeff_b)
-                fobj_a.sd(self.W[0], self.lmo_coeff_a, self.Nocc[0], frag_type=self.frag_type)
-                fobj_b.sd(self.W[1], self.lmo_coeff_b, self.Nocc[1], frag_type=self.frag_type)
+                orb_count_a.append(fobj_a.sd(self.W[0], self.lmo_coeff_a, self.Nocc[0], frag_type=self.frag_type, return_orb_count=True))
+                orb_count_b.append(fobj_b.sd(self.W[1], self.lmo_coeff_b, self.Nocc[1], frag_type=self.frag_type, return_orb_count=True))
             else:
                 fobj_a.core_veff = None
                 fobj_b.core_veff = None
-                fobj_a.sd(self.W, self.lmo_coeff_a, self.Nocc[0], frag_type=self.frag_type)
-                fobj_b.sd(self.W, self.lmo_coeff_b, self.Nocc[1], frag_type=self.frag_type)
+                orb_count_a.append(fobj_a.sd(self.W, self.lmo_coeff_a, self.Nocc[0], frag_type=self.frag_type, return_orb_count=True))
+                orb_count_b.append(fobj_b.sd(self.W, self.lmo_coeff_b, self.Nocc[1], frag_type=self.frag_type, return_orb_count=True))
+
+            all_noccs.append(self.Nocc)
 
             a_TA = fobj_a.TA.shape
             b_TA = fobj_b.TA.shape
             
-            """
+            """ 
+            # Adjust different alpha and beta space sizes: not necessary yet without optimization steps
             if fobj_a.TA.shape[1] > fobj_b.TA.shape[1]: #different alpha and beta space size
                 fobj_b.sd(self.W[0], self.lmo_coeff_b, self.Nocc[1], frag_type=self.frag_type, norb=fobj_a.TA.shape[1])
             elif fobj_b.TA.shape[1] > fobj_a.TA.shape[1]:
@@ -359,6 +367,18 @@ class ube(pbe):
                 E_hf += fobj_b.ebe_hf
         file_eri.close()
 
+        print("Number of Orbitals per Fragment:", flush=True)
+        print("____________________________________________________________________", flush=True)
+        print("| Fragment |    Nocc   | Fragment Orbs | Bath Orbs | Schmidt Space |", flush=True)
+        print("____________________________________________________________________", flush=True)
+        for I in range(self.Nfrag):
+            print('|    {:>2}    | ({:>3},{:>3}) |   ({:>3},{:>3})   | ({:>3},{:>3}) |   ({:>3},{:>3})   |'.format(I, all_noccs[I][0],all_noccs[I][1], 
+                                                                                    orb_count_a[I][0], orb_count_b[I][0],
+                                                                                    orb_count_a[I][1], orb_count_b[I][1],
+                                                                                    orb_count_a[I][0]+orb_count_a[I][1],
+                                                                                    orb_count_b[I][0]+orb_count_b[I][1]),
+                                                                                    flush=True)
+        print("____________________________________________________________________", flush=True)
         if compute_hf:
             E_hf /= self.unitcell_nkpt
             hf_err = self.hf_etot - (E_hf + self.enuc + self.E_core)
