@@ -342,6 +342,7 @@ def be2puffin(
                     # note: from the SCINE database, the structure is in Angstrom but the MM point charges
                     # are in Bohr !!
                     mf = qmmm.mm_charge(mf1, hcore[0], hcore[1], unit='bohr').newton() #mf object, coordinates, charges
+
                 else:
                     mf = scf.UHF(mol).set(max_cycle = 200).newton()
             else:
