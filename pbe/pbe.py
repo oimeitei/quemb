@@ -33,11 +33,13 @@ class pbe:
     def __init__(self, mf, fobj, eri_file='eri_file.h5', exxdiv='ewald',
                  lo_method='lowdin',compute_hf=True, nkpt = None, kpoint = False,
                  super_cell=False, molecule=False,
-                 kpts = None, cell=None, kmesh=None,
+                 kpts = None, cell=None,
+                 kmesh=None, cderi=None,
                  restart=False, save=False,
                  restart_file='storepbe.pk',
                  mo_energy = None, iao_wannier=True,
                  save_file='storepbe.pk',hci_pt=False,
+                 nproc=1, ompnum=4,
                  hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
                  debug00=False, debug001=False):
         """Constructor for pbe object
@@ -78,6 +80,10 @@ class pbe:
             self.mo_energy = store_.mo_energy
         
         self.unrestricted = False
+
+        self.nproc = nproc
+        self.ompnum = ompnum
+        
         self.self_match = fobj.self_match
         self.frag_type=fobj.frag_type
         self.Nfrag = fobj.Nfrag 
@@ -133,6 +139,7 @@ class pbe:
         self.Fobjs = []
         self.pot = initialize_pot(self.Nfrag, self.edge_idx)
         self.eri_file = eri_file
+        self.cderi = cderi
         self.ek=0.
 
         # set scratch dir in pbe_var
@@ -252,11 +259,9 @@ class pbe:
         from .helper import get_scfObj        
         import h5py
         from pyscf import ao2mo
-            
+        from multiprocessing import Pool
+        
         if compute_hf: E_hf = 0.
-        EH1 = 0.
-        ECOUL = 0.
-        EF = 0.
         
         # from here remove ncore from C
         if not restart:
@@ -279,49 +284,116 @@ class pbe:
                                unitcell_nkpt=self.unitcell_nkpt)
             fobjs_.sd(self.W, self.lmo_coeff, self.Nocc,
                       frag_type=self.frag_type)
-                
-            if not restart:
-                if eri_ is None and hasattr(self.mf, 'with_df') and not self.mf.with_df is None: eri = ao2mo.kernel(self.mf.mol, fobjs_.TA, compact=True) # for density-fitted integrals; if mf is provided, pyscf.ao2mo uses DF object in an outcore fashion
-                else: eri = ao2mo.incore.full(eri_, fobjs_.TA, compact=True) # otherwise, do an incore ao2mo
-                #if fobjs_.dname in eri:
-                #    del(file_eri[fobjs_.dname])
-                
+            fobjs_.cons_h1(self.hcore)
+            fobjs_.heff = numpy.zeros_like(fobjs_.h1)
+            fobjs_.dm_init = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
+
+            if not restart and self.nproc==1:
+                if eri_ is None and hasattr(self.mf, 'with_df') and not self.mf.with_df is None:
+                    # for density-fitted integrals; if mf is provided, pyscf.ao2mo uses DF object in an outcore fashion
+                    eri = ao2mo.kernel(self.mf.mol, fobjs_.TA, compact=True) 
+                else:
+                    # otherwise, do an incore ao2mo
+                    eri = ao2mo.incore.full(eri_, fobjs_.TA, compact=True) 
                 file_eri.create_dataset(fobjs_.dname, data=eri)
+                fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
             else:
                 eri=None
-                
-            dm_init = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
-            
-            fobjs_.cons_h1(self.hcore)
-                       
-            if not restart:
-                eri = ao2mo.restore(8, eri, fobjs_.nao)
-            
-            fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
-                
-            fobjs_.heff = numpy.zeros_like(fobjs_.h1)
-            fobjs_.scf(fs=True, eri=eri)
-            
-            fobjs_.dm0 = numpy.dot( fobjs_._mo_coeffs[:,:fobjs_.nsocc],
-                                    fobjs_._mo_coeffs[:,:fobjs_.nsocc].conj().T) *2.
-                
-            if compute_hf:
-            
-                eh1, ecoul, ef = fobjs_.energy_hf(return_e1=True)
-                EH1 += eh1
-                ECOUL += ecoul
-                E_hf += fobjs_.ebe_hf
-
             self.Fobjs.append(fobjs_)
+
+        if not restart and self.nproc > 1 and self.cderi is None:
+            nprocs = int(self.nproc/self.ompnum)
+            pool_ = Pool(nprocs)
+            os.system('export OMP_NUM_THREADS='+str(self.ompnum))
+            results = []
+            eris = []
+            for frg in range(self.Nfrag):
+                result = pool_.apply_async(eritransform_parallel_mol,[eri_, self.Fobjs[frg].TA])  #ao2mo.incore.full, [eri_, self.Fobjs[frg].TA])
+                results.append(result)
+            [eris.append(result.get()) for result in results]
+            pool_.close()
+
+            for frg in range(self.Nfrag):
+                #eri__ = ao2mo.restore(4, eris[frg], self.Fobjs[frg].nao)
+                file_eri.create_dataset(self.Fobjs[frg].dname, data=eris[frg])
+            eris = None
+            file_eri.close()
+
+            nprocs = int(self.nproc/self.ompnum)
+            pool_ = Pool(nprocs)
+            results = []
+            veffs = []
+            for frg in range(self.Nfrag):
+                result = pool_.apply_async(parallel_fock_wrapper, [self.Fobjs[frg].dname, self.Fobjs[frg].nao,
+                                                                   self.hf_dm, self.S, self.Fobjs[frg].TA, self.hf_veff,
+                                                                   self.eri_file])
+                results.append(result)
+            [veffs.append(result.get()) for result in results]
+            pool_.close()
+
+            for frg in range(self.Nfrag):
+                veff0, veff_ = veffs[frg]
+                if numpy.abs(veff_.imag).max() < 1.e-6:
+                    self.Fobjs[frg].veff = veff_.real
+                    self.Fobjs[frg].veff0 = veff0.real
+                else:
+                    print('Imaginary Veff ', numpy.abs(veff_.imag).max())
+                    sys.exit()
+                self.Fobjs[frg].fock = self.Fobjs[frg].h1 + veff_.real
+            veffs = None
+
+        if not restart and self.nproc > 1 and self.cderi:
+            nprocs = int(self.nproc/self.ompnum)
+            pool_ = Pool(nprocs)
+            os.system('export OMP_NUM_THREADS='+str(self.ompnum))
+            results = []
+            eris = []
+            for frg in range(self.Nfrag):
+                result = pool_.apply_async(eritransform_parallel_mol_cd, [self.mol.atom, self.mol.basis, self.Fobjs[frg].TA, self.cderi])
+                results.append(result)
+            [eris.append(result.get()) for result in results]
+            pool_.close()
+
+            for frg in range(self.Nfrag):
+                file_eri.create_dataset(self.Fobjs[frg].dname, data=eris[frg])
+            eris = None
+            file_eri.close()
+
+            results = []
+            veffs = []
+            for frg in range(self.Nfrag):
+                result = pool_.apply_async(parallel_fock_wrapper, [self.Fobjs[frg].dname, self.Fobjs[frg].nao,
+                                                                   self.hf_dm, self.S, self.Fobjs[frg].TA, self.hf_veff, self.eri_file])
+                results.append(result)
+            [veffs.append(result.get()) for result in results]
+            pool_.close()
+
+            for frg in range(self.Nfrag):
+                veff0, veff_ = veffs[frg]
+                if numpy.abs(veff_.imag).max() < 1.e-6:
+                    self.Fobjs[frg].veff = veff_.real
+                    self.Fobjs[frg].veff0 = veff0.real
+                else:
+                    print('Imaginary Veff ', numpy.abs(veff_.imag).max())
+                    sys.exit()
+                self.Fobjs[frg].fock = self.Fobjs[frg].h1 + veff_.real
+            veffs = None
+        
+        for frg in range(self.Nfrag):
+            self.Fobjs[frg].scf(fs=True, dm0 = self.Fobjs[frg].dm_init)
+            self.Fobjs[frg].dm0 = numpy.dot( self.Fobjs[frg]._mo_coeffs[:,:self.Fobjs[frg].nsocc],
+                                    self.Fobjs[frg]._mo_coeffs[:,:self.Fobjs[frg].nsocc].conj().T) *2.
+            if compute_hf:
+                self.Fobjs[frg].energy_hf()
+                E_hf += self.Fobjs[frg].ebe_hf
+                
         if not restart:
             file_eri.close()
         
         if compute_hf:
-            
-            E_hf /= self.unitcell_nkpt                
-            hf_err = self.hf_etot-(E_hf+self.enuc+self.E_core)
-            
-            self.ebe_hf = E_hf+self.enuc+self.E_core-self.ek
+                        
+            self.ebe_hf = E_hf+self.enuc+self.E_core
+            hf_err = self.hf_etot - self.ebe_hf
             print('HF-in-HF error                 :  {:>.4e} Ha'.
                   format(hf_err), flush=True)
             if abs(hf_err)>1.e-5:
@@ -416,3 +488,32 @@ def initialize_pot(Nfrag, edge_idx):
     
     pot_.append(0.)
     return pot_
+
+def eritransform_parallel_mol(eri_, mcoeff):
+    eri_t = ao2mo.incore.full(eri_, mcoeff, compact=True)
+    return eri_t
+
+def eritransform_parallel_mol_cd(atom, basis, C_ao_emb, cderi):
+    from pyscf import gto, df
+    
+    mol_ = gto.M(atom=atom, basis=basis)
+    mydf = df.DF(mol_)
+    mydf._cderi = cderi
+    eri = mydf.ao2mo(C_ao_emb, compact=True)
+    return eri
+
+def parallel_fock_wrapper(dname, nao, dm, S, TA, hf_veff, eri_file):
+    from .helper import get_veff, get_eri
+
+    eri_ = get_eri(dname, nao, eri_file=eri_file, ignore_symm=True)
+    veff0, veff_ = get_veff(eri_, dm, S, TA, hf_veff, return_veff0 = True)
+
+    return veff0, veff_
+
+
+def parallel_scf_wrapper(dname, nao, nocc, h1,  dm_init, eri_file):
+    from .helper import get_eri, get_scfObj
+    eri = get_eri(dname, nao, eri_file=eri_file)
+    mf_ = get_scfObj(h1, eri, nocc, dm_init)
+    
+    return mf_.mo_coeff

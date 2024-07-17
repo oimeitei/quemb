@@ -83,6 +83,8 @@ class Frags:
         self.ewald_ek=ewald_ek
         self.fock = None
         self.veff = None
+        self.veff0 = None
+        self.dm_init = None
         self.dm0 = None
         self.eri_file = eri_file
 
