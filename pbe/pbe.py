@@ -284,6 +284,7 @@ class pbe:
                                unitcell_nkpt=self.unitcell_nkpt)
             fobjs_.sd(self.W, self.lmo_coeff, self.Nocc,
                       frag_type=self.frag_type)
+<<<<<<< HEAD
             fobjs_.cons_h1(self.hcore)
             fobjs_.heff = numpy.zeros_like(fobjs_.h1)
             fobjs_.dm_init = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
@@ -387,6 +388,53 @@ class pbe:
                 self.Fobjs[frg].energy_hf()
                 E_hf += self.Fobjs[frg].ebe_hf
                 
+=======
+            self.Fobjs.append(fobjs_)
+                
+        if not restart:
+            # ERI Transform Decision Tree
+            # Do we have full (ij|kl)?
+            #   Yes -- ao2mo, incore version
+            #   No  -- Do we have (ij|P) from density fitting?
+            #            Yes -- ao2mo, outcore version, using saved (ij|P)
+            assert (not eri_ is None) or (hasattr(self.mf, 'with_df')), "Input mean-field object is missing ERI (mf._eri) or DF (mf.with_df) object. You may want to ensure that incore_anyway was set for non-DF calculations."
+            if not eri_ is None: # incore ao2mo using saved eri from mean-field calculation
+                for I in range(self.Nfrag):
+                    eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
+                    file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
+            elif hasattr(self.mf, 'with_df') and not self.mf.with_df is None:
+                # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P) in pyscf temp directory
+                for I in range(self.Nfrag):
+                    eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
+                    file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
+        else:
+            eri=None
+        
+        for fobjs_ in self.Fobjs:
+            eri = numpy.array(file_eri.get(fobjs_.dname))
+            dm_init = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
+            
+            fobjs_.cons_h1(self.hcore)
+                       
+            if not restart:
+                eri = ao2mo.restore(8, eri, fobjs_.nao)
+            
+            fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
+                
+            fobjs_.heff = numpy.zeros_like(fobjs_.h1)
+            fobjs_.scf(fs=True, eri=eri)
+            
+            fobjs_.dm0 = numpy.dot( fobjs_._mo_coeffs[:,:fobjs_.nsocc],
+                                    fobjs_._mo_coeffs[:,:fobjs_.nsocc].conj().T) *2.
+                
+            if compute_hf:
+            
+                eh1, ecoul, ef = fobjs_.energy_hf(return_e1=True)
+                EH1 += eh1
+                ECOUL += ecoul
+                E_hf += fobjs_.ebe_hf
+
+>>>>>>> 8eab9acc4b5b54562278af32428100716d611529
         if not restart:
             file_eri.close()
         
