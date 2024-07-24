@@ -1,22 +1,14 @@
-'''
-Authors: Henry Tran
-         Oinam Meitei
-
-func get_symm_mat_pow(), get_aoind_by_atom(), reorder_by_atom_()
-copied from frankestein(private repo)
-
-'''
-
+#
+# Authors: Henry Tran
+#         Oinam Meitei
+#
+# The following functions are copied as it is from Frankestein code written by Hong-Zhou Ye
+# get_symm_mat_pow(), get_aoind_by_atom(), reorder_by_atom_()
+#
 from pyscf import lib
 import numpy,sys
 from copy import deepcopy
 from functools import reduce
-# iao tmp
-
-
-def iao_tmp(cell, C, nocc, S1, kpts, minbas='minao'):
-    
-    mango =0
 
 def dot_gen(A, B, ovlp):
     return A.T @ B if ovlp is None else A.T @ ovlp @ B
@@ -29,7 +21,6 @@ def get_cano_orth_mat(A, thr=1.E-6, ovlp=None):
     else:
         idx_keep = list(range(e.shape[0]))
     U = u[:,idx_keep] * e[idx_keep]**-0.5
-
     return U
 
 def cano_orth(A, thr=1.E-6, ovlp=None):
@@ -50,10 +41,8 @@ def get_symm_orth_mat(A, thr=1.E-6, ovlp=None):
 
 def symm_orth(A, thr=1.E-6, ovlp=None):
     """ Symmetrically orthogonalize columns of A
-    """
-    
+    """    
     U = get_symm_orth_mat(A, thr, ovlp)
-
     return A @ U
 
 
@@ -75,8 +64,8 @@ def remove_core_mo(Clo, Ccore, S, thr=0.5):
  
 def reorder_lo(C, S, idao_by_atom, atom_by_motif, motifname,
     ncore_by_motif, thresh=0.5, verbose=3):
-    """ 
-    TODO
+    """ Reorder localized orbitals 
+    
     This function reorders the IAOs and PAOs so that the IAOs
     and PAOs for each atom are grouped together.
     """
@@ -296,18 +285,27 @@ def reorder_by_atom_(Clo, aoind_by_atom, S, thr=0.5):
         Clo_new = Clo
     return Clo_new, loind_by_atom
 
-class KMF:
-    def __init__(self, cell, kpts = None, mo_coeff = None, mo_energy = None):
-        self. cell = cell
-        self.kpts = kpts
-        self.mo_coeff = mo_coeff.copy()
-        self.mo_energy = mo_energy
-        self.mo_energy_kpts = mo_energy
-        self.mo_coeff_kpts = mo_coeff.copy()
 
 def localize(self, lo_method, mol=None, valence_basis='sto-3g',
              hstack=False,
-             iao_wannier=True, valence_only=False, nosave=False):
+             valence_only=False, nosave=False):
+    """ Molecular orbital localization
+
+    Performs molecular orbital localization computations. For large basis, IAO is recommended
+    augmented with PAO orbitals.
+
+    Parameters
+    ----------
+    lo_method : str
+       Localization method in quantum chemistry. 'lowdin', 'boys', and 'iao' are supported.
+    mol : pyscf.gto.Molecule
+       pyscf.gto.Molecule object.
+    valence_basis: str
+       Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
+    valence_only: bool
+       If this option is set to True, all calculation will be performed in the valence basis in the IAO partitioning. 
+       This is an experimental feature.
+    """
     from numpy.linalg import eigh
     from pyscf.lo import iao
     from pyscf.lo import orth
@@ -324,25 +322,20 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g',
                 
             P_core = numpy.eye(self.W.shape[0]) - numpy.dot(self.P_core, self.S)
             C_ = numpy.dot(P_core, self.W)
-
-            # PYSCF has basis in 1s2s3s2p2p2p3p3p3p format
+            # NOTE: PYSCF has basis in 1s2s3s2p2p2p3p3p3p format
             # fix no_core_idx - use population for now
-            #C_ = C_[:,self.no_core_idx]
             Cpop = functools.reduce(numpy.dot,
                                     (C_.T, self.S, C_))
             Cpop = numpy.diag(Cpop)
             no_core_idx = numpy.where(Cpop > 0.7)[0]
             C_ = C_[:,no_core_idx]
-
             S_ = functools.reduce(numpy.dot, (C_.T, self.S, C_))
             es_, vs_ = eigh(S_)
             s_ = numpy.sqrt(es_)
             s_ = numpy.diag(1.0/s_)
             W_ = functools.reduce(numpy.dot,
                                   (vs_, s_, vs_.T))
-            self.W = numpy.dot(C_, W_)
-                
-            
+            self.W = numpy.dot(C_, W_)            
         if not self.frozen_core:                 
             self.lmo_coeff = functools.reduce(numpy.dot,
                                               (self.W.T, self.S, self.C))
@@ -350,12 +343,10 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g',
             self.lmo_coeff = functools.reduce(numpy.dot,
                                               (self.W.T, self.S, self.C[:,self.ncore:]))            
 
-    elif lo_method=='iao':
-        
+    elif lo_method=='iao':        
         from pyscf import lo
         import os, h5py
-
-        # Things I recommend having as parameters
+        
         loc_type = 'SO'
         val_basis = 'sto-3g'
         
@@ -372,9 +363,7 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g',
                 Cpao = get_pao(Ciao, self.S, S12, S2, self.mol)
             elif loc_type.upper() == 'SO':
                 Cpao = get_pao_native(Ciao, self.S, self.mol, valence_basis=val_basis)
-            #else:
-            #    raise NotImplementedError('Localization method', loc_type, 'not understood.')
-
+            
         # rearrange by atom
         aoind_by_atom = get_aoind_by_atom(self.mol)
         Ciao, iaoind_by_atom = reorder_by_atom_(Ciao, aoind_by_atom, self.S)
@@ -392,18 +381,15 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g',
             Ciao = get_loc(self.mol, Ciao, loc_type)
             if not valence_only:
                 Cpao = get_loc(self.mol, Cpao, loc_type)
-        
-        #self.W = numpy.hstack([Ciao,  Cpao])
-        # stack here
+                
         shift = 0
         ncore = 0
-        if not valence_only:
-                        
+        if not valence_only:                
             Wstack = numpy.zeros((Ciao.shape[0], Ciao.shape[1]+Cpao.shape[1])) #-self.ncore))
         else:
             Wstack = numpy.zeros((Ciao.shape[0], Ciao.shape[1]))
             
-        if self.frozen_core:    ## Check here ----        
+        if self.frozen_core: 
             for ix in range(self.mol.natm):
                 nc = ncore_(self.mol.atom_charge(ix))
                 ncore += nc
@@ -437,8 +423,7 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g',
         nlo = self.W.shape[1]
 
         if not valence_only:
-            if nmo > nlo:
-                
+            if nmo > nlo:                
                 Co_nocore = self.C[:,self.ncore:self.Nocc]
                 Cv = self.C[:,self.Nocc:]
                 # Ensure that the LOs span the occupied space
@@ -452,14 +437,9 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g',
                 self.lmo_coeff = self.W.T @ self.S @ C_
             else:
                 self.lmo_coeff = self.W.T @ self.S @ self.C[:,self.ncore:]
-        else:
-            
+        else:            
             self.lmo_coeff = self.W.T @ self.S @ self.C[:,self.ncore:]
-
-        #assert(numpy.allclose(self.lmo_coeff.T @ self.lmo_coeff, numpy.eye(self.lmo_coeff.shape[1])))
-
-
-        
+            
     elif lo_method == 'boys':
         from pyscf.lo import Boys
         es_, vs_ = eigh(self.S)

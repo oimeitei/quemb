@@ -1,80 +1,55 @@
 import sys
 import numpy
 from .helper import get_core
-from itertools import compress
 
-def nearestof2coord(coord1, coord2 , bond=3.401514):
-    
-    
-    mind = 50000
-    lmin = ()
-    for idx, i in enumerate(coord1):    
-        for jdx, j in enumerate(coord2):
-            if idx == jdx:
-                continue
-            dist = numpy.linalg.norm(i - j)
-            
-            if dist < mind or dist-mind < 0.1:
-                if dist <= bond:
-                    lmin = (idx, jdx)
-                    mind = dist
-    if any(lmin):
-        lunit_ = [lmin[0]]
-        runit_ = [lmin[1]]
-    else:
-        return([],[])
-
-    for idx, i in enumerate(coord1):
-        for jdx, j in enumerate(coord2):
-            if idx == jdx :
-                continue
-
-            if idx == lmin[0] and jdx == lmin[1]:
-                continue
-            dist = numpy.linalg.norm(i - j)
-            if dist-mind<0.1 and dist <= bond:
-                
-                lunit_.append(idx)
-                runit_.append(jdx)
-   
-    return(lunit_, runit_)
-
-
-def sidefunc(cell, Idx, unit1, unit2, main_list, sub_list, coord, be_type, bond=3.401514, hchain=False):
-
-    main_list.extend(unit2[numpy.where(unit1==Idx)[0]])
-    sub_list.extend(unit2[numpy.where(unit1==Idx)[0]])
-    closest = sub_list.copy()
-    close_be3 = []
-    
-    if be_type == 'be3' or be_type == 'be4':
-        for lmin1 in unit2[numpy.where(unit1==Idx)[0]]:
-            for jdx, j in enumerate(coord):
-                if not jdx in unit1 and not jdx in unit2 and (not cell.atom_pure_symbol(jdx) == 'H' or hchain):
-                    dist = numpy.linalg.norm(coord[lmin1] - j)
-                    if dist <= bond:
-                        main_list.append(jdx)
-                        sub_list.append(jdx)
-                        close_be3.append(jdx)
-                        if be_type == 'be4':
-                            for kdx, k in enumerate(coord):
-                                if kdx == jdx:
-                                    continue
-                                if not kdx in unit1 and not kdx in unit2 and (not cell.atom_pure_symbol(kdx) == 'H' or hchain):
-                                    dist = numpy.linalg.norm(coord[jdx] - k)
-                                    if dist <= bond:
-                                        main_list.append(kdx)
-                                        sub_list.append(kdx)
-    return closest, close_be3
-
-
-def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
+def autogen(mol, frozen_core=True, be_type='be2', 
             write_geom=False,
-            unitcell=1,
-            auxcell = None,
-            nx=False, ny=False, nz=False,
             valence_basis = None, valence_only = False,
             print_frags=True):
+    """
+    Automatic molecular partitioning
+
+    Partitions a molecule into overlapping fragments as defined in BE atom-based fragmentations.
+    It automatically detects branched chemical chains and ring systems and partitions accordingly.
+    For efficiency, it only checks two atoms for connectivity (chemical bond) if they are within 3.5 Angstrom. 
+    This value is hardcoded as normdist. Two atoms are defined as bonded if they are within 1.8 Angstrom (1.2 for Hydrogen atom). 
+    This is also hardcoded as bond & hbond.
+
+    Parameters
+    ----------
+    mol : pyscf.gto.Molecule
+        pyscf.gto.Molecule object. This is required for the options, 'autogen' and 'chain' as frag_type.
+    frozen_core : bool, optional
+        Whether to invoke frozen core approximation. Defaults to True.
+    be_type : str, optional
+        Specifies the order of bootstrap calculation in the atom-based fragmentation. Supported values are 'be1', 'be2', 'be3', and 'be4'.
+        Defaults to 'be2'.
+    write_geom : bool, optional
+        Whether to write a 'fragment.xyz' file which contains all the fragments in Cartesian coordinates. Defaults to False.
+    valence_basis : str, optional
+        Name of minimal basis set for IAO scheme. 'sto-3g' is sufficient for most cases. Defaults to None.
+    valence_only : bool, optional
+        If True, all calculations will be performed in the valence basis in the IAO partitioning. This is an experimental feature. Defaults to False.
+    print_frags : bool, optional
+        Whether to print out the list of resulting fragments. Defaults to True.
+
+    Returns
+    -------
+    fsites : list of list of int
+        List of fragment sites where each fragment is a list of LO indices.
+    edgsites : list of list of list of int
+        List of edge sites for each fragment where each edge is a list of LO indices.
+    center : list of list of int
+        List of center indices for each edge.
+    edge_idx : list of list of list of int
+        List of edge indices for each fragment where each edge index is a list of LO indices.
+    center_idx : list of list of list of int
+        List of center indices for each fragment where each center index is a list of LO indices.
+    centerf_idx : list of list of int
+        List of center fragment indices.
+    ebe_weight : list of list
+        Weights for each fragment. Each entry contains a weight and a list of LO indices.
+    """
     from pyscf import lib
     from .pbcgeom import printatom, sgeom
 
@@ -85,14 +60,14 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
         cell.basis = valence_basis
         cell.build()
         
-    ncore, no_core_idx, core_list = get_core(cell)
-    
+    ncore, no_core_idx, core_list = get_core(cell)    
     coord = cell.atom_coords()
     ang2bohr = 1.88973
     normdist = 3.5 * ang2bohr
     bond = 1.8 * ang2bohr
     hbond = 1.2 * ang2bohr
-    ## starts here
+
+    # Compute the norm (magnitude) of each atomic coordinate
     normlist = []
     for i in coord:
         normlist.append(numpy.linalg.norm(i))
@@ -100,6 +75,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
     pedge = []
     cen = []
 
+    # Check if the molecule is a hydrogen chain
     hchain = True
     for i in range(cell.natm):
         if not cell.atom_pure_symbol(i) == 'H':
@@ -123,11 +99,8 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
             if not idx==jdx and (not cell.atom_pure_symbol(jdx) == 'H' or hchain):
                 if abs(j)< normdist:                  
                     clist.append(jdx)
-        
-        #edg = []
         pedg = []
-        flist = []
-        
+        flist = []        
         flist.append(idx)
 
         if not be_type == 'be1':
@@ -145,28 +118,25 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
                                       if not kdx in pedg:
                                           flist.append(kdx)
                                           pedg.append(kdx)
-                                      if be_type=='be4':                                            
-                                                  
+                                      if be_type=='be4':                                                     
                                           for ldx, l in enumerate(coord):
-                                              if ldx==kdx or ldx==jdx or (cell.atom_pure_symbol(ldx) == 'H' and not hchain) or ldx in pedg:
+                                              if ldx==kdx or ldx==jdx or
+                                              (cell.atom_pure_symbol(ldx) == 'H' and not hchain)
+                                              or ldx in pedg:                                              
                                                   continue
                                               dist = numpy.linalg.norm(coord[kdx] - l)
                                               if dist <= bond:
                                                   flist.append(ldx)
-                                                  pedg.append(ldx)
-                                                  
-            
-            
+                                                  pedg.append(ldx)            
+
+            # Update fragment and edge lists based on current partitioning
             for pidx, frag_ in enumerate(Frag):
-                if set(flist).issubset(frag_):
-            
+                if set(flist).issubset(frag_):            
                     open_frag.append(pidx)
                     open_frag_cen.append(idx)
                     break
-                elif set(frag_).issubset(flist):
-            
-                    open_frag = [ oidx-1 if oidx > pidx else oidx for oidx in open_frag]
-            
+                elif set(frag_).issubset(flist):            
+                    open_frag = [ oidx-1 if oidx > pidx else oidx for oidx in open_frag]            
                     open_frag.append(len(Frag)-1)
                     open_frag_cen.append(cen[pidx])
                     del cen[pidx]
@@ -183,22 +153,20 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
     hlist = [[] for i in coord]
     if not hchain:
         for idx, i in enumerate(normlist):
-            if cell.atom_pure_symbol(idx) == 'H':
-                
+            if cell.atom_pure_symbol(idx) == 'H':                
                 tmplist = normlist - i
-                tmplist = list(tmplist)
-                
+                tmplist = list(tmplist)                
                 clist = []
                 for jdx,j in enumerate(tmplist):
                     if not idx==jdx and not cell.atom_pure_symbol(jdx) == 'H':
                         if abs(j)< normdist:
-                            clist.append(jdx)
-                
-                for jdx in clist:
-                    
+                            clist.append(jdx)                
+                for jdx in clist:                    
                     dist = numpy.linalg.norm(coord[idx] - coord[jdx])
                     if dist <= hbond:
                         hlist[jdx].append(idx)
+
+    # Print fragments if requested
     if print_frags:
         print(flush=True)
         print('Fragment sites',flush=True)
@@ -221,6 +189,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
         print('*H : Center H atoms (printed as Edges above.)', flush=True)
         print(flush=True)
 
+    # Write fragment geometry to a file if requested
     if write_geom:
         w = open('fragments.xyz','w')
         for idx,i in enumerate(Frag):
@@ -231,7 +200,6 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
                                                                                coord[j][0]/ang2bohr,
                                                                                coord[j][1]/ang2bohr,
                                                                                coord[j][2]/ang2bohr))
-
             for j in i:
                 w.write(' {:>3}   {:>10.7f}   {:>10.7f}   {:>10.7f} \n'.format(cell.atom_pure_symbol(j),
                                                                                coord[j][0]/ang2bohr,
@@ -244,10 +212,8 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
                                                                                    coord[k][2]/ang2bohr))
         w.close()
 
-    if not valence_basis is None and not valence_only:
-        pao = True
-    else:
-        pao = False
+    # Prepare for PAO basis if requested
+    pao = bool(valence_basis and not valence_only)
         
     if pao:
         cell2 = cell.copy()
@@ -261,9 +227,9 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
     sites__ = [[] for i in coord]
     coreshift = 0
     hshift = [0 for i in coord]
-    
-    for adx in range(cell.natm):
 
+    # Process each atom to determine core and valence basis sets
+    for adx in range(cell.natm):
         if hchain:            
             bas = baslist[adx]            
             start_ = bas[2]
@@ -319,7 +285,8 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
     edge_idx = []
     centerf_idx = []
     edge = []
-    
+
+    # Create fragments and edges based on partitioning
     for idx, i in enumerate(Frag):
         ftmp = []
         ftmpe = [] 
@@ -339,7 +306,6 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
                     frglist.extend(hsites[open_frag_cen[pidx__]])
                     ls += len(sites__[open_frag_cen[pidx__]]) +\
                         len(hsites[open_frag_cen[pidx__]])
-
         
         ftmp.extend(frglist)
         if not pao:
@@ -399,9 +365,9 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2', molecule=False,
     
     Nfrag = len(fsites)    
     ebe_weight=[]
-    
-    for ix, i in enumerate(fsites):
-        
+
+    # Compute weights for each fragment
+    for ix, i in enumerate(fsites):        
         tmp_ = [i.index(pq) for pq in sites__[cen[ix]]]
         tmp_.extend([i.index(pq) for pq in hsites[cen[ix]]]) 
         if ix in open_frag:

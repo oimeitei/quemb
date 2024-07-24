@@ -1,56 +1,104 @@
 import numpy, sys, functools, h5py
 from pyscf import ao2mo
+
 def get_veff(eri_, dm, S, TA, hf_veff):
+    """
+    Calculate the effective HF potential (Veff) for a given density matrix and electron repulsion integrals.
+
+    This function computes the effective potential by transforming the density matrix, computing the Coulomb (J) and
+    exchange (K) integrals.
+
+    Parameters
+    ----------
+    eri_ : numpy.ndarray
+        Electron repulsion integrals.
+    dm : numpy.ndarray
+        Density matrix. 2D array.
+    S : numpy.ndarray
+        Overlap matrix.
+    TA : numpy.ndarray
+        Transformation matrix.
+    hf_veff : numpy.ndarray
+        Hartree-Fock effective potential for the full system.
+
+    Returns
+    -------
+    numpy.ndarray
+        Effective HF potential in the embedding basis.
+    """
+    
     import functools
     from pyscf import scf
 
-    if dm.ndim==2:
-        ST = numpy.dot(S, TA)
-        P_ = functools.reduce(numpy.dot,(ST.T, dm, ST))
+    # Transform the density matrix
+    ST = numpy.dot(S, TA)
+    P_ = functools.reduce(numpy.dot,(ST.T, dm, ST))
     
+    # Ensure the transformed density matrix and ERI are real and double-precision
     P_ = numpy.asarray(P_.real, dtype=numpy.double)
     eri_ = numpy.asarray(eri_, dtype=numpy.double)
+
+    # Compute the Coulomb (J) and exchange (K) integrals
     vj, vk = scf.hf.dot_eri_dm(eri_, P_, hermi=1, with_j=True, with_k=True)
     Veff_ = vj - 0.5 * vk
-    
-    # remove core contribution from hf_veff
-    if dm.ndim == 2:
-        Veff = functools.reduce(numpy.dot,(TA.T, hf_veff, TA)) - Veff_
+    Veff = functools.reduce(numpy.dot,(TA.T, hf_veff, TA)) - Veff_
     
     return Veff
 
 # create pyscf pbc scf object
 def get_scfObj(h1, Eri, nocc, dm0=None, enuc=0.):
+    """
+    Initialize and run a restricted Hartree-Fock (RHF) calculation.
+
+    This function sets up an SCF (Self-Consistent Field) object using the provided one-electron Hamiltonian, electron
+    repulsion integrals, and number of occupied orbitals. It then runs the SCF procedure, optionally using an initial
+    density matrix.
+
+    Parameters
+    ----------
+    h1 : numpy.ndarray
+        One-electron Hamiltonian matrix.
+    Eri : numpy.ndarray
+        Electron repulsion integrals.
+    nocc : int
+        Number of occupied orbitals.
+    dm0 : numpy.ndarray, optional
+        Initial density matrix. If not provided, the SCF calculation will start from scratch. Defaults to None.
+    enuc : float, optional
+        Nuclear repulsion energy. Defaults to 0.0.
+
+    Returns
+    -------
+    mf_ : pyscf.scf.hf.RHF
+        The SCF object after running the Hartree-Fock calculation.
+    """
     # from 40-customizing_hamiltonian.py in pyscf examples
     from pyscf import gto, scf
         
     nao = h1.shape[0]
 
-
+    # Initialize a dummy molecule with the required number of electrons
     S = numpy.eye(nao)
     mol = gto.M()
-
     mol.nelectron = nocc * 2
-    #mol.nao_nr = lambda *args : nao
-    #mol.energy_nuc = lambda *args : enuc
     mol.incore_anyway = True
     
-    
+    # Initialize an RHF object
     mf_ = scf.RHF(mol)
     mf_.get_hcore = lambda *args:h1
     mf_.get_ovlp = lambda *args: S
     mf_._eri = Eri
     mf_.incore_anyway = True
-    mf_.max_cycle=50
-    
+    mf_.max_cycle=50    
     mf_.verbose=0
     
+    # Run the SCF calculation
     if dm0 is None:
         mf_.kernel()
     else:
         mf_.kernel(dm0=dm0)
         
-    
+    # Check if the SCF calculation converged
     if not mf_.converged:
         print(flush=True)
         print('WARNING!!! SCF not convereged - applying level_shift=0.2, diis_space=25 ',flush=True)
@@ -75,13 +123,40 @@ def get_scfObj(h1, Eri, nocc, dm0=None, enuc=0.):
 
 
 def get_eri(i_frag, Nao, symm = 8, ignore_symm = False, eri_file='eri_file.h5'):
+    """
+    Retrieve and optionally restore electron repulsion integrals (ERI) from an HDF5 file.
+
+    This function reads the ERI for a given fragment from an HDF5 file, and optionally restores the symmetry of the ERI.
+
+    Parameters
+    ----------
+    i_frag : str
+        Fragment identifier used to locate the ERI data in the HDF5 file.
+    Nao : int
+        Number of atomic orbitals.
+    symm : int, optional
+        Symmetry of the ERI. Defaults to 8.
+    ignore_symm : bool, optional
+        If True, the symmetry step is skipped. Defaults to False.
+    eri_file : str, optional
+        Filename of the HDF5 file containing the electron repulsion integrals. Defaults to 'eri_file.h5'.
+
+    Returns
+    -------
+    numpy.ndarray
+        Electron repulsion integrals, possibly restored with symmetry.
+    """
     from pyscf import ao2mo, lib
     import h5py
-    
+
+    # Open the HDF5 file and read the ERI for the specified fragment
     r = h5py.File(eri_file,'r')
     eri__ = numpy.array(r.get(i_frag))
-    
+
+    # Optionally restore the symmetry of the ERI
     if not ignore_symm:
+        
+        # Set the number of threads for the library to 1
         lib.num_threads(1)
         eri__ = ao2mo.restore(symm, eri__, Nao)
 
@@ -113,7 +188,19 @@ def ncore_(z):
 
 
 def get_core(mol):
+    """
+    Calculate the number of cores for each atom in the molecule.
 
+    Parameters
+    ----------
+    mol : pyscf.gto.Mole
+        Molecule object from PySCF.
+
+    Returns
+    -------
+    tuple
+        (Ncore, idx, corelist)
+    """
     idx = []
     corelist = []
     Ncore = 0
@@ -125,75 +212,76 @@ def get_core(mol):
 
     return (Ncore,idx,corelist)
 
-
-
-def be_energy(nfsites, h1, mo_coeffs, rdm1, rdm2s, eri_file='eri_file.h5'):
-    rdm2s = numpy.einsum("ijkl,pi,qj,rk,sl->pqrs", 0.5*rdm2s,
-                         *([mo_coeffs]*4),optimize=True)        
-    
-    e1 = 2.*numpy.einsum("ij,ij->i",h1[:nfsites], self._rdm1[:self.nfsites])
-    ec = numpy.einsum("ij,ij->i",self.veff[:self.nfsites],self._rdm1[:self.nfsites])
-    
-
-    if self.TA.ndim == 3:
-        jmax = self.TA[0].shape[1]
-    else:
-        jmax = self.TA.shape[1]
-        
-    if eri is None:
-        r = h5py.File(eri_file,'r')
-        eri = r[self.dname][()]
-        r.close()
-
-    
-    
-    e2 = numpy.zeros_like(e1)
-    for i in range(self.nfsites):
-        for j in range(jmax):
-            ij = i*(i+1)//2+j if i > j else j*(j+1)//2+i
-            Gij = rdm2s[i,j,:jmax,:jmax].copy()            
-            Gij[numpy.diag_indices(jmax)] *= 0.5
-            Gij += Gij.T            
-            e2[i] += Gij[numpy.tril_indices(jmax)] @ eri[ij]
-
-
-    e_ = e1+e2+ec        
-    etmp = 0.
-    for i in self.efac[1]:
-        etmp += self.efac[0]*e_[i]        
-
-    self.ebe += etmp
-    return (e1+e2+ec)
-
-    
-
 def get_frag_energy(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rdm2s, dname, eri_file='eri_file.h5'):
+    """
+    Compute the fragment energy.
+
+    This function calculates the energy contribution of a fragment within a larger molecular system
+    using the provided molecular orbital coefficients, density matrices, and effective potentials.
+
+    Parameters
+    ----------
+    mo_coeffs : numpy.ndarray
+        Molecular orbital coefficients.
+    nsocc : int
+        Number of occupied orbitals.
+    nfsites : int
+        Number of fragment sites.
+    efac : list
+        List containing energy scaling factors and indices.
+    TA : numpy.ndarray
+        Transformation matrix.
+    h1 : numpy.ndarray
+        One-electron Hamiltonian.
+    hf_veff : numpy.ndarray
+        Hartree-Fock effective potential.
+    rdm1 : numpy.ndarray
+        One-particle density matrix.
+    rdm2s : numpy.ndarray
+        Two-particle density matrix.
+    dname : str
+        Dataset name in the HDF5 file.
+    eri_file : str, optional
+        Filename of the HDF5 file containing the electron repulsion integrals. Defaults to 'eri_file.h5'.
+
+    Returns
+    -------
+    list
+        List containing the energy contributions: [e1_tmp, e2_tmp, ec_tmp].
+    """
+
+    # Rotate the RDM1 into the MO basis 
     rdm1s_rot = mo_coeffs @ rdm1 @ mo_coeffs.T * 0.5
 
+    # Construct the Hartree-Fock 1-RDM 
     hf_1rdm = numpy.dot(mo_coeffs[:,:nsocc],
                        mo_coeffs[:,:nsocc].conj().T)
 
+    # Compute the difference between the rotated RDM1 and the Hartree-Fock 1-RDM
     delta_rdm1 = 2 * (rdm1s_rot - hf_1rdm)
 
+    # Compute the effective potential in the transformed basis
     veff0 = functools.reduce(numpy.dot,(TA.T,hf_veff,TA))
+
+    # Calculate the one-electron and effective potential energy contributions
     e1 = numpy.einsum("ij,ij->i",h1[:nfsites], delta_rdm1[:nfsites])
     ec = numpy.einsum("ij,ij->i",veff0[:nfsites], delta_rdm1[:nfsites])
 
-    if TA.ndim == 3:
-        jmax = TA[0].shape[1]
-    else:
-        jmax = TA.shape[1]
+    jmax = TA.shape[1]
 
-#    if eri is None:
+    # Load the electron repulsion integrals from the HDF5 file
     r = h5py.File(eri_file,'r')
-#    eri = r[self.dname][()]
     eri = r[dname][()]
     r.close()
 
+    # Rotate the RDM2 into the MO basis
     rdm2s = numpy.einsum("ijkl,pi,qj,rk,sl->pqrs", 0.5*rdm2s,
                          *([mo_coeffs]*4),optimize=True)
 
+    # Initialize the two-electron energy contribution
     e2 = numpy.zeros_like(e1)
+
+    # Calculate the two-electron energy contribution
     for i in range(nfsites):
         for j in range(jmax):
             ij = i*(i+1)//2+j if i > j else j*(j+1)//2+i
@@ -202,17 +290,20 @@ def get_frag_energy(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rdm2
             Gij += Gij.T            
             e2[i] += Gij[numpy.tril_indices(jmax)] @ eri[ij]
 
-    e_ = e1+e2+ec        
+    # Sum the energy contributions
+    e_ = e1+e2+ec
+
+    # Initialize temporary energy variables
     etmp = 0.
     e1_tmp = 0.
     e2_tmp = 0.
     ec_tmp = 0.
 
+    # Calculate the total energy contribution for the specified fragment indices
     for i in efac[1]:
         etmp += efac[0]*e_[i]
         e1_tmp += efac[0]*e1[i] 
         e2_tmp += efac[0]*e2[i] 
         ec_tmp += efac[0]*ec[i] 
 
-#    print("e1_tmp,e2_tmp,ec_tmp",e1_tmp,e2_tmp,ec_tmp)
     return [e1_tmp,e2_tmp,ec_tmp]

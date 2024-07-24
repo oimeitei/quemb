@@ -1,4 +1,4 @@
-from .solver import schmidt_decomposition, schmidt_decomp_rdm1, schmidt_decomp_svd, schmidt_decomp_rdm1_new
+from .solver import schmidt_decomposition
 from .helper import *
 import numpy,h5py
 import functools,sys, math
@@ -8,14 +8,17 @@ from functools import reduce
 
 class Frags:
     """
-    Class for fragments.
+    Class for handling fragments in bootstrap embedding.
+
+    This class contains various functionalities required for managing and manipulating
+    fragments for BE calculations.
     """
     
     def __init__(self, fsites, ifrag, edge=None, center=None,
                  edge_idx=None, center_idx=None, efac=None,
-                 eri_file='eri_file.h5',unitcell_nkpt=1,
-                 ewald_ek=None, centerf_idx=None, unitcell=1):
-        """Constructor function for `Frags` class
+                 eri_file='eri_file.h5',
+                 centerf_idx=None):
+        """Constructor function for `Frags` class. 
 
         Parameters
         ----------
@@ -35,18 +38,11 @@ class Frags:
             weight used for energy contributions, by default None
         eri_file : str, optional
             two-electron integrals stored as h5py file, by default 'eri_file.h5'
-        unitcell_nkpt : int, optional
-            number of k-points in the unit cell; 1 for molecular calculations, by default 1
         centerf_idx : list, optional
             indices of the center site atoms in the fragment, by default None
-        unitcell : int, optional
-            number of unitcells used in building the fragment, by default 1
         """
-
         
         self.fsites = fsites
-        self.unitcell=unitcell
-        self.unitcell_nkpt=unitcell_nkpt
         self.nfsites = len(fsites)
         self.TA = None
         self.TA_lo_eo = None
@@ -80,7 +76,6 @@ class Frags:
         self.ebe = 0.
         self.ebe_hf = 0.
         self.efac = efac
-        self.ewald_ek=ewald_ek
         self.fock = None
         self.veff = None
         self.veff0 = None
@@ -88,34 +83,55 @@ class Frags:
         self.dm0 = None
         self.eri_file = eri_file
 
-    def sd(self, lao, lmo, nocc, nkpt = None, s=None, mo_coeff= None,
-           frag_type='autogen', cinv = '',
-           cell=None, kpts = None, kmesh=None, rdm=None, mo_energy=None, h1=None):
-        from pyscf import lib
-        from pyscf.pbc.tools.k2gamma import mo_k2gamma
-        from scipy import fft
+    def sd(self, lao, lmo, nocc):
+        """
+        Perform Schmidt decomposition for the fragment.
 
-        if lao.ndim==2:
-            TA = schmidt_decomposition(lmo, nocc, self.fsites)
-            self.C_lo_eo = TA
-            TA = numpy.dot(lao,TA)
+        Parameters
+        ----------
+        lao : numpy.ndarray
+            Orthogonalized AOs
+        lmo : numpy.ndarray
+            Local molecular orbital coefficients.
+        nocc : int
+            Number of occupied orbitals.
+        """
+                
+        TA = schmidt_decomposition(lmo, nocc, self.fsites)
+        self.C_lo_eo = TA
+        TA = numpy.dot(lao,TA)
+        self.nao = TA.shape[1]
+        self.TA = TA
 
-            
-            self.nao = TA.shape[1]
-            self.TA = TA
-        else:
-            print(' Only molecular BE is supported! ')
-            sys.exit()
+    def cons_h1(self, h1):
+        """
+        Construct the one-electron Hamiltonian for the fragment.
 
-    def cons_h1(self, h1, stmp = None, wtmp = None):
-
-        if h1.ndim == 2:            
-            h1_tmp = functools.reduce(numpy.dot,
-                                      (self.TA.T, h1, self.TA))
-            
-            self.h1 = h1_tmp
+        Parameters
+        ----------
+        h1 : numpy.ndarray
+            One-electron Hamiltonian matrix.
+        """
+        
+        h1_tmp = functools.reduce(numpy.dot,
+                                  (self.TA.T, h1, self.TA))
+        self.h1 = h1_tmp
         
     def cons_fock(self, hf_veff, S, dm, eri_=None):
+        """
+        Construct the Fock matrix for the fragment.
+
+        Parameters
+        ----------
+        hf_veff : numpy.ndarray
+            Hartree-Fock effective potential.
+        S : numpy.ndarray
+            Overlap matrix.
+        dm : numpy.ndarray
+            Density matrix.
+        eri_ : numpy.ndarray, optional
+            Electron repulsion integrals, by default None.
+        """
 
         if eri_ is None:
             eri_ = get_eri(self.dname, self.TA.shape[1], ignore_symm=True, eri_file=self.eri_file)
@@ -125,28 +141,60 @@ class Frags:
         self.fock = self.h1 + veff_.real
         
 
-    def get_nsocc(self, S, C, nocc,ncore=0, tdebug=None, wdebug=None, hf_dm = None):
-        
+    def get_nsocc(self, S, C, nocc,ncore=0):
+        """
+        Get the number of occupied orbitals for the fragment.
+
+        Parameters
+        ----------
+        S : numpy.ndarray
+            Overlap matrix.
+        C : numpy.ndarray
+            Molecular orbital coefficients.
+        nocc : int
+            Number of occupied orbitals.
+        ncore : int, optional
+            Number of core orbitals, by default 0.
+
+        Returns
+        -------
+        numpy.ndarray
+            Projected density matrix.
+        """
         import scipy.linalg
-        if self.TA.ndim ==2:
-            C_ = functools.reduce(numpy.dot,(self.TA.T, S, C[:,ncore:ncore+nocc]))
-            P_ = numpy.dot(C_, C_.T)
-            nsocc_ = numpy.trace(P_)
-            nsocc = int(numpy.round(nsocc_))
+        
+        C_ = functools.reduce(numpy.dot,(self.TA.T, S, C[:,ncore:ncore+nocc]))
+        P_ = numpy.dot(C_, C_.T)
+        nsocc_ = numpy.trace(P_)
+        nsocc = int(numpy.round(nsocc_))
+        
+        try:
+            mo_coeffs = scipy.linalg.svd(C_)[0]
+        except:
             
-            try:
-                mo_coeffs = scipy.linalg.svd(C_)[0]
-            except:
-                
-                mo_coeffs = scipy.linalg.eigh(C_)[1][:,-nsocc:]
-            
-            self._mo_coeffs = mo_coeffs
-            self.nsocc = nsocc
-            
-            return P_
+            mo_coeffs = scipy.linalg.eigh(C_)[1][:,-nsocc:]
+        
+        self._mo_coeffs = mo_coeffs
+        self.nsocc = nsocc        
+        return P_
             
             
     def scf(self, heff=None, fs=False, eri=None, dm0 = None):
+        """
+        Perform self-consistent field (SCF) calculation for the fragment.
+
+        Parameters
+        ----------
+        heff : numpy.ndarray, optional
+            Effective Hamiltonian, by default None.
+        fs : bool, optional
+            Flag for full SCF, by default False.
+        eri : numpy.ndarray, optional
+            Electron repulsion integrals, by default None.
+        dm0 : numpy.ndarray, optional
+            Initial density matrix, by default None.
+        """
+        
         import copy
         if self._mf is not None: self._mf = None
         if self._mc is not None: self._mc = None
@@ -168,6 +216,9 @@ class Frags:
         mf_= None
         
     def update_heff(self,u, cout = None, return_heff=False, only_chem=False):
+        """
+        Update the effective Hamiltonian for the fragment.
+        """
         
         heff_ = numpy.zeros_like(self.h1)
 
@@ -220,7 +271,6 @@ class Frags:
         
 
     def energy(self,rdm2s, eri=None, print_fragE=False):
-
         ## This function uses old energy expression and will be removed
         rdm2s = numpy.einsum("ijkl,pi,qj,rk,sl->pqrs", 0.5*rdm2s,
                              *([self.mo_coeffs]*4),optimize=True)        

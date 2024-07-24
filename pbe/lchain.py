@@ -1,7 +1,7 @@
-# works for linear hydrogen chain
+
 
 def chain(self,mol, frozen_core=False, closed=False):
-
+    # Hard coded linear chain fragmentation code
     sites = []
     coreshift = 0
     for adx, bas in enumerate(mol.aoslice_by_atom()):

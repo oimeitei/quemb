@@ -1,19 +1,12 @@
-# The following code is most parts copied from frankestein
-# code of Hong-Zhou Ye. This part of the code is interfaced
-# to pbe.optimize().
-'''
-This file is part of frankenstein at
-Source: https://github.com/hongzhouye/frankenstein (private repo)
-The code has been slightly adapted.
-
-'''
+#
+# Notice: This module contains slightly adapted version of optimization functionalities
+#         from Frankestein code written by Hong-Zhou Ye.
+#
 
 import numpy,sys, h5py
 
-# opt quasi newton
 
-def line_search_LF(func, xold, fold, dx, iter_, save_debug=False,
-                   restore_debug=False, save_fname=None):
+def line_search_LF(func, xold, fold, dx, iter_):
     """Adapted from D.-H. Li and M. Fukushima, Optimization Metheods and Software, 13, 181 (2000)
     """
     beta = 0.1
@@ -25,20 +18,7 @@ def line_search_LF(func, xold, fold, dx, iter_, save_debug=False,
     xk = xold + dx
     lcout = 0
     
-    if not restore_debug:
-        
-        fk = func(xk)
-    else:
-        restore_ = h5py.File(save_fname,'r')
-        tmp_xk = numpy.array(restore_.get('xk'+str(iter_)))
-        tmp_fk = numpy.array(restore_.get('fk'+str(iter_)))
-        restore_.close()
-        fk = tmp_fk[lcout]
-    
-    if save_debug:
-        tmp_xk = [xk]
-        tmp_fk = [fk]
-    
+    fk = func(xk)        
     lcout += 1
     
     norm_dx = numpy.linalg.norm(dx)
@@ -52,25 +32,14 @@ def line_search_LF(func, xold, fold, dx, iter_, save_debug=False,
             alp *= beta
             xk = xold + alp * dx
             
-            if not restore_debug:
-                fk = func(xk)
-            else:
-                fk = tmp_fk[lcout]
-
-            if save_debug:
-                tmp_xk.append(xk)
-                tmp_fk.append(fk)                
-           
+            
+            fk = func(xk)
+                       
             lcout += 1
             norm_fk = numpy.linalg.norm(fk)
             if lcout == 20:
                 break
 
-    if save_debug:
-        file_opt = h5py.File(save_fname,'a')
-        file_opt.create_dataset('xk'+str(iter_), data=tmp_xk)
-        file_opt.create_dataset('fk'+str(iter_), data=tmp_fk)
-        file_opt.close()
     print(' No. of line search steps in QN opt :', lcout, flush=True)
     print(flush=True)
     return alp, xk, fk
@@ -81,15 +50,16 @@ def opt_QN(self):
 
 
 class FrankQN:
+    """ Quasi Newton Optimization
 
+    Performs quasi newton optimization. Interfaces many functionalities of the
+    frankestein code originaly written by Hong-Zhou Ye
+    
+
+    """
+    
     def __init__(self, func, x0, f0, J0, trust=0.3, max_space=500):
-      
-        '''
-        commments on __init__
-        J0 is the initial jacobian MATRIX
-        f0 is the initial error VECTOR from func()
-        '''
-        
+              
         self.x0 = x0
         self.n = x0.size        
         self.f0 = f0
@@ -112,29 +82,13 @@ class FrankQN:
         self.B = None
         self.trust = trust
         
-    def next_step(self,save_debug=False,restore_debug=False,
-                  save_fname=None):
-
-        '''functions called in this
-        get_Bnfn()
-           uses self.vs, self.us, self.dxs
-           These are defined in next_step here
-        line_search_LF() 
-           modular
-        get_B0y()
-           uses self.B0 - inverse of J0 from __init__
-
-        '''
+    def next_step(self):
 
         if self.iter_ == 0:            
-            self.xnew = self.x0
-            
-            self.fnew = self.func(self.xnew) if self.f0 is None else self.f0            
-            #self.fnew =  self.fnew*0.1
+            self.xnew = self.x0            
+            self.fnew = self.func(self.xnew) if self.f0 is None else self.f0   
             self.fs[0] = self.fnew.copy()
             self.us[0] = numpy.dot(self.B0, self.fnew)
-
-           
             self.Binv = self.B0.copy()
 
         # Book keeping
@@ -144,29 +98,18 @@ class FrankQN:
         
         self.xold = self.xnew.copy()
         self.fold = self.fnew.copy()
-           
-        
-        # tmp jacobian update
+                        
         if not self.iter_ ==0:
                         
             tmp__ = numpy.outer(dx_i - self.Binv@df_i, dx_i@self.Binv)/\
                 (dx_i@self.Binv@df_i)
-            self.Binv += tmp__
-
-            
+            self.Binv += tmp__            
             us_tmp = self.Binv@self.fnew
-        
-
-        
+                
         self.us[self.iter_] = self.get_Bnfn(self.iter_)
-        
-        ####################
-        # line search
-        # this call is modular and can be adapted ----
+                
         alp, self.xnew, self.fnew = line_search_LF(
-            self.func, self.xold, self.fold, -self.us[self.iter_], self.iter_,
-            save_debug=save_debug,restore_debug=restore_debug,
-            save_fname = save_fname)
+            self.func, self.xold, self.fold, -self.us[self.iter_], self.iter_)
         
         # udpate vs, dxs, and fs        
         self.vs[self.iter_] = numpy.dot(self.B0, self.fnew)
@@ -232,36 +175,25 @@ def get_be_error_jacobian(self,jac_solver='HF'):
     M4             C2-2   E3
     '''
     N_ = sum(Ncout)
-    
     J = numpy.zeros((N_+1, N_+1))
     cout = 0
-    #print('Ncout',Ncout)
+    
     for findx, fobj in enumerate(self.Fobjs):
         J[cout:Ncout[findx]+cout, cout:Ncout[findx]+cout] = Jes[findx]
         J[cout:Ncout[findx]+cout, N_:] = numpy.array(xes[findx]).reshape(-1,1)
         J[N_:, cout:Ncout[findx]+cout] = ys[findx]
-        
-        #print('edge')
-        #print(cout, ':',Ncout[findx]+cout, N_)
-        #print()
 
-            
         coutc = 0
         coutc_ = 0
         for cindx, cens in enumerate(fobj.center_idx):
             coutc +=  Jcs[fobj.center[cindx]].shape[0]
-
-
             start_ = sum(Ncout[:fobj.center[cindx]])
             end_ = start_ + Ncout[fobj.center[cindx]]
-
             J[cout+coutc_: cout+coutc, start_:end_] += Jcs[fobj.center[cindx]]
             J[cout+coutc_: cout+coutc, N_:] += numpy.array(
                 xcs[fobj.center[cindx]]).reshape(-1,1)
             coutc_ = coutc
-
-        cout += Ncout[findx]
-        
+        cout += Ncout[findx]        
     J[N_:,N_:] = alpha
     
     return J
@@ -276,7 +208,7 @@ def get_atbe_Jblock_frag(fobj, res_func, self_match=False):
                      fobj._mo_coeffs[:,:fobj.nsocc].T) *2.  
     mf_ = get_scfObj(fobj.fock+fobj.heff, eri_, fobj.nsocc, dm0=dm0)
     
-    dPs, dP_mu = res_func(mf_, vpots, eri_, fobj.nsocc) #?
+    dPs, dP_mu = res_func(mf_, vpots, eri_, fobj.nsocc) 
     
     Je = []
     Jc = []
@@ -329,28 +261,21 @@ def get_atbe_Jblock_frag(fobj, res_func, self_match=False):
                 ## response w.r.t. chem pot
                 # edge
                 xe.append(dP_mu[edge[j_],edge[k_]])                                            
-                cout += 1
-    
+                cout += 1    
     Je = numpy.array(Je).T
-
-
     Jc = numpy.array(Jc).T
     
     alpha = 0.
-    for fidx, fval in enumerate(fobj.fsites):
-        
+    for fidx, fval in enumerate(fobj.fsites):        
         if not any(fidx in sublist
                    for sublist in fobj.edge_idx):
-            alpha += dP_mu[fidx, fidx]
-        
+            alpha += dP_mu[fidx, fidx]        
     
     for j__ in fobj.centerf_idx:
         for k__ in fobj.centerf_idx:
             if j__>k__:
                 continue
-            xc.append(-dP_mu[j__,k__])            
-
-    
+            xc.append(-dP_mu[j__,k__])    
     return Je, Jc, xe, xc, y, alpha, cout
 
 
@@ -380,9 +305,7 @@ def get_be_error_jacobian_selffrag(self,jac_solver='HF'):
     J[:Ncout, N_:] = numpy.array(xes).reshape(-1,1)
     J[N_:, :Ncout] = ys
     J[:Ncout, N_:] += numpy.array([*xcs, *xcs]).reshape(-1,1)
-    J[N_:,N_:] = alphas
-
-    
+    J[N_:,N_:] = alphas    
     
     return J
 

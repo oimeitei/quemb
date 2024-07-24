@@ -2,33 +2,47 @@ import numpy, sys
 from .helper import get_core
 from .autofrag import autogen
 
-
 class fragpart:
 
-    def __init__(self, natom=0, dim=1, frag_type='autogen',
-                 unitcell=1,auxcell=None,
+    def __init__(self, frag_type='autogen',
                  closed=False,
-                 kpt = None, molecule=True,valence_basis=None,valence_only=False,
-                 be_type='be2', mol=None, frozen_core=False, self_match=False, allcen=False):
-        """Constructor for fragpart, which forms fragments from a given chemical system
+                 valence_basis=None,valence_only=False,
+                 print_frags=True, write_geom=False,
+                 be_type='be2', mol=None, frozen_core=False):
+        """Fragment/partitioning definition
+
+        Interfaces two main fragmentation functions (autogen & chain) in MolBE. It defines edge &
+        center for density matching and energy estimation. It also forms the base for IAO/PAO partitioning for 
+        a large basis set bootstrap calculation.
 
         Parameters
         ----------
-        frag_type : str, optional
-            For systems with only hydrogen, use 'chain'; everything else should use 'autogen', by default 'hchain_simple'
-        be_type : str, optional
-            Specifies BEn, by default 'be2'
+        frag_type : str
+            Name of fragmentation function. 'autogen', 'hchain_simple', and 'chain' are supported. Defaults to 'autogen'
+            For systems with only hydrogen, use 'chain'; everything else should use 'autogen'
+        be_type : str
+            Specifies order of bootsrap calculation in the atom-based fragmentation. 'be1', 'be2', 'be3', & 'be4' are supported.
+            Defaults to 'be2'
             For a simple linear system A-B-C-D,
-              BE1 only has fragments [A], [B], [C], [D]
-              BE2 has [A, B, C], [B, C, D]
-              BEn ...
-        mol : pyscf.gto.Molecule, optional
-            pyscf.gto.Molecule object for the chemical system, by default None
+              be1 only has fragments [A], [B], [C], [D]
+              be2 has [A, B, C], [B, C, D]
+              ben ...
+        mol : pyscf.gto.Molecule
+            pyscf.gto.Molecule object. This is required for the options, 'autogen' and 'chain' as frag_type.
+        valence_basis: str
+            Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
+        valence_only: bool
+            If this option is set to True, all calculation will be performed in the valence basis in the IAO partitioning. 
+            This is an experimental feature.
+        frozen_core: bool
+            Whether to invoke frozen core approximation. This is set to False by default
+        print_frags: bool
+            Whether to print out list of resulting fragments. True by default
+        write_geom: bool
+            Whether to write 'fragment.xyz' file which contains all the fragments in cartesian coordinates.
         """
 
-        # No. of unitcells to use for fragment construction
-        self.unitcell = unitcell
-        self.molecule = molecule
+        # Initialize class attributes
         self.mol = mol
         self.frag_type=frag_type
         self.fsites = []
@@ -41,14 +55,17 @@ class fragpart:
         self.centerf_idx = []
         self.be_type = be_type
         self.natom = natom
-        self.frozen_core = frozen_core
-        self.self_match = self_match
-        self.allcen=allcen
+        self.frozen_core = frozen_core        
         self.valence_basis = valence_basis
         self.valence_only = valence_only
+
+        # Check for frozen core approximation
         if frozen_core:
             self.ncore, self.no_core_idx, self.core_list = get_core(mol)
+
+        # Check type of fragmentation function
         if frag_type=='hchain_simple':
+            # This is an experimental feature.
             self.hchain_simple()
         elif frag_type=='chain':
             if mol is None:
@@ -56,8 +73,7 @@ class fragpart:
                       flush=True)
                 print('exiting',flush=True)
                 sys.exit()
-            self.chain(mol, frozen_core=frozen_core,closed=closed)
-            
+            self.chain(mol, frozen_core=frozen_core,closed=closed)            
         elif frag_type=='autogen':
             if mol is None:
                 print('Provide pyscf gto.M object in fragpart() and restart!',
@@ -65,9 +81,9 @@ class fragpart:
                 print('exiting',flush=True)
                 sys.exit()
                     
-            fgs = autogen(mol, kpt, be_type=be_type, frozen_core=frozen_core,
-                          valence_basis=valence_basis, unitcell=unitcell, valence_only=valence_only,
-                          molecule=molecule)
+            fgs = autogen(mol, be_type=be_type, frozen_core=frozen_core,write_geom=write_geom,
+                          valence_basis=valence_basis, valence_only=valence_only, print_frags=print_frags)
+                          
             self.fsites, self.edge, self.center, self.edge_idx, self.center_idx, self.centerf_idx, self.ebe_weight = fgs
                 
             self.Nfrag = len(self.fsites)
@@ -76,10 +92,13 @@ class fragpart:
             print('Fragmentation type = ',frag_type,' not implemented!',
                   flush=True)
             print('exiting',flush=True)
-            sys.exit()   
+            sys.exit()
+            
     from .lchain import chain
     def hchain_simple(self):
-        
+        """Hard coded fragmentation feature
+
+        """
         if self.be_type=='be1':
             for i in range(self.natom):
                 self.fsites.append([i])
@@ -126,8 +145,7 @@ class fragpart:
             elist_ = [ xx for yy in self.edge[ix] for xx in yy]
             for j in i:
                 if not j in elist_: tmp_.append(i.index(j))
-            self.ebe_weight.append([1.0, tmp_])
-            
+            self.ebe_weight.append([1.0, tmp_])            
                 
         if not self.be_type=='be1':
             for i in range(self.Nfrag):

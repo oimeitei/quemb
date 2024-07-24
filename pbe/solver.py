@@ -1,56 +1,58 @@
 import numpy,functools,sys, time,os
-
-# from frankestein
-# start
-def make_rdm1_ccsd_t1(t1):
-    nocc, nvir = t1.shape
-    nmo = nocc + nvir
-    dm = numpy.zeros((nmo,nmo), dtype=t1.dtype)
-    dm[:nocc,nocc:] = t1
-    dm[nocc:,:nocc] = t1.T
-    dm[numpy.diag_indices(nocc)] += 2.
-
-    return dm
-
-def make_rdm2_urlx(t1, t2, with_dm1=True):
-    nocc, nvir = t1.shape
-    nmo = nocc + nvir
-
-    goovv = (numpy.einsum("ia,jb->ijab", t1, t1) + t2) * 0.5
-    dovov = goovv.transpose(0,2,1,3) * 2 - goovv.transpose(1,2,0,3)
-
-    dm2 = numpy.zeros([nmo,nmo,nmo,nmo], dtype=t1.dtype)
-
-    dovov = numpy.asarray(dovov)
-    dm2[:nocc,nocc:,:nocc,nocc:] = dovov
-    dm2[:nocc,nocc:,:nocc,nocc:]+= dovov.transpose(2,3,0,1)
-    dm2[nocc:,:nocc,nocc:,:nocc] = dm2[:nocc,nocc:,:nocc,nocc:].transpose(1,0,3,2).conj()
-    dovov = None
-
-    if with_dm1:
-        dm1 = make_rdm1_ccsd_t1(t1)
-        dm1[numpy.diag_indices(nocc)] -= 2
-        
-        for i in range(nocc):
-            dm2[i,i,:,:] += dm1 * 2
-            dm2[:,:,i,i] += dm1 * 2
-            dm2[:,i,i,:] -= dm1
-            dm2[i,:,:,i] -= dm1.T
-        
-        for i in range(nocc):
-            for j in range(nocc):
-                dm2[i,i,j,j] += 4
-                dm2[i,j,j,i] -= 2
-
-    return dm2  
-# end
-
+from .ccsd_rdm import make_rdm1_ccsd_t1, make_rdm2_urlx
 
 def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
             only_chem = False, nproc=4,hci_pt=False,
             hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
-            eeval=False, ereturn=False, frag_energy=False, ek = 0., kp=1.,relax_density=False,
-            return_vec=False, ecore=0., ebe_hf=0., be_iter=None, writeh1=False, use_cumulant=True):
+            eeval=False, ereturn=False, frag_energy=False, relax_density=False,
+            return_vec=False, ecore=0., ebe_hf=0., be_iter=None, use_cumulant=True):
+    """
+    Perform bootstrap embedding calculations for each fragment.
+
+    This function computes the energy and/or error for each fragment in a molecular system using various quantum chemistry solvers.
+
+    Parameters
+    ----------
+    pot : list
+        List of potentials.
+    Fobjs : list of MolBE.fragpart
+        List of fragment objects.
+    Nocc : int
+        Number of occupied orbitals.
+    solver : str
+        Quantum chemistry solver to use ('MP2', 'CCSD', 'FCI', 'HCI', 'SHCI', 'SCI').
+    enuc : float
+        Nuclear energy.
+    hf_veff : numpy.ndarray, optional
+        Hartree-Fock effective potential. Defaults to None.
+    only_chem : bool, optional
+        Whether to only optimize the chemical potential. Defaults to False.
+    nproc : int, optional
+        Number of processors. Defaults to 4. This is only neccessary for 'SHCI' solver
+    eeval : bool, optional
+        Whether to evaluate the energy. Defaults to False.
+    ereturn : bool, optional
+        Whether to return the energy. Defaults to False.
+    frag_energy : bool, optional
+        Whether to calculate fragment energy. Defaults to False.
+    relax_density : bool, optional
+        Whether to relax the density. Defaults to False.
+    return_vec : bool, optional
+        Whether to return the error vector. Defaults to False.
+    ecore : float, optional
+        Core energy. Defaults to 0.
+    ebe_hf : float, optional
+        Hartree-Fock energy. Defaults to 0.
+    be_iter : int or None, optional
+        Iteration number. Defaults to None.
+    use_cumulant : bool, optional
+        Whether to use the cumulant-based energy expression. Defaults to True.
+
+    Returns
+    -------
+    float or tuple
+        Depending on the options, it returns the norm of the error vector, the energy, or a combination of these values.
+    """
     from pyscf import fci
     import h5py,os
     from pyscf import ao2mo
@@ -62,18 +64,23 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
     E = 0.
     if frag_energy:
         total_e = [0.,0.,0.]
-    t1 = time.time()
+
+    # Loop over each fragment and solve using the specified solver
     for fobj in Fobjs:
-        
+        # Update the effective Hamiltonian
         if not pot is None:
             heff_ = fobj.update_heff(pot, return_heff=True,
                                      only_chem=only_chem)
         else:
             heff_ = None
-        
+            
+        # Compute the one-electron Hamiltonian
         h1_ = fobj.fock + fobj.heff
+        # Perform SCF calculation
         fobj.scf()
-        if solver=='MP2': # here
+
+        # Solve using the specified solver
+        if solver=='MP2': 
             fobj._mc = solve_mp2(fobj._mf, mo_energy=fobj._mf.mo_energy)
         elif solver=='CCSD':
             if rdm_return:
@@ -146,8 +153,6 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
             mch.fcisolver.DoRDM = True
             mch.fcisolver.sweep_epsilon = [ hci_cutoff ]
             mch.fcisolver.scratchDirectory='/scratch/oimeitei/'+jobid+'/'+fobj.dname+jobid
-            if not writeh1:
-                mch.fcisolver.restart=True
             mch.mc1step()
             rdm1_tmp, rdm2s = mch.fcisolver.make_rdm12(0, nmo, nelec)
            
@@ -215,46 +220,64 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
                 total_e = [sum(x) for x in zip(total_e, e_f)]
             if not frag_energy:
                 E += fobj.ebe
-
-    E /= Fobjs[0].unitcell_nkpt
-    t2 = time.time()
-    print("Time to run all fragments: ", t2 - t1)
+    
     if frag_energy:
         E = sum(total_e)
         return (E, total_e)
 
     if ereturn:
         # this is really a waste of computation        
-        return (E+enuc+ecore-ek)#/kp
+        return (E+enuc+ecore)
     
     ernorm, ervec = solve_error(Fobjs,Nocc, only_chem=only_chem)
     if eeval:
-        Ebe = (E+enuc+ecore-ek)#/kp
+        Ebe = (E+enuc+ecore)
     if return_vec:
         return (ernorm, ervec, Ebe)
 
     if eeval:
-        #print('BE energy per unit cell        : {:>12.8f} Ha'.format(Ebe), flush=True)
-        #print('BE Ecorr  per unit cell        : {:>12.8f} Ha'.format(Ebe-ebe_hf), flush=True)
         print('Error in density matching      :   {:>2.4e}'.format(ernorm), flush=True)
 
     return ernorm
 
     
 def solve_error(Fobjs, Nocc, only_chem=False):
+    """
+    Compute the error for self-consistent fragment density matrix matching.
+
+    This function calculates the error in the one-particle density matrix for a given fragment,
+    matching the density matrix elements of the edges and centers. It returns the norm of the error
+    vector and the error vector itself.
+
+    Parameters
+    ----------
+    Fobjs : list of MolBE.fragpart
+        List of fragment objects.
+    Nocc : int
+        Number of occupied orbitals.
+
+    Returns
+    -------
+    float
+        Norm of the error vector.
+    numpy.ndarray
+        Error vector.
+    """
     import math
+    
     err_edge = []
     err_chempot = 0.
 
     if only_chem:
         for fobj in Fobjs:
-            #chem potential        
+            # Compute chemical potential error for each fragment
             for i in fobj.efac[1]:
                 err_chempot += fobj._rdm1[i,i]
         err = err_chempot - Nocc
         
         return abs(err), numpy.asarray([err])
 
+    # Compute edge and chemical potential errors
     for fobj in Fobjs:       
         #match rdm-edge
         for edge in fobj.edge_idx:
@@ -267,14 +290,13 @@ def solve_error(Fobjs, Nocc, only_chem=False):
         #chem potential        
         for i in fobj.efac[1]:
             err_chempot += fobj._rdm1[i,i]
-    unitcell_nkpt = Fobjs[0].unitcell_nkpt
     
-    err_chempot /= unitcell_nkpt
     err_edge.append(err_chempot) # far-end edges are included as err_chempot
-    
+
+    # Compute center errors
     err_cen = []
-    for findx, fobj in enumerate(Fobjs):        
-        #match rdm-center
+    for findx, fobj in enumerate(Fobjs):  
+        # Match RDM for centers
         for cindx, cens in enumerate(fobj.center_idx):            
             lenc = len(cens)
             for j_ in range(lenc):
@@ -287,74 +309,53 @@ def solve_error(Fobjs, Nocc, only_chem=False):
     err_cen.append(Nocc)
     err_edge = numpy.array(err_edge)
     err_cen = numpy.array(err_cen)  
-    
+
+    # Compute the error vector
     err_vec = err_edge - err_cen
-    norm_ = math.sqrt(numpy.sum(err_vec * err_vec))
+
+    # Compute the norm of the error vector
     norm_ = numpy.mean(err_vec * err_vec)**0.5
     
     return norm_, err_vec
-
-
-def solve_error_selffrag(Fobjs, Nocc):
-    import math
-    err_edge = [] 
-    err_chempot = 0.
-
-
-    fobj = Fobjs[0]
-
-    tt_ = fobj._rdm1[:5,:5] - fobj._rdm1[5:10,5:10]
-    
-    # edge -> center <- edge
-    for edge in fobj.edge_idx:
-        for j_ in range(len(edge)):
-            for k_ in range(len(edge)):
-                if j_>k_:
-                    continue    
-                err_edge.append(fobj._rdm1[edge[j_], edge[k_]])
-    
-    
-    for fidx,fval in enumerate(fobj.fsites):
-        if not any(fidx in sublist for sublist in fobj.edge_idx): 
-            err_chempot += fobj._rdm1[fidx,fidx]
-    err_edge.append(err_chempot)
-    
-    err_cen_ = []
-    
-    #match rdm-center
-    
-    for j_ in fobj.center_idx:
-        for k_ in fobj.center_idx:
-            if j_>k_:
-                continue
-            err_cen_.append(fobj._rdm1[j_, k_])
-            
-            
-    err_cen = [*err_cen_, *err_cen_]
-    err_cen.append(2.5e0)
-    
-    
-    err_edge = numpy.array(err_edge)
-    err_cen = numpy.array(err_cen)
-    
-    err_vec = err_edge - err_cen
-    norm_ = math.sqrt(numpy.sum(err_vec * err_vec))
-    norm_ = numpy.mean(err_vec * err_vec)**0.5
-    
-    
-    return norm_, err_vec
-
 
 def solve_mp2(mf, frozen=None, mo_coeff=None, mo_occ=None, mo_energy=None):
+    """
+    Perform an MP2 (2nd order Moller-Plesset perturbation theory) calculation.
+
+    This function sets up and runs an MP2 calculation using the provided mean-field object.
+    It returns the MP2 object after the calculation.
+
+    Parameters
+    ----------
+    mf : pyscf.scf.hf.RHF
+        Mean-field object from PySCF.
+    frozen : list or int, optional
+        List of frozen orbitals or number of frozen core orbitals. Defaults to None.
+    mo_coeff : numpy.ndarray, optional
+        Molecular orbital coefficients. Defaults to None.
+    mo_occ : numpy.ndarray, optional
+        Molecular orbital occupations. Defaults to None.
+    mo_energy : numpy.ndarray, optional
+        Molecular orbital energies. Defaults to None.
+
+    Returns
+    -------
+    pyscf.mp.mp2.MP2
+        The MP2 object after running the calculation.
+    """
     from pyscf import mp
 
+    # Set default values for optional parameters
     if  mo_coeff is None: mo_coeff = mf.mo_coeff
     if  mo_energy is None: mo_energy = mf.mo_energy
     if  mo_occ is None: mo_occ = mf.mo_occ
 
+    # Initialize the MP2 object
     pt__ = mp.MP2(mf, frozen=frozen, mo_coeff=mo_coeff, mo_occ=mo_occ)
     mf = None
     pt__.verbose=0
+
+    # Run the MP2 calculation
     pt__.kernel(mo_energy=mo_energy)
 
     return pt__
@@ -363,24 +364,68 @@ def solve_mp2(mf, frozen=None, mo_coeff=None, mo_occ=None, mo_energy=None):
 
 def solve_ccsd(mf, frozen=None, mo_coeff=None,relax=False, use_cumulant=False, with_dm1=True,rdm2_return = False,
                mo_occ=None, mo_energy=None, rdm_return=False, verbose=0):
+    """
+    Solve the CCSD (Coupled Cluster with Single and Double excitations) equations.
+
+    This function sets up and solves the CCSD equations using the provided mean-field object.
+    It can return the CCSD amplitudes (t1, t2), the one- and two-particle density matrices, and the CCSD object.
+
+    Parameters
+    ----------
+    mf : pyscf.scf.hf.RHF
+        Mean-field object from PySCF.
+    frozen : list or int, optional
+        List of frozen orbitals or number of frozen core orbitals. Defaults to None.
+    mo_coeff : numpy.ndarray, optional
+        Molecular orbital coefficients. Defaults to None.
+    relax : bool, optional
+        Whether to use relaxed density matrices. Defaults to False.
+    use_cumulant : bool, optional
+        Whether to use cumulant-based energy expression. Defaults to False.
+    with_dm1 : bool, optional
+        Whether to include one-particle density matrix in the two-particle density matrix calculation. Defaults to True.
+    rdm2_return : bool, optional
+        Whether to return the two-particle density matrix. Defaults to False.
+    mo_occ : numpy.ndarray, optional
+        Molecular orbital occupations. Defaults to None.
+    mo_energy : numpy.ndarray, optional
+        Molecular orbital energies. Defaults to None.
+    rdm_return : bool, optional
+        Whether to return the one-particle density matrix. Defaults to False.
+    verbose : int, optional
+        Verbosity level. Defaults to 0.
+
+    Returns
+    -------
+    tuple
+        - t1 (numpy.ndarray): Single excitation amplitudes.
+        - t2 (numpy.ndarray): Double excitation amplitudes.
+        - rdm1a (numpy.ndarray, optional): One-particle density matrix (if rdm_return is True).
+        - rdm2s (numpy.ndarray, optional): Two-particle density matrix (if rdm2_return is True and rdm_return is True).
+        - cc__ (pyscf.cc.ccsd.CCSD, optional): CCSD object (if rdm_return is True and rdm2_return is False).
+    """
     from pyscf import cc
     from pyscf.cc.ccsd_rdm import make_rdm2
     from pbe.external.rdm_ccsd import make_rdm1_ccsd_t1, make_rdm2_urlx
 
+    # Set default values for optional parameters
     if  mo_coeff is None: mo_coeff = mf.mo_coeff
     if  mo_energy is None: mo_energy = mf.mo_energy
     if  mo_occ is None: mo_occ = mf.mo_occ
-   
+
+    # Initialize the CCSD object
     cc__ = cc.CCSD(mf, frozen=frozen, mo_coeff=mo_coeff,
                    mo_occ = mo_occ)
     cc__.verbose=0
     mf = None
     cc__.incore_complete=True
 
+    # Prepare the integrals and Fock matrix
     eris = cc__.ao2mo()
     eris.mo_energy=mo_energy
     eris.fock = numpy.diag(mo_energy)
 
+    # Solve the CCSD equations
     try:
         cc__.verbose=verbose
         cc__.kernel(eris=eris)
@@ -393,9 +438,11 @@ def solve_ccsd(mf, frozen=None, mo_coeff=None,relax=False, use_cumulant=False, w
         cc__.level_shift=0.2
         cc__.kernel(eris=eris)
 
-    #cc__.solve_lambda(eris=eris)
+    # Extract the CCSD amplitudes
     t1 = cc__.t1
     t2 = cc__.t2
+
+    # Compute and return the density matrices if requested
     if rdm_return:
         if not relax:
             l1 = numpy.zeros_like(t1)
@@ -404,28 +451,49 @@ def solve_ccsd(mf, frozen=None, mo_coeff=None,relax=False, use_cumulant=False, w
                                           l1,l2)
         else:
             rdm1a = cc__.make_rdm1(with_frozen=False)
-                        
-        #cc__ = None
+
         if rdm2_return:
             if use_cumulant: with_dm1 = False
             rdm2s = make_rdm2(cc__, cc__.t1, cc__.t2, cc__.l1, cc__.l2, with_frozen=False, ao_repr=False, with_dm1=with_dm1)
             return(t1, t2, rdm1a, rdm2s)
         return(t1, t2, rdm1a, cc__)
-    #cc__ = None
+
     return (t1, t2)
 
-def pretty(dm):
-    for i in dm:
-        for j in i:
-            print('{:>10.6f} '.format(j),end=' ')
-        print()
-    print()
 
-def schmidt_decomposition(mo_coeff, nocc, Frag_sites, cinv = None, rdm=None,tmpa=None):
+def schmidt_decomposition(mo_coeff, nocc, Frag_sites, cinv = None, rdm=None):
+    """
+    Perform Schmidt decomposition on the molecular orbital coefficients.
+
+    This function decomposes the molecular orbitals into fragment and environment parts
+    using the Schmidt decomposition method. It computes the transformation matrix (TA)
+    which includes both the fragment orbitals and the entangled bath.
+
+    Parameters
+    ----------
+    mo_coeff : numpy.ndarray
+        Molecular orbital coefficients.
+    nocc : int
+        Number of occupied orbitals.
+    Frag_sites : list of int
+        List of fragment sites (indices).
+    cinv : numpy.ndarray, optional
+        Inverse of the transformation matrix. Defaults to None.
+    rdm : numpy.ndarray, optional
+        Reduced density matrix. If not provided, it will be computed from the molecular orbitals. Defaults to None.
+
+    Returns
+    -------
+    numpy.ndarray
+        Transformation matrix (TA) including both fragment and entangled bath orbitals.
+    """    
     import scipy.linalg
     import functools
+
+    # Threshold for eigenvalue significance
     thres = 1.0e-10
-    
+
+    # Compute the reduced density matrix (RDM) if not provided
     if not mo_coeff is None:
         C = mo_coeff[:,:nocc]   
     if rdm is None:
@@ -436,107 +504,31 @@ def schmidt_decomposition(mo_coeff, nocc, Frag_sites, cinv = None, rdm=None,tmpa
     else:
         Dhf = rdm
 
-    Tot_sites = Dhf.shape[0]        
+    # Total number of sites
+    Tot_sites = Dhf.shape[0]
+
+    # Identify environment sites (indices not in Frag_sites)
     Env_sites1 = numpy.array([i for i in range(Tot_sites)
                               if not i in Frag_sites])
     Env_sites = numpy.array([[i] for i in range(Tot_sites)
                              if not i in Frag_sites])
     Frag_sites1 = numpy.array([[i] for i in Frag_sites])
+
+    # Compute the environment part of the density matrix
     Denv = Dhf[Env_sites, Env_sites.T]
+
+    # Perform eigenvalue decomposition on the environment density matrix
     Eval, Evec = numpy.linalg.eigh(Denv)
-    
+
+    # Identify significant environment orbitals based on eigenvalue threshold
     Bidx = []
     for i in range(len(Eval)):
         if thres < numpy.abs(Eval[i]) < 1.0 - thres:         
             Bidx.append(i)
 
+    # Initialize the transformation matrix (TA)
     TA = numpy.zeros([Tot_sites, len(Frag_sites) + len(Bidx)])
-    TA[Frag_sites, :len(Frag_sites)] = numpy.eye(len(Frag_sites))
-    TA[Env_sites1,len(Frag_sites):] = Evec[:,Bidx]
-    
-    return TA
-
-
-def schmidt_decomp_rdm1_new(rdm, Frag_sites):
-    import scipy.linalg
-    import functools
-    
-    thres = 1.0e-9
-
-    Tot_sites = rdm.shape[0]
-
-    Fragsites = [i if i>=0 else Tot_sites+i for i in Frag_sites]
-    
-    Env_sites1 = numpy.array([i for i in range(Tot_sites)
-                              if not i in Fragsites])
-    Env_sites = numpy.array([[i] for i in range(Tot_sites)
-                             if not i in Fragsites])
-    Frag_sites1 = numpy.array([[i] for i in Fragsites])
-    
-    Denv_ = rdm[Env_sites1][:, Fragsites]    
-    U, sigma, V = scipy.linalg.svd(Denv_, full_matrices=False)
-    nbath = (sigma >= thres).sum()
-
-    Denv = rdm[Env_sites, Env_sites.T]
-    Eval, Evec = scipy.linalg.eigh(Denv)
-    Bidx = []
-    for i in range(len(Eval)):
-        if thres < numpy.abs(Eval[i]) < 1.0 - thres:         
-            Bidx.append(i)
-
-    TA = numpy.zeros([Tot_sites, len(Frag_sites) + len(Bidx)], dtype=rdm.dtype)
-    TA[Frag_sites, :len(Frag_sites)] = numpy.eye(len(Frag_sites))
-    TA[Env_sites1,len(Frag_sites):] = Evec[:,Bidx]
-
-    return TA
-
-def schmidt_decomp_rdm1(rdm, Frag_sites):
-    import scipy.linalg
-    import functools
-    thres = 1.0e-9
-
-    Tot_sites = rdm.shape[0]        
-    Env_sites1 = numpy.array([i for i in range(Tot_sites)
-                              if not i in Frag_sites])
-    Env_sites = numpy.array([[i] for i in range(Tot_sites)
-                             if not i in Frag_sites])
-    Frag_sites1 = numpy.array([[i] for i in Frag_sites])
-
-
-    Denv = rdm[Env_sites, Env_sites.T]
-    Eval, Evec = numpy.linalg.eigh(Denv)
-
-    Eval_1 = numpy.abs(numpy.sqrt(numpy.abs(1.-Eval**2))-1.)
-
-    Bidx = []    
-    for i in range(len(Eval_1)):
-        if Eval_1[i] > thres:
-            Bidx.append(i)
-
-    TA = numpy.zeros([Tot_sites, len(Frag_sites) + len(Bidx)], dtype=rdm.dtype)
-    TA[Frag_sites, :len(Frag_sites)] = numpy.eye(len(Frag_sites))
-    TA[Env_sites1,len(Frag_sites):] = Evec[:,Bidx]
-
-    return TA
-
-
-def schmidt_decomp_svd(rdm, Frag_sites):
-    import scipy.linalg
-    import functools
-    
-    thres = 1.0e-10
-    Tot_sites = rdm.shape[0]     
-    
-    Fragsites = [i if i>=0 else Tot_sites+i for i in Frag_sites]   
-    Env_sites1 = numpy.array([i for i in range(Tot_sites)
-                              if not i in Fragsites])
-    Denv = rdm[Env_sites1][:, Fragsites].copy()
-    U, sigma, V = scipy.linalg.svd(Denv, full_matrices=False, lapack_driver='gesvd')
-    
-    nbath = (sigma >= thres).sum()
-    nfs = len(Frag_sites)
-    TA = numpy.zeros((Tot_sites, nfs + nbath), dtype=numpy.float64)
-    TA[Frag_sites, :nfs] = numpy.eye(nfs, dtype=numpy.float64)
-    TA[Env_sites1, nfs:] = U[:,:nbath]
+    TA[Frag_sites, :len(Frag_sites)] = numpy.eye(len(Frag_sites)) # Fragment part
+    TA[Env_sites1,len(Frag_sites):] = Evec[:,Bidx]  # Environment part
     
     return TA

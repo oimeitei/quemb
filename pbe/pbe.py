@@ -233,7 +233,7 @@ class pbe:
     from ._opt import optimize
     from .optqn import get_be_error_jacobian,get_be_error_jacobian_selffrag
     from .lo import localize
-    from .rdm import rdm1_fullbasis, get_rdm
+    from .rdm import rdm1_fullbasis, compute_energy_full
     def print_ini(self):
         
         print('-----------------------------------------------------------',
@@ -284,111 +284,7 @@ class pbe:
                                unitcell_nkpt=self.unitcell_nkpt)
             fobjs_.sd(self.W, self.lmo_coeff, self.Nocc,
                       frag_type=self.frag_type)
-<<<<<<< HEAD
-            fobjs_.cons_h1(self.hcore)
-            fobjs_.heff = numpy.zeros_like(fobjs_.h1)
-            fobjs_.dm_init = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
-
-            if not restart and self.nproc==1:
-                if eri_ is None and hasattr(self.mf, 'with_df') and not self.mf.with_df is None:
-                    # for density-fitted integrals; if mf is provided, pyscf.ao2mo uses DF object in an outcore fashion
-                    eri = ao2mo.kernel(self.mf.mol, fobjs_.TA, compact=True) 
-                else:
-                    # otherwise, do an incore ao2mo
-                    eri = ao2mo.incore.full(eri_, fobjs_.TA, compact=True) 
-                file_eri.create_dataset(fobjs_.dname, data=eri)
-                fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
-            else:
-                eri=None
-            self.Fobjs.append(fobjs_)
-
-        if not restart and self.nproc > 1 and self.cderi is None:
-            nprocs = int(self.nproc/self.ompnum)
-            pool_ = Pool(nprocs)
-            os.system('export OMP_NUM_THREADS='+str(self.ompnum))
-            results = []
-            eris = []
-            for frg in range(self.Nfrag):
-                result = pool_.apply_async(eritransform_parallel_mol,[eri_, self.Fobjs[frg].TA])  #ao2mo.incore.full, [eri_, self.Fobjs[frg].TA])
-                results.append(result)
-            [eris.append(result.get()) for result in results]
-            pool_.close()
-
-            for frg in range(self.Nfrag):
-                #eri__ = ao2mo.restore(4, eris[frg], self.Fobjs[frg].nao)
-                file_eri.create_dataset(self.Fobjs[frg].dname, data=eris[frg])
-            eris = None
-            file_eri.close()
-
-            nprocs = int(self.nproc/self.ompnum)
-            pool_ = Pool(nprocs)
-            results = []
-            veffs = []
-            for frg in range(self.Nfrag):
-                result = pool_.apply_async(parallel_fock_wrapper, [self.Fobjs[frg].dname, self.Fobjs[frg].nao,
-                                                                   self.hf_dm, self.S, self.Fobjs[frg].TA, self.hf_veff,
-                                                                   self.eri_file])
-                results.append(result)
-            [veffs.append(result.get()) for result in results]
-            pool_.close()
-
-            for frg in range(self.Nfrag):
-                veff0, veff_ = veffs[frg]
-                if numpy.abs(veff_.imag).max() < 1.e-6:
-                    self.Fobjs[frg].veff = veff_.real
-                    self.Fobjs[frg].veff0 = veff0.real
-                else:
-                    print('Imaginary Veff ', numpy.abs(veff_.imag).max())
-                    sys.exit()
-                self.Fobjs[frg].fock = self.Fobjs[frg].h1 + veff_.real
-            veffs = None
-
-        if not restart and self.nproc > 1 and self.cderi:
-            nprocs = int(self.nproc/self.ompnum)
-            pool_ = Pool(nprocs)
-            os.system('export OMP_NUM_THREADS='+str(self.ompnum))
-            results = []
-            eris = []
-            for frg in range(self.Nfrag):
-                result = pool_.apply_async(eritransform_parallel_mol_cd, [self.mol.atom, self.mol.basis, self.Fobjs[frg].TA, self.cderi])
-                results.append(result)
-            [eris.append(result.get()) for result in results]
-            pool_.close()
-
-            for frg in range(self.Nfrag):
-                file_eri.create_dataset(self.Fobjs[frg].dname, data=eris[frg])
-            eris = None
-            file_eri.close()
-
-            results = []
-            veffs = []
-            for frg in range(self.Nfrag):
-                result = pool_.apply_async(parallel_fock_wrapper, [self.Fobjs[frg].dname, self.Fobjs[frg].nao,
-                                                                   self.hf_dm, self.S, self.Fobjs[frg].TA, self.hf_veff, self.eri_file])
-                results.append(result)
-            [veffs.append(result.get()) for result in results]
-            pool_.close()
-
-            for frg in range(self.Nfrag):
-                veff0, veff_ = veffs[frg]
-                if numpy.abs(veff_.imag).max() < 1.e-6:
-                    self.Fobjs[frg].veff = veff_.real
-                    self.Fobjs[frg].veff0 = veff0.real
-                else:
-                    print('Imaginary Veff ', numpy.abs(veff_.imag).max())
-                    sys.exit()
-                self.Fobjs[frg].fock = self.Fobjs[frg].h1 + veff_.real
-            veffs = None
-        
-        for frg in range(self.Nfrag):
-            self.Fobjs[frg].scf(fs=True, dm0 = self.Fobjs[frg].dm_init)
-            self.Fobjs[frg].dm0 = numpy.dot( self.Fobjs[frg]._mo_coeffs[:,:self.Fobjs[frg].nsocc],
-                                    self.Fobjs[frg]._mo_coeffs[:,:self.Fobjs[frg].nsocc].conj().T) *2.
-            if compute_hf:
-                self.Fobjs[frg].energy_hf()
-                E_hf += self.Fobjs[frg].ebe_hf
                 
-=======
             self.Fobjs.append(fobjs_)
                 
         if not restart:
@@ -434,7 +330,6 @@ class pbe:
                 ECOUL += ecoul
                 E_hf += fobjs_.ebe_hf
 
->>>>>>> 8eab9acc4b5b54562278af32428100716d611529
         if not restart:
             file_eri.close()
         
@@ -489,7 +384,7 @@ class pbe:
             self.ebe_tot = rets[0]
 
         if not calc_frag_energy:
-            self.get_rdm(approx_cumulant=True, return_rdm=False)
+            self.compute_energy_full(approx_cumulant=True, return_rdm=False)
 
         if clean_eri == True:
             try:
