@@ -88,7 +88,7 @@ class BEOPT:
         # Choose the appropriate function based on the number of processors
         if self.nproc == 1:
             err_, errvec_,ebe_ = be_func(xk, self.Fobjs, self.Nocc, self.solver, self.enuc,
-                                         eeval=True, kp=self.kp, ek = self.ek, return_vec=True,
+                                         eeval=True, return_vec=True,
                                          only_chem=self.only_chem,
                                          hci_cutoff=self.hci_cutoff,
                                          nproc=self.ompnum, relax_density=self.relax_density,
@@ -97,14 +97,14 @@ class BEOPT:
                                          ecore=self.ecore, ebe_hf=self.ebe_hf, be_iter=self.iter)
         else:
             err_, errvec_,ebe_ = be_func_parallel(xk, self.Fobjs, self.Nocc, self.solver, self.enuc,
-                                                  eeval=True, kp=self.kp, ek = self.ek, return_vec=True,
+                                                  eeval=True, return_vec=True,
                                                   nproc=self.nproc, ompnum=self.ompnum,
                                                   only_chem=self.only_chem,
                                                   hci_cutoff=self.hci_cutoff,relax_density=self.relax_density,
                                                   ci_coeff_cutoff = self.ci_coeff_cutoff,
                                                   select_cutoff = self.select_cutoff,
                                                   ecore=self.ecore, ebe_hf=self.ebe_hf, be_iter=self.iter)
-                                                  writeh1=writeh1)
+                                                  
         # Update error and BE energy
         self.err = err_
         self.Ebe = ebe_
@@ -121,7 +121,7 @@ class BEOPT:
         J0 : list of list of float, optional
            Initial Jacobian
         """
-        from .optqn import FrankQN
+        from pbe.external.optqn import FrankQN
         import sys
         
         print('-----------------------------------------------------',
@@ -139,7 +139,7 @@ class BEOPT:
             print('-- In iter ',self.iter, flush=True)            
 
             # Initial step
-            f0 = self.objfunc(self.pot, writeh1=True)                
+            f0 = self.objfunc(self.pot)                
 
             print('Error in density matching      :   {:>2.4e}'.format(self.err), flush=True)
             print(flush=True)
@@ -218,7 +218,7 @@ def optimize(self, solver='MP2',method='QN',
                 hci_cutoff=self.hci_cutoff,
                 ci_coeff_cutoff = self.ci_coeff_cutoff,relax_density=relax_density,
                 select_cutoff = self.select_cutoff,hci_pt=self.hci_pt,
-                solver=solver, ek=self.ek, ecore=self.E_core, ebe_hf=self.ebe_hf)
+                solver=solver, ecore=self.E_core, ebe_hf=self.ebe_hf)
 
     if method=='QN':
         # Prepare the initial Jacobian matrix

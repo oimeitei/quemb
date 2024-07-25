@@ -153,8 +153,7 @@ class pbe:
         self.Fobjs = []
         self.pot = initialize_pot(self.Nfrag, self.edge_idx)
         self.eri_file = eri_file
-        self.cderi = cderi
-        
+                
         # Set scratch directory
         jobid=''
         if pbe_var.CREATE_SCRATCH_DIR:
@@ -226,7 +225,7 @@ class pbe:
         
         
     from ._opt import optimize
-    from .optqn import get_be_error_jacobian
+    from pbe.external.optqn import get_be_error_jacobian
     from .lo import localize
     from .rdm import rdm1_fullbasis, compute_energy_full
     
@@ -290,8 +289,7 @@ class pbe:
                                eri_file=self.eri_file,
                                edge_idx=[],center_idx=[],centerf_idx=[],
                                efac=self.ebe_weight[I])
-            fobjs_.sd(self.W, self.lmo_coeff, self.Nocc,
-                      frag_type=self.frag_type)
+            fobjs_.sd(self.W, self.lmo_coeff, self.Nocc)
                 
             self.Fobjs.append(fobjs_)
                 
@@ -336,8 +334,6 @@ class pbe:
             if compute_hf:
             
                 eh1, ecoul, ef = fobjs_.energy_hf(return_e1=True)
-                EH1 += eh1
-                ECOUL += ecoul
                 E_hf += fobjs_.ebe_hf
 
         if not restart:

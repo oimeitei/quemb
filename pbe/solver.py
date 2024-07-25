@@ -1,5 +1,5 @@
 import numpy,functools,sys, time,os
-from .ccsd_rdm import make_rdm1_ccsd_t1, make_rdm2_urlx
+from pbe.external.ccsd_rdm import make_rdm1_ccsd_t1, make_rdm2_urlx
 
 def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
             only_chem = False, nproc=4,hci_pt=False,

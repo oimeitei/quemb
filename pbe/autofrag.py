@@ -51,7 +51,6 @@ def autogen(mol, frozen_core=True, be_type='be2',
         Weights for each fragment. Each entry contains a weight and a list of LO indices.
     """
     from pyscf import lib
-    from .pbcgeom import printatom, sgeom
 
     if not valence_only:
         cell = mol.copy()
@@ -118,10 +117,10 @@ def autogen(mol, frozen_core=True, be_type='be2',
                                       if not kdx in pedg:
                                           flist.append(kdx)
                                           pedg.append(kdx)
-                                      if be_type=='be4':                                                     
+                                      if be_type=='be4':            
                                           for ldx, l in enumerate(coord):
-                                              if ldx==kdx or ldx==jdx or
-                                              (cell.atom_pure_symbol(ldx) == 'H' and not hchain)
+                                              if ldx==kdx or ldx==jdx or\
+                                              (cell.atom_pure_symbol(ldx) == 'H' and not hchain)\
                                               or ldx in pedg:                                              
                                                   continue
                                               dist = numpy.linalg.norm(coord[kdx] - l)

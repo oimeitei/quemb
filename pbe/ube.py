@@ -11,7 +11,6 @@ TODO
 """
 
 import numpy
-from .lo import iao_tmp
 from .pbe import pbe
 from .pfrag import Frags
 

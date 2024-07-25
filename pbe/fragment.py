@@ -54,7 +54,6 @@ class fragpart:
         self.center_idx = []
         self.centerf_idx = []
         self.be_type = be_type
-        self.natom = natom
         self.frozen_core = frozen_core        
         self.valence_basis = valence_basis
         self.valence_only = valence_only

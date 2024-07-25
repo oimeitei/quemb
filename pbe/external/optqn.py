@@ -199,7 +199,7 @@ def get_be_error_jacobian(self,jac_solver='HF'):
     return J
 
 def get_atbe_Jblock_frag(fobj, res_func):
-    from .helper import get_scfObj, get_eri
+    from pbe.helper import get_scfObj, get_eri
 
     vpots = get_vpots_frag(fobj.nao, fobj.edge_idx,
                            fobj.fsites)
