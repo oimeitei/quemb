@@ -198,7 +198,7 @@ def get_be_error_jacobian(self,jac_solver='HF'):
     
     return J
 
-def get_atbe_Jblock_frag(fobj, res_func, self_match=False):
+def get_atbe_Jblock_frag(fobj, res_func):
     from .helper import get_scfObj, get_eri
 
     vpots = get_vpots_frag(fobj.nao, fobj.edge_idx,
@@ -296,7 +296,7 @@ def get_be_error_jacobian_selffrag(self,jac_solver='HF'):
         res_func = hfres_func
         
     Jes, Jcs, xes, xcs, ys, alphas, Ncout = \
-        get_atbe_Jblock_frag(self.Fobjs[0], res_func, self_match=True)
+        get_atbe_Jblock_frag(self.Fobjs[0], res_func)
     
     N_ = Ncout    
     J = numpy.zeros((N_+1, N_+1))

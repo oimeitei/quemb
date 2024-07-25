@@ -4,12 +4,10 @@ import numpy,functools,sys, pickle
 from pyscf import lib
 import h5py,os,time,pbe_var
 
-from .lo import iao_tmp
-
 class storePBE:
     def __init__(self, Nocc, hf_veff, hcore,
                  S, C, hf_dm, hf_etot, W, lmo_coeff,
-                 enuc, ek,
+                 enuc, 
                  E_core, C_core, P_core, core_veff, mo_energy):
         self.Nocc = Nocc
         self.hf_veff = hf_veff
@@ -21,7 +19,6 @@ class storePBE:
         self.W = W
         self.lmo_coeff = lmo_coeff
         self.enuc = enuc
-        self.ek = ek
         self.E_core = E_core
         self.C_core = C_core
         self.P_core = P_core
@@ -29,36 +26,66 @@ class storePBE:
         self.mo_energy = mo_energy
 
 class pbe:
+    """
+    Class for handling bootstrap embedding (BE) calculations.
 
-    def __init__(self, mf, fobj, eri_file='eri_file.h5', exxdiv='ewald',
-                 lo_method='lowdin',compute_hf=True, nkpt = None, kpoint = False,
-                 super_cell=False, molecule=False,
-                 kpts = None, cell=None,
-                 kmesh=None, cderi=None,
+    This class encapsulates the functionalities required for performing bootstrap embedding calculations,
+    including setting up the BE environment, initializing fragments, performing SCF calculations, and
+    evaluating energies.
+
+    Attributes
+    ----------
+    mf : pyscf.scf.SCF
+        PySCF mean-field object.
+    fobj : molbe.fragpart
+        Fragment object containing sites, centers, edges, and indices.
+    eri_file : str
+        Path to the file storing two-electron integrals.
+    lo_method : str
+        Method for orbital localization, default is 'lowdin'.
+    """
+
+    def __init__(self, mf, fobj, eri_file='eri_file.h5', 
+                 lo_method='lowdin',compute_hf=True, 
                  restart=False, save=False,
                  restart_file='storepbe.pk',
-                 mo_energy = None, iao_wannier=True,
+                 mo_energy = None, 
                  save_file='storepbe.pk',hci_pt=False,
                  nproc=1, ompnum=4,
-                 hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
-                 debug00=False, debug001=False):
-        """Constructor for pbe object
+                 hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None):
+        """
+        Constructor for pbe object.
 
         Parameters
         ----------
         mf : pyscf.scf.SCF
-          PySCF HF
-        fobj : pbe.fragpart
-          Fragment object containing sites, center, edges and indices
-        lo_method: str
-          Method for orbital localization. Supports 'lowdin', 'boys', and 'wannier'. Defaults to 'lowdin'
-        save : bool
-          Save intermediate objects for a restart. 
-        restart : bool
-          Restart. If set True, HF need not be repeated.
+            PySCF mean-field object.
+        fobj : molbe.fragpart
+            Fragment object containing sites, centers, edges, and indices.
+        eri_file : str, optional
+            Path to the file storing two-electron integrals, by default 'eri_file.h5'.
+        lo_method : str, optional
+            Method for orbital localization, by default 'lowdin'.
+        compute_hf : bool, optional
+            Whether to compute Hartree-Fock energy, by default True.
+        restart : bool, optional
+            Whether to restart from a previous calculation, by default False.
+        save : bool, optional
+            Whether to save intermediate objects for restart, by default False.
+        restart_file : str, optional
+            Path to the file storing restart information, by default 'storepbe.pk'.
+        mo_energy : numpy.ndarray, optional
+            Molecular orbital energies, by default None.
+        save_file : str, optional
+            Path to the file storing save information, by default 'storepbe.pk'.
+        nproc : int, optional
+            Number of processors for parallel calculations, by default 1. If set to >1, threaded parallel computation is invoked.
+        ompnum : int, optional
+            Number of OpenMP threads, by default 4.
         """
         
         if restart:
+            # Load previous calculation data from restart file
             with open(restart_file, 'rb') as rfile:
                 store_ = pickle.load(rfile)
                 rfile.close()
@@ -72,7 +99,6 @@ class pbe:
             self.W = store_.W
             self.lmo_coeff = store_.lmo_coeff
             self.enuc = store_.enuc
-            self.ek = store_.ek
             self.E_core = store_.E_core
             self.C_core = store_.C_core
             self.P_core = store_.P_core
@@ -80,11 +106,10 @@ class pbe:
             self.mo_energy = store_.mo_energy
         
         self.unrestricted = False
-
         self.nproc = nproc
         self.ompnum = ompnum
-        
-        self.self_match = fobj.self_match
+
+        # Fragment information from fobj
         self.frag_type=fobj.frag_type
         self.Nfrag = fobj.Nfrag 
         self.fsites = fobj.fsites
@@ -95,29 +120,18 @@ class pbe:
         self.centerf_idx = fobj.centerf_idx
         self.ebe_weight = fobj.ebe_weight
         self.be_type = fobj.be_type
-        self.unitcell = fobj.unitcell
         self.mol = fobj.mol
-
-        unitcell_nkpt = 1
-        self.unitcell_nkpt = unitcell_nkpt
                     
         self.ebe_hf = 0.
         self.ebe_tot = 0.
-        self.super_cell = super_cell
         
-        self.kpoint = kpoint         
-        self.kpts = kpts
-        self.cell = cell
-        self.kmesh = kmesh
-        self.molecule = fobj.molecule
-
         # HCI parameters
         self.hci_cutoff = hci_cutoff
         self.ci_coeff_cutoff = ci_coeff_cutoff
         self.select_cutoff = select_cutoff
         self.hci_pt=hci_pt
        
-        self.mf = mf # tmp
+        self.mf = mf 
         if not restart:   
             self.mo_energy = mf.mo_energy
             
@@ -140,9 +154,8 @@ class pbe:
         self.pot = initialize_pot(self.Nfrag, self.edge_idx)
         self.eri_file = eri_file
         self.cderi = cderi
-        self.ek=0.
-
-        # set scratch dir in pbe_var
+        
+        # Set scratch directory
         jobid=''
         if pbe_var.CREATE_SCRATCH_DIR:
             try:
@@ -168,6 +181,7 @@ class pbe:
             self.core_veff = None
         
         if self.frozen_core:
+            # Handle frozen core orbitals
             self.ncore = fobj.ncore
             self.no_core_idx = fobj.no_core_idx
             self.core_list = fobj.core_list
@@ -182,60 +196,44 @@ class pbe:
                 self.E_core = numpy.einsum('ji,ji->',2.*self.hcore+self.core_veff, self.P_core)                
                 self.hf_veff -= self.core_veff
                 self.hcore += self.core_veff
-        # fock
-        time_pre_fock = time.time()
-        self.FOCK = self.mf.get_fock(self.hcore, self.S, self.hf_veff, self.hf_dm)
-        time_post_fock = time.time()
-        print("Time to get full-system Fock matrix: ", time_post_fock - time_pre_fock)
-        if not restart or debug00:
-            self.localize(lo_method, mol=self.cell, valence_basis=fobj.valence_basis, valence_only=fobj.valence_only, iao_wannier=iao_wannier)
+                
+        if not restart:
+            # Localize orbitals
+            self.localize(lo_method, mol=self.mol, valence_basis=fobj.valence_basis, valence_only=fobj.valence_only)
+            
             if fobj.valence_only and lo_method=='iao':
-                self.Ciao_pao = self.localize(lo_method, mol=self.cell, valence_basis=fobj.valence_basis,
+                self.Ciao_pao = self.localize(lo_method, mol=self.mol, valence_basis=fobj.valence_basis,
                                               hstack=True,
                                               valence_only=False, nosave=True)
-            time_post_lo = time.time()
-            print("Time to localize:" , time_post_lo - time_post_fock)
+            
         if save:
+            # Save intermediate results for restart
             store_ = storePBE(self.Nocc, self.hf_veff, self.hcore,
                               self.S, self.C, self.hf_dm, self.hf_etot,
-                              self.W, self.lmo_coeff, self.enuc, self.ek,
+                              self.W, self.lmo_coeff, self.enuc, 
                               self.E_core, self.C_core, self.P_core, self.core_veff, self.mo_energy)
 
             with open(save_file, 'wb') as rfile:
                 pickle.dump(store_, rfile, pickle.HIGHEST_PROTOCOL)
             rfile.close()
             
-        if debug001:
-            file_eri = h5py.File('eri_fullk3.h5','w')
-            file_eri.create_dataset('erifull', data=mf._eri, dtype=numpy.complex128)
-            file_eri.close()
-            sys.exit()
-
-        if debug00:
-            
-            r = h5py.File('eri_fullk3.h5','r')
-            eri00 = r.get('erifull')
-            r.close()
-            self.mf=mf
            
-        if not restart :            
-            time_pre_hfinit = time.time()
+        if not restart :
+            # Initialize fragments and perform initial calculations
             self.initialize(mf._eri,compute_hf)
-            time_post_hfinit = time.time()
-            print("Time to initialize HF: ",time_post_hfinit - time_pre_hfinit)
-            
-        elif debug00:
-            self.initialize(eri00,compute_hf)
         else:            
             self.initialize(None,compute_hf, restart=True)
         
         
     from ._opt import optimize
-    from .optqn import get_be_error_jacobian,get_be_error_jacobian_selffrag
+    from .optqn import get_be_error_jacobian
     from .lo import localize
     from .rdm import rdm1_fullbasis, compute_energy_full
+    
     def print_ini(self):
-        
+        """
+        Print initialization banner for the MOLBE calculation.
+        """
         print('-----------------------------------------------------------',
                   flush=True)
 
@@ -256,6 +254,18 @@ class pbe:
         
 
     def initialize(self, eri_,compute_hf, restart=False):
+        """
+        Initialize the Bootstrap Embedding calculation.
+
+        Parameters
+        ----------
+        eri_ : numpy.ndarray
+            Electron repulsion integrals.
+        compute_hf : bool
+            Whether to compute Hartree-Fock energy.
+        restart : bool, optional
+            Whether to restart from a previous calculation, by default False.
+        """
         from .helper import get_scfObj        
         import h5py
         from pyscf import ao2mo
@@ -263,7 +273,7 @@ class pbe:
         
         if compute_hf: E_hf = 0.
         
-        # from here remove ncore from C
+        # Create a file to store ERIs
         if not restart:
             file_eri = h5py.File(self.eri_file,'w')
         lentmp = len(self.edge_idx)
@@ -274,20 +284,19 @@ class pbe:
                                eri_file=self.eri_file,
                                center=self.center[I], edge_idx=self.edge_idx[I],
                                center_idx=self.center_idx[I],efac=self.ebe_weight[I],
-                               centerf_idx=self.centerf_idx[I], unitcell=self.unitcell,
-                               unitcell_nkpt=self.unitcell_nkpt)
+                               centerf_idx=self.centerf_idx[I])
             else:
                 fobjs_ = Frags(self.fsites[I],I,edge=[],center=[],
                                eri_file=self.eri_file,
                                edge_idx=[],center_idx=[],centerf_idx=[],
-                               efac=self.ebe_weight[I], unitcell=self.unitcell,
-                               unitcell_nkpt=self.unitcell_nkpt)
+                               efac=self.ebe_weight[I])
             fobjs_.sd(self.W, self.lmo_coeff, self.Nocc,
                       frag_type=self.frag_type)
                 
             self.Fobjs.append(fobjs_)
                 
         if not restart:
+            # Transform ERIs for each fragment and store in the file
             # ERI Transform Decision Tree
             # Do we have full (ij|kl)?
             #   Yes -- ao2mo, incore version
@@ -307,6 +316,7 @@ class pbe:
             eri=None
         
         for fobjs_ in self.Fobjs:
+            # Process each fragment
             eri = numpy.array(file_eri.get(fobjs_.dname))
             dm_init = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
             
@@ -350,6 +360,22 @@ class pbe:
             couti = fobj.set_udim(couti)
                         
     def oneshot(self, solver='MP2', nproc=1, ompnum=4, calc_frag_energy=False, clean_eri=False):
+        """
+        Perform a one-shot bootstrap embedding calculation.
+
+        Parameters
+        ----------
+        solver : str, optional
+            High-level quantum chemistry method, by default 'MP2'. 'CCSD', 'FCI', and variants of selected CI are supported.
+        nproc : int, optional
+            Number of processors for parallel calculations, by default 1. If set to >1, threaded parallel computation is invoked.
+        ompnum : int, optional
+            Number of OpenMP threads, by default 4.
+        calc_frag_energy : bool, optional
+            Whether to calculate fragment energies, by default False.
+        clean_eri : bool, optional
+            Whether to clean up ERI files after calculation, by default False.
+        """
         from .solver import be_func
         from .be_parallel import be_func_parallel
 
@@ -394,7 +420,14 @@ class pbe:
                 print("Scratch directory not removed")
 
     def update_fock(self, heff=None):
+        """
+        Update the Fock matrix for each fragment with the effective Hamiltonian.
 
+        Parameters
+        ----------
+        heff : list of numpy.ndarray, optional
+            List of effective Hamiltonian matrices for each fragment, by default None.
+        """
         if heff is None:
             for fobj in self.Fobjs:
                 fobj.fock += fobj.heff
@@ -403,6 +436,14 @@ class pbe:
                 fobj.fock += heff[idx]
 
     def write_heff(self, heff_file='bepotfile.h5'):
+        """
+        Write the effective Hamiltonian to a file.
+
+        Parameters
+        ----------
+        heff_file : str, optional
+            Path to the file to store effective Hamiltonian, by default 'bepotfile.h5'.
+        """
         filepot = h5py.File(heff_file, 'w')
         for fobj in self.Fobjs:
             print(fobj.heff.shape, fobj.dname, flush=True)
@@ -410,6 +451,14 @@ class pbe:
         filepot.close()
 
     def read_heff(self, heff_file='bepotfile.h5'):
+        """
+        Read the effective Hamiltonian from a file.
+
+        Parameters
+        ----------
+        heff_file : str, optional
+            Path to the file storing effective Hamiltonian, by default 'bepotfile.h5'.
+        """
         filepot = h5py.File(heff_file, 'r')
         for fobj in self.Fobjs:
             fobj.heff = filepot.get(fobj.dname)
@@ -418,6 +467,27 @@ class pbe:
         
         
 def initialize_pot(Nfrag, edge_idx):
+    """
+    Initialize the potential array for bootstrap embedding.
+
+    This function initializes a potential array for a given number of fragments (`Nfrag`)
+    and their corresponding edge indices (`edge_idx`). The potential array is initialized
+    with zeros for each pair of edge site indices within each fragment, followed by an
+    additional zero for the global chemical potential.
+
+    Parameters
+    ----------
+    Nfrag : int
+        Number of fragments.
+    edge_idx : list of list of list of int
+        List of edge indices for each fragment. Each element is a list of lists, where each
+        sublist contains the indices of edge sites for a particular fragment.
+
+    Returns
+    -------
+    list of float
+        Initialized potential array with zeros.
+    """
     pot_=[]
     
     if not len(edge_idx) == 0:
@@ -432,31 +502,3 @@ def initialize_pot(Nfrag, edge_idx):
     pot_.append(0.)
     return pot_
 
-def eritransform_parallel_mol(eri_, mcoeff):
-    eri_t = ao2mo.incore.full(eri_, mcoeff, compact=True)
-    return eri_t
-
-def eritransform_parallel_mol_cd(atom, basis, C_ao_emb, cderi):
-    from pyscf import gto, df
-    
-    mol_ = gto.M(atom=atom, basis=basis)
-    mydf = df.DF(mol_)
-    mydf._cderi = cderi
-    eri = mydf.ao2mo(C_ao_emb, compact=True)
-    return eri
-
-def parallel_fock_wrapper(dname, nao, dm, S, TA, hf_veff, eri_file):
-    from .helper import get_veff, get_eri
-
-    eri_ = get_eri(dname, nao, eri_file=eri_file, ignore_symm=True)
-    veff0, veff_ = get_veff(eri_, dm, S, TA, hf_veff, return_veff0 = True)
-
-    return veff0, veff_
-
-
-def parallel_scf_wrapper(dname, nao, nocc, h1,  dm_init, eri_file):
-    from .helper import get_eri, get_scfObj
-    eri = get_eri(dname, nao, eri_file=eri_file)
-    mf_ = get_scfObj(h1, eri, nocc, dm_init)
-    
-    return mf_.mo_coeff

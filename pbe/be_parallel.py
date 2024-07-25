@@ -325,7 +325,6 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
         fobj.__rdm1 = rdms[idx][3]
         Etot += fobj.ebe
 
-    Etot /= Fobjs[0].unitcell_nkpt
     del rdms    
     Ebe = Etot+enuc+ecore-ek
     
