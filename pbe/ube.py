@@ -1,4 +1,4 @@
-"""
+""" 🍠
 Bootstrap Embedding Calculation with an
 Unrestricted Hartree-Fock Bath
 
@@ -15,7 +15,7 @@ from .pbe import pbe
 from .pfrag import Frags
 
 
-class ube(pbe):
+class ube(pbe):  # 🍠
     def __init__(
         self,
         mf,
@@ -44,6 +44,24 @@ class ube(pbe):
         debug00=False,
         debug001=False,
     ):
+        """Initialize Unrestricted BE Object (ube🍠)
+        ** NOTE **
+            Currently only supports embedding Hamiltonian construction for molecular systems
+            In conjunction with pbe.misc.ube2fcidump, embedding Hamiltonians can be written
+            for external use.
+            See `unrestricted` branch for a work-in-progress full implmentation
+
+        Parameters
+        ----------
+        mf : pyscf.scf.UHF
+            pyscf meanfield UHF object
+        fobj : pbe.fragpart
+            object that contains fragment information
+        eri_file : str, optional
+            h5py file with ERIs, by default "eri_file.h5"
+        lo_method : str, optional
+            Method for orbital localization. Supports 'lowdin', 'boys', and 'wannier', by default "lowdin"
+        """
         self.unrestricted = True
 
         self.self_match = fobj.self_match
@@ -162,7 +180,7 @@ class ube(pbe):
         file_eri = h5py.File(self.eri_file, "w")
         lentmp = len(self.edge_idx)
 
-        # alpha
+        # alpha orbitals
         for I in range(self.Nfrag):
             if lentmp:
                 fobjs_ = Frags(
@@ -212,7 +230,8 @@ class ube(pbe):
             fobjs_.heff = numpy.zeros_like(fobjs_.h1)
             fobjs_.scf(fs=True, eri=eri)
             fobjs_.dm0 = numpy.dot(
-                fobjs_._mo_coeffs[:, : fobjs_.nsocc], fobjs_._mo_coeffs[:, : fobjs_.nsocc].conj().T
+                fobjs_._mo_coeffs[:, : fobjs_.nsocc],
+                fobjs_._mo_coeffs[:, : fobjs_.nsocc].conj().T,
             )
 
             if compute_hf:
@@ -222,7 +241,7 @@ class ube(pbe):
                 E_hf += fobjs_.ebe_hf
 
             self.Fobjs_a.append(fobjs_)
-        # beta
+        # beta orbitals
         for I in range(self.Nfrag):
             if lentmp:
                 fobjs_ = Frags(
@@ -272,7 +291,8 @@ class ube(pbe):
             fobjs_.heff = numpy.zeros_like(fobjs_.h1)
             fobjs_.scf(fs=True, eri=eri)
             fobjs_.dm0 = numpy.dot(
-                fobjs_._mo_coeffs[:, : fobjs_.nsocc], fobjs_._mo_coeffs[:, : fobjs_.nsocc].conj().T
+                fobjs_._mo_coeffs[:, : fobjs_.nsocc],
+                fobjs_._mo_coeffs[:, : fobjs_.nsocc].conj().T,
             )
 
             if compute_hf:
@@ -289,7 +309,10 @@ class ube(pbe):
             hf_err = self.hf_etot - (E_hf + self.enuc + self.E_core)
 
             self.ebe_hf = E_hf + self.enuc + self.E_core - self.ek
-            print("HF-in-HF error                 :  {:>.4e} Ha".format(hf_err), flush=True)
+            print(
+                "HF-in-HF error                 :  {:>.4e} Ha".format(hf_err),
+                flush=True,
+            )
             if abs(hf_err) > 1.0e-5:
                 print("WARNING!!! Large HF-in-HF energy error")
                 print("eh1 ", EH1)
@@ -308,11 +331,13 @@ class ube(pbe):
             couti = fobj.set_udim(couti)
 
     def oneshot(self, solver="MP2", nproc=1, ompnum=4):
-        # TODO
+        # TODO: Elements from `unrestricted` branch will be ported here.
+        # Currently, it only raises a NotImplementedError
         # Not ready; Can be used once fobj.energy gets cumulant expression
         # and unrestricted keyword multiplies the RDMs appropriately (see: energy_hf)
         from .solver import be_func
         from .be_parallel import be_func_parallel
+
         return NotImplementedError
         if nproc == 1:
             E_a = be_func(
@@ -378,7 +403,10 @@ class ube(pbe):
         print(flush=True)
 
         print("Total Energy : {:>12.8f} Ha".format((E_a + E_b) / 2.0), flush=True)
-        print("Corr  Energy : {:>12.8f} Ha".format((E_a + E_b) / 2.0 - self.ebe_hf), flush=True)
+        print(
+            "Corr  Energy : {:>12.8f} Ha".format((E_a + E_b) / 2.0 - self.ebe_hf),
+            flush=True,
+        )
 
 
 def initialize_pot(Nfrag, edge_idx):
