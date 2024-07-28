@@ -32,9 +32,9 @@ class fragpart:
             Specifies order of bootsrap calculation in the atom-based fragmentation. 'be1', 'be2', 'be3', & 'be4' are supported.
             Defaults to 'be2'
             For a simple linear system A-B-C-D,
-              be1 only has fragments [A], [B], [C], [D]
-              be2 has [A, B, C], [B, C, D]
-              ben ...
+            be1 only has fragments [A], [B], [C], [D]
+            be2 has [A, B, C], [B, C, D]
+            ben ...
         mol : pyscf.pbc.gto.Cell
             pyscf.pbc.gto.Cell object. This is required for the options, 'autogen' and 'chain' as frag_type.
         valence_basis: str
