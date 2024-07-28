@@ -1,4 +1,4 @@
-from pbe._opt import BEOPT
+from molbe._opt import BEOPT
 
 
 def optimize(self, solver='MP2',method='QN',

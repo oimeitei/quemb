@@ -1,9 +1,9 @@
 from .pfrag import Frags
-from pbe.helper import get_core
+from molbe.helper import get_core
 import numpy,functools,sys, pickle
 from pyscf import lib
 from pyscf.pbc import gto, df
-import h5py, pbe_var, os
+import h5py, be_var, os
 
 from .misc import storePBE 
 
@@ -29,9 +29,9 @@ class BE:
     def __init__(self, mf, fobj, eri_file='eri_file.h5', 
                  lo_method='lowdin',compute_hf=True, 
                  restart=False, save=False,
-                 restart_file='storepbe.pk',
+                 restart_file='storebe.pk',
                  mo_energy = None, 
-                 save_file='storepbe.pk',hci_pt=False,
+                 save_file='storebe.pk',hci_pt=False,
                  nproc=1, ompnum=4,
                  hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
                  iao_val_core=True,
@@ -60,11 +60,11 @@ class BE:
         save : bool, optional
             Whether to save intermediate objects for restart, by default False.
         restart_file : str, optional
-            Path to the file storing restart information, by default 'storepbe.pk'.
+            Path to the file storing restart information, by default 'storebe.pk'.
         mo_energy : numpy.ndarray, optional
             Molecular orbital energies, by default None.
         save_file : str, optional
-            Path to the file storing save information, by default 'storepbe.pk'.
+            Path to the file storing save information, by default 'storebe.pk'.
         nproc : int, optional
             Number of processors for parallel calculations, by default 1. If set to >1, threaded parallel computation is invoked.
         ompnum : int, optional
@@ -151,20 +151,20 @@ class BE:
 
         # Set scratch directory
         jobid=''
-        if pbe_var.CREATE_SCRATCH_DIR:
+        if be_var.CREATE_SCRATCH_DIR:
             try:
                 jobid = str(os.environ['SLURM_JOB_ID'])
             except:
                 jobid = ''
-        if not pbe_var.SCRATCH=='': os.system('mkdir '+pbe_var.SCRATCH+str(jobid))
+        if not be_var.SCRATCH=='': os.system('mkdir '+be_var.SCRATCH+str(jobid))
         if jobid == '':
-            self.eri_file = pbe_var.SCRATCH+eri_file
+            self.eri_file = be_var.SCRATCH+eri_file
             if cderi:
-                self.cderi = pbe_var.SCRATCH+cderi
+                self.cderi = be_var.SCRATCH+cderi
         else:
-            self.eri_file = pbe_var.SCRATCH+str(jobid)+'/'+eri_file
+            self.eri_file = be_var.SCRATCH+str(jobid)+'/'+eri_file
             if cderi:
-                self.cderi = pbe_var.SCRATCH+str(jobid)+'/'+cderi
+                self.cderi = be_var.SCRATCH+str(jobid)+'/'+cderi
 
         
         if exxdiv == 'ewald':
@@ -263,8 +263,8 @@ class BE:
                 
         
     from ._opt import optimize
-    # this is a pbe method not BEOPT
-    from pbe.external.optqn import get_be_error_jacobian
+    # this is a molbe method not BEOPT
+    from molbe.external.optqn import get_be_error_jacobian
     from .lo import localize
     
     def print_ini(self):
@@ -317,7 +317,7 @@ class BE:
         restart : bool, optional
             Whether to restart from a previous calculation, by default False.
         """
-        from pbe.helper import get_scfObj
+        from molbe.helper import get_scfObj
         from multiprocessing import Pool
         
         import h5py, os, logging
@@ -621,7 +621,7 @@ def eritransform_parallel(a, atom, basis, kpts, C_ao_emb, cderi):
     """
     Wrapper for parallel eri transformation
     """
-    from pbe.external.eri_transform import get_emb_eri_fast_gdf
+    from molbe.external.eri_transform import get_emb_eri_fast_gdf
 
     cell = gto.Cell()
     cell.a = a

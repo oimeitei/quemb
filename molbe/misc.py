@@ -95,7 +95,7 @@ def be2fcidump(be_obj, fcidump_prefix, basis):
 
     Parameters
     ----------
-    be_obj : pbe.pbe.pbe
+    be_obj : molbe.mbe.BE
         BE object
     fcidump_prefix : string
         Prefix for path & filename to the output fcidump files
@@ -145,7 +145,7 @@ def ube2fcidump(be_obj, fcidump_prefix, basis):
 
     Parameters
     ----------
-    be_obj : pbe.pbe.pbe
+    be_obj : molbe.mbe.BE
         BE object
     fcidump_prefix : string
         Prefix for path & filename to the output fcidump files
@@ -256,7 +256,7 @@ def be2puffin(
         Whether frozen core approximation is used or not, by default True
     """
     from .fragment import fragpart
-    from .pbe import pbe
+    from .mbe import BE
 
     # Check input validity
     assert os.path.exists(xyzfile), "Input xyz file does not exist"
@@ -303,7 +303,7 @@ def be2puffin(
     )
     time_post_fragpart = time.time()
     print("Time for fragmentation to run: ", time_post_fragpart - time_post_mf)
-    mybe = pbe(mf, fobj, lo_method="lowdin")
+    mybe = BE(mf, fobj, lo_method="lowdin")
     mybe.oneshot(solver="CCSD", nproc=nproc, ompnum=ompnum, calc_frag_energy=True, clean_eri=True)
     return mybe.ebe_tot
 

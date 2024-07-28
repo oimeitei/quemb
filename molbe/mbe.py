@@ -2,9 +2,9 @@ from .pfrag import Frags
 from .helper import get_core
 import numpy,functools,sys, pickle
 from pyscf import lib
-import h5py,os,time,pbe_var
+import h5py,os,time,be_var
 
-class storePBE:
+class storeBE:
     def __init__(self, Nocc, hf_veff, hcore,
                  S, C, hf_dm, hf_etot, W, lmo_coeff,
                  enuc, 
@@ -25,7 +25,7 @@ class storePBE:
         self.core_veff = core_veff
         self.mo_energy = mo_energy
 
-class pbe:
+class BE:
     """
     Class for handling bootstrap embedding (BE) calculations.
 
@@ -48,13 +48,13 @@ class pbe:
     def __init__(self, mf, fobj, eri_file='eri_file.h5', 
                  lo_method='lowdin',compute_hf=True, 
                  restart=False, save=False,
-                 restart_file='storepbe.pk',
+                 restart_file='storebe.pk',
                  mo_energy = None, 
-                 save_file='storepbe.pk',hci_pt=False,
+                 save_file='storebe.pk',hci_pt=False,
                  nproc=1, ompnum=4,
                  hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None):
         """
-        Constructor for pbe object.
+        Constructor for BE object.
 
         Parameters
         ----------
@@ -73,11 +73,11 @@ class pbe:
         save : bool, optional
             Whether to save intermediate objects for restart, by default False.
         restart_file : str, optional
-            Path to the file storing restart information, by default 'storepbe.pk'.
+            Path to the file storing restart information, by default 'storebe.pk'.
         mo_energy : numpy.ndarray, optional
             Molecular orbital energies, by default None.
         save_file : str, optional
-            Path to the file storing save information, by default 'storepbe.pk'.
+            Path to the file storing save information, by default 'storebe.pk'.
         nproc : int, optional
             Number of processors for parallel calculations, by default 1. If set to >1, threaded parallel computation is invoked.
         ompnum : int, optional
@@ -156,18 +156,18 @@ class pbe:
                 
         # Set scratch directory
         jobid=''
-        if pbe_var.CREATE_SCRATCH_DIR:
+        if be_var.CREATE_SCRATCH_DIR:
             try:
                 jobid = str(os.environ['SLURM_JOB_ID'])
             except:
                 jobid = ''
-        if not pbe_var.SCRATCH=='': 
-            self.scratch_dir = pbe_var.SCRATCH+str(jobid)
+        if not be_var.SCRATCH=='': 
+            self.scratch_dir = be_var.SCRATCH+str(jobid)
             os.system('mkdir '+self.scratch_dir)
         else:
             self.scratch_dir = None
         if jobid == '':
-            self.eri_file = pbe_var.SCRATCH+eri_file
+            self.eri_file = be_var.SCRATCH+eri_file
         else:
             self.eri_file = self.scratch_dir+'/'+eri_file
             
@@ -207,7 +207,7 @@ class pbe:
             
         if save:
             # Save intermediate results for restart
-            store_ = storePBE(self.Nocc, self.hf_veff, self.hcore,
+            store_ = storeBE(self.Nocc, self.hf_veff, self.hcore,
                               self.S, self.C, self.hf_dm, self.hf_etot,
                               self.W, self.lmo_coeff, self.enuc, 
                               self.E_core, self.C_core, self.P_core, self.core_veff, self.mo_energy)
@@ -225,7 +225,7 @@ class pbe:
         
         
     from ._opt import optimize
-    from pbe.external.optqn import get_be_error_jacobian
+    from molbe.external.optqn import get_be_error_jacobian
     from .lo import localize
     from .rdm import rdm1_fullbasis, compute_energy_full
     

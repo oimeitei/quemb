@@ -6,7 +6,7 @@ from pyscf import lib
 import numpy,sys
 from copy import deepcopy
 from functools import reduce
-from pbe.external.lo_helper import get_symm_mat_pow, get_aoind_by_atom, reorder_by_atom_
+from molbe.external.lo_helper import get_symm_mat_pow, get_aoind_by_atom, reorder_by_atom_
 
 def dot_gen(A, B, ovlp):
     return A.T @ B if ovlp is None else A.T @ ovlp @ B

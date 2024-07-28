@@ -23,9 +23,9 @@ class Frags:
         Parameters
         ----------
         fsites : list
-            list of AOs in the fragment (i.e. pbe.fsites[i] or fragpart.fsites[i])
+            list of AOs in the fragment (i.e. BE.fsites[i] or fragpart.fsites[i])
         ifrag : int
-            fragment index (∈ [0, pbe.Nfrag])
+            fragment index (∈ [0, BE.Nfrag])
         edge : list, optional
             list of lists of edge site AOs for each atom in the fragment, by default None
         center : list, optional

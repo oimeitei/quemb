@@ -1,6 +1,6 @@
 import sys
 import numpy
-from pbe.helper import get_core
+from molbe.helper import get_core
 from itertools import compress
 
 def warn_large_fragment():

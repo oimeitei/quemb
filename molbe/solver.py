@@ -1,5 +1,5 @@
 import numpy,functools,sys, time,os
-from pbe.external.ccsd_rdm import make_rdm1_ccsd_t1, make_rdm2_urlx
+from molbe.external.ccsd_rdm import make_rdm1_ccsd_t1, make_rdm2_urlx
 
 def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
             only_chem = False, nproc=4,hci_pt=False,
@@ -406,7 +406,7 @@ def solve_ccsd(mf, frozen=None, mo_coeff=None,relax=False, use_cumulant=False, w
     """
     from pyscf import cc
     from pyscf.cc.ccsd_rdm import make_rdm2
-    from pbe.external.rdm_ccsd import make_rdm1_ccsd_t1, make_rdm2_urlx
+    from molbe.external.rdm_ccsd import make_rdm1_ccsd_t1, make_rdm2_urlx
 
     # Set default values for optional parameters
     if  mo_coeff is None: mo_coeff = mf.mo_coeff

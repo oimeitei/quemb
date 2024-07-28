@@ -6,7 +6,7 @@ from pyscf import lib
 import numpy,sys
 from copy import deepcopy
 from functools import reduce
-from pbe.external.lo_helper import get_aoind_by_atom, reorder_by_atom_
+from molbe.external.lo_helper import get_aoind_by_atom, reorder_by_atom_
 # iao tmp
 
 
@@ -44,7 +44,7 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True
     from numpy.linalg import eigh
     from pyscf.lo.iao import iao
     import scipy.linalg,functools
-    from pbe.helper import ncore_
+    from molbe.helper import ncore_
     from .misc import get_phase, sgeom
 
     if lo_method == 'iao':

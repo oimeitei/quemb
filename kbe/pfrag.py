@@ -1,11 +1,11 @@
 from .solver import schmidt_decomp_svd
 from .helper import *
-from pbe.helper import get_eri, get_scfObj
+from molbe.helper import get_eri, get_scfObj
 from .misc import *
 import numpy,h5py
 import functools,sys, math
 from pyscf import ao2mo
-import pbe_var
+import be_var
 
 
 class Frags:

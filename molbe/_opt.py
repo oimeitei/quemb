@@ -122,7 +122,7 @@ class BEOPT:
         J0 : list of list of float, optional
            Initial Jacobian
         """
-        from pbe.external.optqn import FrankQN
+        from molbe.external.optqn import FrankQN
         import sys
         
         print('-----------------------------------------------------',

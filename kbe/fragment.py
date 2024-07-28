@@ -1,5 +1,5 @@
 import numpy, sys
-from pbe.helper import get_core
+from molbe.helper import get_core
 from .autofrag import autogen
 
 def print_mol_missing():

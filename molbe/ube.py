@@ -11,11 +11,11 @@ TODO
 """
 
 import numpy
-from .pbe import pbe
+from .mbe import BE
 from .pfrag import Frags
 
 
-class ube(pbe):  # 🍠
+class ube(BE):  # 🍠
     def __init__(
         self,
         mf,
@@ -33,10 +33,10 @@ class ube(pbe):  # 🍠
         kmesh=None,
         restart=False,
         save=False,
-        restart_file="storepbe.pk",
+        restart_file="storebe.pk",
         mo_energy=None,
         iao_wannier=True,
-        save_file="storepbe.pk",
+        save_file="storebe.pk",
         hci_pt=False,
         hci_cutoff=0.001,
         ci_coeff_cutoff=None,
@@ -47,7 +47,7 @@ class ube(pbe):  # 🍠
         """Initialize Unrestricted BE Object (ube🍠)
         ** NOTE **
             Currently only supports embedding Hamiltonian construction for molecular systems
-            In conjunction with pbe.misc.ube2fcidump, embedding Hamiltonians can be written
+            In conjunction with molbe.misc.ube2fcidump, embedding Hamiltonians can be written
             for external use.
             See `unrestricted` branch for a work-in-progress full implmentation
 
@@ -55,7 +55,7 @@ class ube(pbe):  # 🍠
         ----------
         mf : pyscf.scf.UHF
             pyscf meanfield UHF object
-        fobj : pbe.fragpart
+        fobj : molbe.fragpart
             object that contains fragment information
         eri_file : str, optional
             h5py file with ERIs, by default "eri_file.h5"
