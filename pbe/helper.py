@@ -46,7 +46,9 @@ def get_veff(eri_, dm, S, TA, hf_veff):
     return Veff
 
 # create pyscf pbc scf object
-def get_scfObj(h1, Eri, nocc, dm0=None, enuc=0.):
+def get_scfObj(h1, Eri, nocc, dm0=None, enuc=0.,
+               pert_h=False, pert_list=None,
+               save_chkfile=False, fname='f0'):
     """
     Initialize and run a restricted Hartree-Fock (RHF) calculation.
 
@@ -212,7 +214,7 @@ def get_core(mol):
 
     return (Ncore,idx,corelist)
 
-def get_frag_energy(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rdm2s, dname, eri_file='eri_file.h5'):
+def get_frag_energy(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rdm2s, dname, eri_file='eri_file.h5', veff0=None):
     """
     Compute the fragment energy.
 
@@ -260,14 +262,18 @@ def get_frag_energy(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rdm2
     # Compute the difference between the rotated RDM1 and the Hartree-Fock 1-RDM
     delta_rdm1 = 2 * (rdm1s_rot - hf_1rdm)
 
-    # Compute the effective potential in the transformed basis
-    veff0 = functools.reduce(numpy.dot,(TA.T,hf_veff,TA))
+    if veff0 is None:
+        # Compute the effective potential in the transformed basis
+        veff0 = functools.reduce(numpy.dot,(TA.T,hf_veff,TA))
 
     # Calculate the one-electron and effective potential energy contributions
     e1 = numpy.einsum("ij,ij->i",h1[:nfsites], delta_rdm1[:nfsites])
     ec = numpy.einsum("ij,ij->i",veff0[:nfsites], delta_rdm1[:nfsites])
 
-    jmax = TA.shape[1]
+    if TA.ndim == 3:
+        jmax = TA[0].shape[1]
+    else:
+        jmax = TA.shape[1]
 
     # Load the electron repulsion integrals from the HDF5 file
     r = h5py.File(eri_file,'r')
@@ -304,6 +310,6 @@ def get_frag_energy(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rdm2
         etmp += efac[0]*e_[i]
         e1_tmp += efac[0]*e1[i] 
         e2_tmp += efac[0]*e2[i] 
-        ec_tmp += efac[0]*ec[i] 
-
+        ec_tmp += efac[0]*ec[i]
+        
     return [e1_tmp,e2_tmp,ec_tmp]

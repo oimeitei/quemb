@@ -40,13 +40,14 @@ class BEOPT:
     
     def __init__(self, pot, Fobjs, Nocc, enuc,solver='MP2', ecore=0.,
                  nproc=1,ompnum=4,
-                 only_chem=False,
+                 only_chem=False, hf_veff = None,
                  hci_pt=False,hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
                  max_space=500, conv_tol = 1.e-6,relax_density = False,
                  ebe_hf =0.):
         
         # Initialize class attributes 
         self.ebe_hf=ebe_hf
+        self.hf_veff = hf_veff
         self.pot = pot
         self.Fobjs = Fobjs
         self.Nocc = Nocc
@@ -88,8 +89,8 @@ class BEOPT:
         # Choose the appropriate function based on the number of processors
         if self.nproc == 1:
             err_, errvec_,ebe_ = be_func(xk, self.Fobjs, self.Nocc, self.solver, self.enuc,
-                                         eeval=True, return_vec=True,
-                                         only_chem=self.only_chem,
+                                         eeval=True, return_vec=True, hf_veff = self.hf_veff,
+                                         only_chem=self.only_chem, 
                                          hci_cutoff=self.hci_cutoff,
                                          nproc=self.ompnum, relax_density=self.relax_density,
                                          ci_coeff_cutoff = self.ci_coeff_cutoff,
@@ -97,7 +98,7 @@ class BEOPT:
                                          ecore=self.ecore, ebe_hf=self.ebe_hf, be_iter=self.iter)
         else:
             err_, errvec_,ebe_ = be_func_parallel(xk, self.Fobjs, self.Nocc, self.solver, self.enuc,
-                                                  eeval=True, return_vec=True,
+                                                  eeval=True, return_vec=True, hf_veff = self.hf_veff,
                                                   nproc=self.nproc, ompnum=self.ompnum,
                                                   only_chem=self.only_chem,
                                                   hci_cutoff=self.hci_cutoff,relax_density=self.relax_density,
@@ -201,6 +202,7 @@ def optimize(self, solver='MP2',method='QN',
     J0 : list of list of float
        Initial Jacobian.
     """
+    from .misc import print_energy
 
     # Check if only chemical potential optimization is required
     if not only_chem:
@@ -211,7 +213,7 @@ def optimize(self, solver='MP2',method='QN',
         pot = [0.]
 
     # Initialize the BEOPT object
-    be_ = BEOPT(pot, self.Fobjs, self.Nocc, self.enuc, 
+    be_ = BEOPT(pot, self.Fobjs, self.Nocc, self.enuc, hf_veff = self.hf_veff,
                 nproc=nproc, ompnum=ompnum,
                 max_space=max_iter,conv_tol = conv_tol,
                 only_chem=only_chem,
@@ -231,9 +233,9 @@ def optimize(self, solver='MP2',method='QN',
 
         # Perform the optimization
         be_.optimize(method, J0=J0)
-
-        # print the energy
-        self.compute_energy_full(approx_cumulant=True, return_rdm=False)
+        self.ebe_tot = self.ebe_hf + be_.Ebe[0]
+        # Print the energy components
+        print_energy(be_.Ebe[0], be_.Ebe[1][1], be_.Ebe[1][0]+be_.Ebe[1][2], self.ebe_hf)
     else:
         print('This optimization method for BE is not supported')
         sys.exit()

@@ -82,6 +82,7 @@ class Frags:
         self.dm_init = None
         self.dm0 = None
         self.eri_file = eri_file
+        self.unitcell_nkpt = 1.
 
     def sd(self, lao, lmo, nocc):
         """

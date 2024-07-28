@@ -62,7 +62,7 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
     if relax_density:
         rdm_return = True
     E = 0.
-    if frag_energy:
+    if frag_energy or eeval:
         total_e = [0.,0.,0.]
 
     # Loop over each fragment and solve using the specified solver
@@ -213,27 +213,25 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
                            numpy.einsum('ij,kl->iklj',del_rdm1, hf_dm))*0.5
                     rdm2s -= nc
             fobj.__rdm2 = rdm2s.copy()
-            if frag_energy:
+            if frag_energy or eeval:
                 # Find the energy of a given fragment, with the cumulant definition. 
                 # Return [e1, e2, ec] as e_f and add to the running total_e.
-                e_f = get_frag_energy(fobj._mo_coeffs, fobj.nsocc, fobj.nfsites, fobj.efac, fobj.TA, fobj.h1, hf_veff, rdm1_tmp, rdm2s, fobj.dname, eri_file=fobj.eri_file)
+                e_f = get_frag_energy(fobj._mo_coeffs, fobj.nsocc, fobj.nfsites,
+                                      fobj.efac, fobj.TA, fobj.h1, hf_veff, rdm1_tmp,
+                                      rdm2s, fobj.dname, eri_file=fobj.eri_file, veff0=fobj.veff0)
                 total_e = [sum(x) for x in zip(total_e, e_f)]
-            if not frag_energy:
-                E += fobj.ebe
+                fobj.energy_hf()
+                
+    if frag_energy or eeval:
+        Ecorr = sum(total_e)
     
     if frag_energy:
-        E = sum(total_e)
-        return (E, total_e)
-
-    if ereturn:
-        # this is really a waste of computation        
-        return (E+enuc+ecore)
+        return (Ecorr, total_e)
     
     ernorm, ervec = solve_error(Fobjs,Nocc, only_chem=only_chem)
-    if eeval:
-        Ebe = (E+enuc+ecore)
+    
     if return_vec:
-        return (ernorm, ervec, Ebe)
+        return (ernorm, ervec, [Ecorr, total_e])
 
     if eeval:
         print('Error in density matching      :   {:>2.4e}'.format(ernorm), flush=True)
@@ -273,6 +271,7 @@ def solve_error(Fobjs, Nocc, only_chem=False):
             # Compute chemical potential error for each fragment
             for i in fobj.efac[1]:
                 err_chempot += fobj._rdm1[i,i]
+        err_chempot /= Fobjs[0].unitcell_nkpt
         err = err_chempot - Nocc
         
         return abs(err), numpy.asarray([err])
@@ -290,7 +289,8 @@ def solve_error(Fobjs, Nocc, only_chem=False):
         #chem potential        
         for i in fobj.efac[1]:
             err_chempot += fobj._rdm1[i,i]
-    
+            
+    err_chempot /= Fobjs[0].unitcell_nkpt
     err_edge.append(err_chempot) # far-end edges are included as err_chempot
 
     # Compute center errors
