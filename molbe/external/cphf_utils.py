@@ -1,12 +1,6 @@
-# 07/05/2020 HY: rewrite so all fxns takes sgscf.RHF instances.
-
-'''
-This file is part of frankenstein at
-Source: https://github.com/hongzhouye/frankenstein
-The code has been slightly adapted.
-
-'''
-
+# NOTICE: The following code is entirely written by Hong-Zhou Ye.
+#         The code has been slightly modified.
+#
 import numpy as np
 
 from pyscf import ao2mo

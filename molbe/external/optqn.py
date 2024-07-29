@@ -1,6 +1,5 @@
-#
-# Notice: This module contains slightly adapted version of optimization functionalities
-#         from Frankestein code written by Hong-Zhou Ye.
+# NOTICE: The following code is entirely written by Hong-Zhou Ye.
+#         The code has been slightly modified.
 #
 
 import numpy,sys, h5py

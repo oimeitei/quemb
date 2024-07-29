@@ -1,7 +1,7 @@
+# NOTICE: The following code is entirely written by Hong-Zhou Ye.
+#         The code has been slightly modified.
 #
-# Notice: This module contains slightly adapted version of optimization functionalities
-#         from Frankestein code written by Hong-Zhou Ye.
-#
+
 import numpy,functools,sys, time,os
 
 def make_rdm1_ccsd_t1(t1):

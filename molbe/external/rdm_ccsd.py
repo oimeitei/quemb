@@ -1,9 +1,6 @@
-'''
-This file is part of frankenstein at
-Source: https://github.com/hongzhouye/frankenstein
-The code has been slightly adapted.
-
-'''
+# NOTICE: The following code is entirely written by Hong-Zhou Ye.
+#         The code has been slightly modified.
+#
 import numpy
 
 # from frankestein

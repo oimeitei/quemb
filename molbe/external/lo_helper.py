@@ -1,7 +1,7 @@
+# NOTICE: The following code is entirely written by Hong-Zhou Ye.
+#         The code has been slightly modified.
 #
-# The following functions are copied as it is from Frankestein code written by Hong-Zhou Ye
-# get_symm_mat_pow(), get_aoind_by_atom(), reorder_by_atom_()
-#
+
 from pyscf import lib
 import numpy,sys
 from copy import deepcopy
