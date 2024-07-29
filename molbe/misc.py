@@ -2,30 +2,26 @@ import numpy, os
 from pyscf import gto, scf
 import time
 
-def libint2pyscf(
-    xyzfile, hcore, basis, hcore_skiprows=1,
+def libint2pyscf(xyzfile, hcore, basis, hcore_skiprows=1,
         use_df=False, unrestricted=False, spin=0, charge=0):
     """Build a pyscf Mole and RHF/UHF object using the given xyz file
-       and core Hamiltonian (in libint standard format)
-
+    and core Hamiltonian (in libint standard format)
     c.f.
     In libint standard format, the basis sets appear in the order
     atom#   n   l   m
     0       1   0   0   1s
-            2   0   0   2s
-            2   1   -1  2py
-            2   1   0   2pz
-            2   1   1   2px
-            ...
+    0       2   0   0   2s
+    0       2   1   -1  2py
+    0       2   1   0   2pz
+    0       2   1   1   2px
     ...
     In pyscf, the basis sets appear in the order
     atom #  n   l   m
     0       1   0   0   1s
-            2   0   0   2s
-            2   1   1   2px
-            2   1   -1  2py
-            2   1   0   2pz
-            ...
+    0       2   0   0   2s
+    0       2   1   1   2px
+    0       2   1   -1  2py
+    0       2   1   0   2pz
     ...
     For higher angular momentum, both use [-l, -l+1, ..., l-1, l] ordering.
 
