@@ -1,3 +1,5 @@
+# Author(s): Oinam Romesh Meitei
+
 import numpy, sys
 from molbe.helper import get_core
 from .autofrag import autogen

@@ -1,6 +1,5 @@
-#
-# Authors: Henry Tran
-#         Oinam Meitei
+# Author(s): Henry Tran
+#            Oinam Meitei
 #
 from pyscf import lib
 import numpy,sys

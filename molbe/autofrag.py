@@ -1,3 +1,5 @@
+# Author: Oinam Romesh Meitei
+
 import sys
 import numpy
 from .helper import get_core

@@ -1,3 +1,5 @@
+# Author(s): Minsik Cho
+
 import numpy, os
 from pyscf import gto, scf
 import time

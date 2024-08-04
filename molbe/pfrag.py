@@ -1,3 +1,5 @@
+# Author(s): Oinam Romesh Meitei
+
 from .solver import schmidt_decomposition
 from .helper import *
 import numpy,h5py

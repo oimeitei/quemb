@@ -1,3 +1,5 @@
+# Author(s): Oinam Romesh Meitei
+
 from .solver import solve_error
 from .solver import solve_mp2, solve_ccsd,make_rdm1_ccsd_t1
 from .solver import make_rdm2_urlx

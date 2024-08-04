@@ -1,3 +1,5 @@
+# Author(s): Oinam Romesh Meitei
+
 from molbe._opt import BEOPT
 
 

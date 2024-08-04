@@ -1,3 +1,5 @@
+# Author(s): Oinam Romesh Meitei
+
 import numpy,functools,sys, time,os, h5py
 
 def schmidt_decomp_svd(rdm, Frag_sites):

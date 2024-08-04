@@ -1,3 +1,5 @@
+# Author(s): Oinam Romesh Meitei
+
 import numpy, sys, scipy
 
 def rdm1_fullbasis(self, return_ao=True, only_rdm1=False,

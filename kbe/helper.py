@@ -1,3 +1,5 @@
+# Author(s): Oinam Romesh Meitei
+
 import numpy, sys, functools
 
 def get_veff(eri_, dm, S, TA, hf_veff, return_veff0=False):

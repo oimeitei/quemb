@@ -1,3 +1,5 @@
+# Author(s): Oinam Romesh Meitei
+
 import sys
 import numpy
 from molbe.helper import get_core

@@ -1,3 +1,5 @@
+# Author(s): Minsik Cho
+
 """ 🍠
 Bootstrap Embedding Calculation with an
 Unrestricted Hartree-Fock Bath

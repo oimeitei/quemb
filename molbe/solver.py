@@ -1,3 +1,5 @@
+# Author(s): Oinam Romesh Meitei
+
 import numpy,functools,sys, time,os
 from molbe.external.ccsd_rdm import make_rdm1_ccsd_t1, make_rdm2_urlx
 
@@ -406,7 +408,6 @@ def solve_ccsd(mf, frozen=None, mo_coeff=None,relax=False, use_cumulant=False, w
     """
     from pyscf import cc
     from pyscf.cc.ccsd_rdm import make_rdm2
-    from molbe.external.rdm_ccsd import make_rdm1_ccsd_t1, make_rdm2_urlx
 
     # Set default values for optional parameters
     if  mo_coeff is None: mo_coeff = mf.mo_coeff

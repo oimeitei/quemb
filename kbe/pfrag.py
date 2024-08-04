@@ -1,3 +1,5 @@
+# Author(s): Oinam Romesh Meitei
+
 from .solver import schmidt_decomp_svd
 from .helper import *
 from molbe.helper import get_eri, get_scfObj

@@ -1,3 +1,6 @@
+# Author(s): Oinam Romesh Meitei
+#            Leah Weisburn
+
 import numpy, sys, functools, h5py
 from pyscf import ao2mo
 

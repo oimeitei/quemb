@@ -1,3 +1,5 @@
+# Author: Oinam Romesh Meitei
+
 import numpy, sys
 from .helper import get_core
 from .autofrag import autogen

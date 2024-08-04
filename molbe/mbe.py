@@ -1,3 +1,5 @@
+# Author(s): Oinam Romesh Meitei
+
 from .pfrag import Frags
 from .helper import get_core
 import molbe.be_var as be_var

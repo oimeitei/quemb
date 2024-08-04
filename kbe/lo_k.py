@@ -1,6 +1,5 @@
-#
-# Authors: Henry Tran
-#          Oinam Meitei
+# Author(s): Henry Tran
+#            Oinam Meitei
 #          
 
 import numpy, sys, scipy
