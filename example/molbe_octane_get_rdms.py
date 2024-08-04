@@ -1,16 +1,9 @@
-from pyscf import gto,scf,mp, cc, fci, lo, ao2mo
-from pbe.pbe import pbe
-from pbe.fragment import fragpart
-from pbe.helper import *
-from pbe import sgeom, printatom
-from pbe.solver import solve_ccsd
-import sys, h5py, os
-from pyscf.lo import iao
+# Illustrates parallelized BE computation on octane
 
-be_type = 'be2' #sys.argv[1]
+from pyscf import gto, scf
+from molbe import fragpart, BE
 
-
-# PYSCF for integrals and HF solution
+# Perform pyscf HF calculation to get mol & mf objects
 mol = gto.M(atom='''
 C   0.4419364699  -0.6201930287   0.0000000000
 C  -0.4419364699   0.6201930287   0.0000000000
@@ -38,25 +31,21 @@ H   0.9171145792   4.5073104916  -0.8797333088
 H  -0.9171145792  -4.5073104916   0.8797333088
 H   0.3671153250  -5.3316378285   0.0000000000
 H  -0.3671153250   5.3316378285   0.0000000000
-''',basis='6-31g', charge=0)
+''',basis='sto-3g', charge=0)
+
 
 mf = scf.RHF(mol)
 mf.conv_tol = 1e-12
 mf.kernel()
 
+# initialize fragments (use frozen core approximation)
+fobj = fragpart(be_type='be2', mol=mol, frozen_core=True)
+# Initialize BE
+mybe = pbe(mf, fobj)
 
-fobj = fragpart(1, be_type=be_type, frag_type='autogen', mol=mol,
-                molecule=True, valence_only =True,valence_basis='sto-3g',
-                frozen_core=False)  
+# Perform BE density matching.
+# Uses 20 procs, each fragment calculation assigned OMP_NUM_THREADS to 4
+# effectively running 5 fragment calculations in parallel
+mybe.optimize(solver='CCSD', nproc=20, ompnum=4)
 
-mybe = pbe(mf, fobj, super_cell=True, lo_method='iao')
-
-# integrals
-h1 = mybe.W.T @ mybe.hcore@ mybe.W
-eri = ao2mo.incore.full(mf._eri, mybe.W)
-
-mf_ = get_scfObj(h1, eri, mybe.Nocc)
-
-# rdms
-t1, t2, rdm1, rdm2 = solve_ccsd(mf_, rdm_return=True, rdm2_return=True, relax=True, verbose=4)
-
+rdm1_ao, rdm2_ao = mybe.rdm1_fullbasis(return_ao=True)

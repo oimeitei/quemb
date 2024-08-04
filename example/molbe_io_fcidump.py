@@ -1,8 +1,10 @@
-import numpy, re
+# Illustrates how fcidump file containing fragment hamiltonian
+# can be generated using be2fcidump
+
 from pyscf import gto, scf
-from pbe.pbe import pbe
-from pbe.fragment import fragpart
-from pbe.misc import *
+from molbe import BE
+from molbe import fragpart
+from molbe.misc import *
 import pbe_var
 pbe_var.PRINT_LEVEL=3
 

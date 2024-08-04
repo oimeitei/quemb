@@ -1,11 +1,9 @@
-from pyscf import gto,scf,mp, cc
-from pbe.pbe import pbe
-from pbe.fragment import fragpart
-from pbe.helper import *
-from pbe import sgeom, printatom
-import sys, h5py
+# Perform BE calculation with 6-31g basis set
 
+from pyscf import gto,scf
+from molbe import fragpart, BE
 
+# Perform pyscf HF calculation to get mol & mf objects
 mol = gto.M(atom='''
 C  3.74360      5.55710      7.14890
 C  3.18510      4.41510      6.58860
@@ -27,11 +25,13 @@ H  4.87720      7.84630     11.11180
 mf = scf.RHF(mol)
 mf.conv_tol = 1e-12
 mf.kernel()
-Natom = 1 # only for Hchain
-fobj = fragpart(Natom, frag_type='autogen',mol=mol,
-                be_type='be2',  valence_basis='sto-3g', valence_only=True,
-                frozen_core=True)
 
+# Define fragments; use IAO scheme with 'sto-3g' as the minimal basis set
+fobj = fragpart(be_type='be2', mol=mol,
+                valence_basis='sto-3g', frozen_core=True)
 
-mybe = pbe(mf, fobj, lo_method='iao', super_cell=True)
-mybe.optimize(solver='CCSD',method='QN', nproc=1)
+# Initialize BE
+mybe = BE(mg, fobj, lo_method='iao')
+
+# Density matching with CCSD as local solver
+mybe.optimize(solver='CCSD')

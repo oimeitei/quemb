@@ -1,7 +1,9 @@
-from pyscf import gto, scf, cc
-from pbe.pbe import pbe
-from pbe.fragment import fragpart
+# Illustrates parallelized BE computation on octane
 
+from pyscf import gto, scf, cc
+from molbe import fragpart, BE
+
+# Perform pyscf HF calculation to get mol & mf objects
 mol = gto.M(atom='''
 C   0.4419364699  -0.6201930287   0.0000000000
 C  -0.4419364699   0.6201930287   0.0000000000
@@ -36,15 +38,23 @@ mf = scf.RHF(mol)
 mf.conv_tol = 1e-12
 mf.kernel()
 
+# Perform CCSD calculation to get reference energy for comparison
 mc = cc.CCSD(mf, frozen=8)
 mc.verbose=0
 ccsd_ecorr = mc.kernel()[0]
 print(f'*** CCSD Correlation Energy: {ccsd_ecorr:>14.8f} Ha', flush=True)
 
-fobj = fragpart(be_type='be2', mol=mol, frozen_core=True)  
+# initialize fragments (use frozen core approximation)
+fobj = fragpart(be_type='be2', mol=mol, frozen_core=True)
+# Initialize BE
 mybe = pbe(mf, fobj)
-mybe.optimize(solver='CCSD', nproc=1, ompnum=1, only_chem=True)
 
+# Perform BE density matching.
+# Uses 20 procs, each fragment calculation assigned OMP_NUM_THREADS to 4
+# effectively running 5 fragment calculations in parallel
+mybe.optimize(solver='CCSD', nproc=20, ompnum=4)
+
+# Compute error
 be_ecorr = mybe.ebe_tot - mybe.ebe_hf
 err_ = (ccsd_ecorr - be_ecorr)*100./ccsd_ecorr
 print(f'*** BE2 Correlation Energy Error (%) : {err_:>8.4f} %')
