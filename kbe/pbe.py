@@ -1,9 +1,9 @@
 from .pfrag import Frags
 from molbe.helper import get_core
+import molbe.be_var as be_var
 import numpy,functools,sys, pickle
 from pyscf import lib
-from pyscf.pbc import gto, df
-import h5py, be_var, os
+import h5py, os
 
 from .misc import storePBE 
 
@@ -622,6 +622,7 @@ def eritransform_parallel(a, atom, basis, kpts, C_ao_emb, cderi):
     Wrapper for parallel eri transformation
     """
     from molbe.external.eri_transform import get_emb_eri_fast_gdf
+    from pyscf.pbc import gto, df
 
     cell = gto.Cell()
     cell.a = a

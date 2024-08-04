@@ -5,8 +5,6 @@ from .misc import *
 import numpy,h5py
 import functools,sys, math
 from pyscf import ao2mo
-import be_var
-
 
 class Frags:
     """

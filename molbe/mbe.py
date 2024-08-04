@@ -1,8 +1,9 @@
 from .pfrag import Frags
 from .helper import get_core
+import molbe.be_var as be_var
 import numpy,functools,sys, pickle
 from pyscf import lib
-import h5py,os,time,be_var
+import h5py,os,time
 
 class storeBE:
     def __init__(self, Nocc, hf_veff, hcore,
