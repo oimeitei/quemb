@@ -297,9 +297,9 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
 
         result = pool_.apply_async(run_solver, [h1, dm0, dname, nao, nocc, nfsites,
                                                 efac, TA, hf_veff, h1_e,
-                                                solver,Fobjs[nf].eri_file,
+                                                solver,Fobjs[nf].eri_file, veff0,
                                                 hci_cutoff, ci_coeff_cutoff,select_cutoff,
-                                                ompnum, writeh1, True, True, use_cumulant, relax_density, frag_energy, veff0])
+                                                ompnum, writeh1, True, True, use_cumulant, relax_density, frag_energy])
         
         results.append(result)
 

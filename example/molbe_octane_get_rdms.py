@@ -41,7 +41,7 @@ mf.kernel()
 # initialize fragments (use frozen core approximation)
 fobj = fragpart(be_type='be2', mol=mol, frozen_core=True)
 # Initialize BE
-mybe = pbe(mf, fobj)
+mybe = BE(mf, fobj)
 
 # Perform BE density matching.
 # Uses 20 procs, each fragment calculation assigned OMP_NUM_THREADS to 4

@@ -218,7 +218,7 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
             if frag_energy or eeval:
                 # Find the energy of a given fragment, with the cumulant definition. 
                 # Return [e1, e2, ec] as e_f and add to the running total_e.
-                e_f = get_frag_energy(fobj._mo_coeffs, fobj.nsocc, fobj.nfsites,
+                e_f = get_frag_energy(fobj.mo_coeffs, fobj.nsocc, fobj.nfsites,
                                       fobj.efac, fobj.TA, fobj.h1, hf_veff, rdm1_tmp,
                                       rdm2s, fobj.dname, eri_file=fobj.eri_file, veff0=fobj.veff0)
                 total_e = [sum(x) for x in zip(total_e, e_f)]
