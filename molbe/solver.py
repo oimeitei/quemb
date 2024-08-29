@@ -241,7 +241,7 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
     return ernorm
 
     
-def be_func_u(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
+def be_func_u(pot, Fobjs, solver, enuc, hf_veff=None,
             eeval=False, ereturn=False, frag_energy=True, 
             relax_density=False, ecore=0., ebe_hf=0.,
             use_cumulant=True, frozen=False):
@@ -256,8 +256,6 @@ def be_func_u(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
         List of potentials.
     Fobjs : zip list of MolBE.fragpart, alpha and beta
         List of fragment objects. Each element is a tuple with the alpha and beta components
-    Nocc : tuple of int
-        Number of occupied orbitals, alpha and beta
     solver : str
         Quantum chemistry solver to use ('UCCSD').
     enuc : float

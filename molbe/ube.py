@@ -349,7 +349,7 @@ class UBE(BE):  # 🍠
     def oneshot(self, solver="UCCSD", nproc=1, ompnum=4, calc_frag_energy=False, clean_eri=False):
 
         from .solver import be_func_u
-#        from .be_parallel import be_func_parallel_u
+        from .be_parallel import be_func_parallel_u
 
         if nproc == 1:
             E, E_comp  = be_func_u(None,
@@ -364,8 +364,6 @@ class UBE(BE):  # 🍠
                         frag_energy=calc_frag_energy,
                         frozen=self.frozen_core)
         else:
-            # raise an error
-            return NotImplementedError("Unrestricted Parallel Function not implemented")
             E, E_comp = be_func_parallel_u(None,
                         zip(self.Fobjs_a, self.Fobjs_b),
                         self.Nocc,
