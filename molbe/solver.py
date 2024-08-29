@@ -1,7 +1,7 @@
-# Author(s): Oinam Romesh Meitei
+# Author(s): Oinam Romesh Meitei, Leah Weisburn
 
 import numpy,functools,sys, time,os
-from molbe.external.ccsd_rdm import make_rdm1_ccsd_t1, make_rdm2_urlx
+from molbe.external.ccsd_rdm import make_rdm1_ccsd_t1, make_rdm2_urlx, make_rdm1_uccsd, make_rdm2_uccsd
 
 def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
             only_chem = False, nproc=4,hci_pt=False,
@@ -241,6 +241,135 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
     return ernorm
 
     
+def be_func_u(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
+            eeval=False, ereturn=False, frag_energy=True, 
+            relax_density=False, ecore=0., ebe_hf=0.,
+            use_cumulant=True, frozen=False):
+    """
+    Perform bootstrap embedding calculations for each fragment with UCCSD.
+
+    This function computes the energy and/or error for each fragment in a molecular system using various quantum chemistry solvers.
+
+    Parameters
+    ----------
+    pot : list
+        List of potentials.
+    Fobjs : zip list of MolBE.fragpart, alpha and beta
+        List of fragment objects. Each element is a tuple with the alpha and beta components
+    Nocc : tuple of int
+        Number of occupied orbitals, alpha and beta
+    solver : str
+        Quantum chemistry solver to use ('UCCSD').
+    enuc : float
+        Nuclear energy.
+    hf_veff : tuple of numpy.ndarray, optional
+        Hartree-Fock effective potential. Defaults to None.
+    eeval : bool, optional
+        Whether to evaluate the energy. Defaults to False.
+    ereturn : bool, optional
+        Whether to return the energy. Defaults to False.
+    frag_energy : bool, optional
+        Whether to calculate fragment energy. Defaults to True.
+    relax_density : bool, optional
+        Whether to relax the density. Defaults to False.
+    return_vec : bool, optional
+        Whether to return the error vector. Defaults to False.
+    ecore : float, optional
+        Core energy. Defaults to 0.
+    ebe_hf : float, optional
+        Hartree-Fock energy. Defaults to 0.
+    use_cumulant : bool, optional
+        Whether to use the cumulant-based energy expression. Defaults to True.
+    frozen : bool, optional
+        Frozen core. Defaults to False
+    Returns
+    -------
+    float or tuple
+        Depending on the options, it returns the norm of the error vector, the energy, or a combination of these values.
+    """
+    from pyscf import scf
+    import h5py,os
+    from pyscf import ao2mo
+    from .helper import get_frag_energy_u
+    from molbe.external.unrestricted_utils import make_uhf_obj
+
+    rdm_return = False
+    if relax_density:
+        rdm_return = True
+    E = 0.
+    if frag_energy or eeval:
+        total_e = [0.,0.,0.]
+
+    # Loop over each fragment and solve using the specified solver
+    for (fobj_a, fobj_b) in Fobjs:
+        heff_ = None # No outside chemical potential implemented for unrestricted yet
+
+        fobj_a.scf(unrestricted=True, spin_ind=0)
+        fobj_b.scf(unrestricted=True, spin_ind=1)
+
+        full_uhf, eris = make_uhf_obj(fobj_a, fobj_b, frozen=frozen)
+
+        if solver == 'UCCSD':
+            if rdm_return:
+                ucc, rdm1_tmp, rdm2s = solve_uccsd(full_uhf, eris, relax=relax_density,
+                                                    rdm_return=True, rdm2_return=True,
+                                                    frozen=frozen)
+            else:
+                ucc = solve_uccsd(full_uhf, eris, relax = relax_density, rdm_return=False,
+                                                    frozen=frozen)
+                rdm1_tmp = make_rdm1_uccsd(ucc, relax=relax_density)
+        else:
+            print('Solver not implemented',flush=True)
+            print('exiting',flush=True)
+            sys.exit()
+
+        fobj_a.__rdm1 = rdm1_tmp[0].copy()
+        fobj_b._rdm1 = functools.reduce(numpy.dot,
+                                      (fobj_a._mf.mo_coeff,
+                                       rdm1_tmp[0],
+                                       fobj_a._mf.mo_coeff.T))*0.5
+
+        fobj_b.__rdm1 = rdm1_tmp[1].copy()
+        fobj_b._rdm1 = functools.reduce(numpy.dot,
+                                      (fobj_b._mf.mo_coeff,
+                                       rdm1_tmp[1],
+                                       fobj_b._mf.mo_coeff.T))*0.5
+
+        if eeval or ereturn:
+            if solver =='UCCSD' and not rdm_return:
+                with_dm1 = True
+                if use_cumulant: with_dm1=False
+                rdm2s = make_rdm2_uccsd(ucc, with_dm1=with_dm1)
+            fobj_a.__rdm2 = rdm2s[0].copy()
+            fobj_b.__rdm2 = rdm2s[1].copy()
+            if frag_energy:
+                if frozen:
+                    h1_ab = [full_uhf.h1[0]+full_uhf.full_gcore[0]+full_uhf.core_veffs[0],
+                            full_uhf.h1[1]+full_uhf.full_gcore[1]+full_uhf.core_veffs[1]]
+                else:
+                    h1_ab = [fobj_a.h1, fobj_b.h1]
+
+                e_f = get_frag_energy_u((fobj_a._mo_coeffs,fobj_b._mo_coeffs),
+                                            (fobj_a.nsocc,fobj_b.nsocc),
+                                            (fobj_a.nfsites, fobj_b.nfsites),
+                                            (fobj_a.efac, fobj_b.efac),
+                                            (fobj_a.TA, fobj_b.TA),
+                                            h1_ab,
+                                            hf_veff,
+                                            rdm1_tmp,
+                                            rdm2s,
+                                            fobj_a.dname,
+                                            eri_file=fobj_a.eri_file,
+                                            gcores=full_uhf.full_gcore,
+                                            frozen=frozen
+                                        )
+                total_e = [sum(x) for x in zip(total_e, e_f)]
+
+    if frag_energy:
+        E = sum(total_e)
+        return (E, total_e)
+
+
 def solve_error(Fobjs, Nocc, only_chem=False):
     """
     Compute the error for self-consistent fragment density matrix matching.
@@ -461,8 +590,113 @@ def solve_ccsd(mf, frozen=None, mo_coeff=None,relax=False, use_cumulant=False, w
 
     return (t1, t2)
 
+def solve_uccsd(mf, eris_inp, frozen=None, mo_coeff=None, relax=False,
+                use_cumulant=False, with_dm1=True, rdm2_return = False,
+                mo_occ=None, mo_energy=None, rdm_return=False, verbose=0):
+    """
+    Solve the U-CCSD (Unrestricted Coupled Cluster with Single and Double excitations) equations.
 
-def schmidt_decomposition(mo_coeff, nocc, Frag_sites, cinv = None, rdm=None):
+    This function sets up and solves the UCCSD equations using the provided mean-field object.
+    It can return the one- and two-particle density matrices and the UCCSD object.
+
+    Parameters
+    ----------
+    mf : pyscf.scf.hf.UHF
+        Mean-field object from PySCF. Constructed with make_uhf_obj
+    eris_inp : 
+        Custom fragment ERIs object
+    frozen : list or int, optional
+        List of frozen orbitals or number of frozen core orbitals. Defaults to None.
+    mo_coeff : numpy.ndarray, optional
+        Molecular orbital coefficients. Defaults to None.
+    relax : bool, optional
+        Whether to use relaxed density matrices. Defaults to False.
+    use_cumulant : bool, optional
+        Whether to use cumulant-based energy expression. Defaults to False.
+    with_dm1 : bool, optional
+        Whether to include one-particle density matrix in the two-particle density matrix calculation. Defaults to True.
+    rdm2_return : bool, optional
+        Whether to return the two-particle density matrix. Defaults to False.
+    mo_occ : numpy.ndarray, optional
+        Molecular orbital occupations. Defaults to None.
+    mo_energy : numpy.ndarray, optional
+        Molecular orbital energies. Defaults to None.
+    rdm_return : bool, optional
+        Whether to return the one-particle density matrix. Defaults to False.
+    verbose : int, optional
+        Verbosity level. Defaults to 0.
+
+    Returns
+    -------
+    tuple
+        - ucc (pyscf.cc.ccsd.UCCSD): UCCSD object
+        - rdm1 (tuple, numpy.ndarray, optional): One-particle density matrix (if rdm_return is True).
+        - rdm2 (tuple, numpy.ndarray, optional): Two-particle density matrix (if rdm2_return is True and rdm_return is True).
+    """
+    from pyscf import cc, ao2mo
+    from pyscf.cc.uccsd_rdm import make_rdm1, make_rdm2
+    from molbe.external.temp_uccsd_eri import make_eris_incore
+
+    C = mf.mo_coeff
+    nao = [C[s].shape[0] for s in [0,1]]
+
+    Vss = eris_inp[:2]
+    Vos = eris_inp[-1]
+
+    def ao2mofn(moish):
+        if isinstance(moish, numpy.ndarray):
+            # Since inside '_make_eris_incore' it does not differentiate spin
+            # for the two same-spin components, we here brute-forcely determine
+            # what spin component we are dealing with by comparing the first
+            # 2-by-2 block of the mo coeff matrix.
+            # Note that this assumes we have at least two basis functions
+            moish_feature = moish[:2,:2]
+            s = -1
+            for ss in [0,1]:
+                if numpy.allclose(moish_feature, C[ss][:2,:2]):
+                    s = ss
+                    break
+            if s < 0:
+                raise RuntimeError("Input mo coeff matrix matches neither moa nor mob.")
+            return ao2mo.incore.full(Vss[s], moish, compact=False)
+        elif isinstance(moish, list) or isinstance(moish, tuple):
+            if len(moish) != 4:
+                raise RuntimeError("Expect a list/tuple of 4 numpy arrays but get %d of them." % len(moish))
+            moish_feature = [mo[:2,:2] for mo in moish]
+            for s in [0,1]:
+                Cs_feature = C[s][:2,:2]
+                if not (numpy.allclose(moish_feature[2*s], Cs_feature) and
+                    numpy.allclose(moish_feature[2*s+1], Cs_feature)):
+                    raise RuntimeError("Expect a list/tuple of 4 numpy arrays in the order (moa,moa,mob,mob).")
+            try:
+                return ao2mo.incore.general(Vos, moish, compact=False)
+            except:
+                return numpy.einsum('ijkl,ip,jq,kr,ls->pqrs', Vos, moish[0], moish[1], moish[2], moish[3], optimize=True)
+        else:
+            raise RuntimeError("moish must be either a numpy array or a list/tuple of 4 numpy arrays.")
+
+    # Initialize the UCCSD object
+    ucc = cc.uccsd.UCCSD(mf, mo_coeff=mf.mo_coeff, mo_occ=mf.mo_occ)
+
+    # Prepare the integrals
+    eris = make_eris_incore(ucc, Vss, Vos, mo_coeff=mf.mo_coeff, ao2mofn=ao2mofn, frozen=frozen)
+
+    # Solve UCCSD equations: Level shifting options to be tested for unrestricted code
+    ucc.verbose=verbose
+    ucc.kernel(eris=eris)
+
+    # Compute and return the density matrices if requested
+    if rdm_return:
+        rdm1 = make_rdm1_uccsd(ucc, relax=relax)
+        if rdm2_return:
+            if use_cumulant: with_dm1=False
+            rdm2 = make_rdm2_uccsd(ucc, relax=relax, with_dm1=with_dm1)
+            return (ucc, rdm1, rdm2)
+        return (ucc, rdm1, None)
+    return ucc
+
+
+def schmidt_decomposition(mo_coeff, nocc, Frag_sites, cinv = None, rdm=None,  norb=None, return_orb_count=False):
     """
     Perform Schmidt decomposition on the molecular orbital coefficients.
 
@@ -482,12 +716,22 @@ def schmidt_decomposition(mo_coeff, nocc, Frag_sites, cinv = None, rdm=None):
         Inverse of the transformation matrix. Defaults to None.
     rdm : numpy.ndarray, optional
         Reduced density matrix. If not provided, it will be computed from the molecular orbitals. Defaults to None.
+    norb : int, optional
+        Specifies number of bath orbitals. Used for UBE to make alpha and beta
+        spaces the same size. Defaults to None
+    return_orb_count : bool, optional
+        Return more information about the number of orbitals. Used in UBE. 
+        Defaults to False
 
     Returns
     -------
     numpy.ndarray
         Transformation matrix (TA) including both fragment and entangled bath orbitals.
-    """    
+    if return_orb_count:
+        numpy.ndarray, int, int
+        returns TA (above), number of orbitals in the fragment space, and number of orbitals in bath space
+    """
+
     import scipy.linalg
     import functools
 
@@ -523,13 +767,31 @@ def schmidt_decomposition(mo_coeff, nocc, Frag_sites, cinv = None, rdm=None):
 
     # Identify significant environment orbitals based on eigenvalue threshold
     Bidx = []
-    for i in range(len(Eval)):
-        if thres < numpy.abs(Eval[i]) < 1.0 - thres:         
-            Bidx.append(i)
+
+    # Set the number of orbitals to be taken from the environment orbitals
+    # Based on an eigenvalue threshold ordering
+    if norb is not None:
+        n_frag_ind = len(Frag_sites1)
+        n_bath_ind = norb - n_frag_ind
+        ind_sort = numpy.argsort(numpy.abs(Eval))
+        first_el = [x for x in ind_sort if x < 1.0 - thres][-1 * n_bath_ind]
+        for i in range(len(Eval)):
+            if numpy.abs(Eval[i]) >= first_el:
+                Bidx.append(i)
+    else:
+        for i in range(len(Eval)):
+            if thres < numpy.abs(Eval[i]) < 1.0 - thres:         
+                Bidx.append(i)
 
     # Initialize the transformation matrix (TA)
     TA = numpy.zeros([Tot_sites, len(Frag_sites) + len(Bidx)])
     TA[Frag_sites, :len(Frag_sites)] = numpy.eye(len(Frag_sites)) # Fragment part
     TA[Env_sites1,len(Frag_sites):] = Evec[:,Bidx]  # Environment part
     
-    return TA
+    if return_orb_count:
+        # return TA, norbs_frag, norbs_bath 
+        return TA, Frag_sites1.shape[0], len(Bidx)
+    else:
+        return TA
+
+

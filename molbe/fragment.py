@@ -46,7 +46,7 @@ class fragpart:
         
         # Initialize class attributes
         self.mol = mol
-        self.frag_type=frag_type
+        self.frag_type = frag_type
         self.fsites = []
         self.Nfrag = 0
         self.edge= []
