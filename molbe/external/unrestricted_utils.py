@@ -1,12 +1,8 @@
+# Authors: Leah Weisburn, Hongzhou Ye, Henry Tran
+
 import scipy.linalg as slg
 import h5py
 import numpy, functools
-
-"""
-Adapted from private repository, frankenstein:
-From sgscf_uhf
-From: Hongzhou Ye, Henry Tran, Leah Weisburn
-"""
 
 def make_uhf_obj(fobj_a, fobj_b, frozen=False):
     from pyscf import scf

@@ -633,7 +633,7 @@ def solve_uccsd(mf, eris_inp, frozen=None, mo_coeff=None, relax=False,
     """
     from pyscf import cc, ao2mo
     from pyscf.cc.uccsd_rdm import make_rdm1, make_rdm2
-    from molbe.external.temp_uccsd_eri import make_eris_incore
+    from molbe.external.uccsd_eri import make_eris_incore
 
     C = mf.mo_coeff
     nao = [C[s].shape[0] for s in [0,1]]

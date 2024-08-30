@@ -421,7 +421,7 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
     
     if frag_energy:
         # Compute and return fragment energy
-        #rdms are the energies: trying _not_ to compile all of the rdms, we only need energy
+        # rdms are the returned energies, not density matrices!
         e_1 = 0.
         e_2 = 0.
         e_c = 0.
@@ -517,7 +517,6 @@ def be_func_parallel_u(pot, Fobjs, solver, enuc, hf_veff=None,
     for (fobj_a, fobj_b) in Fobjs:
 
         result = pool_.apply_async(run_solver_u, [fobj_a, fobj_b,
-                                                Nocc,
                                                 solver,
                                                 enuc,
                                                 hf_veff,

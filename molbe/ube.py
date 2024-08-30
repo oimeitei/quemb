@@ -9,7 +9,7 @@ Reference
   J. Chem. Phys. 153, 214101 (2020)
 
 TODO
-  Add oneshot and optimize later
+  Add iterative UBE
 """
 
 import numpy, os
@@ -354,7 +354,6 @@ class UBE(BE):  # 🍠
         if nproc == 1:
             E, E_comp  = be_func_u(None,
                         zip(self.Fobjs_a, self.Fobjs_b),
-                        self.Nocc,
                         solver,
                         self.enuc,
                         hf_veff=self.hf_veff,
@@ -366,7 +365,6 @@ class UBE(BE):  # 🍠
         else:
             E, E_comp = be_func_parallel_u(None,
                         zip(self.Fobjs_a, self.Fobjs_b),
-                        self.Nocc,
                         solver,
                         self.enuc,
                         hf_veff=self.hf_veff,
