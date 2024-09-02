@@ -99,6 +99,7 @@ class fragpart:
     def hchain_simple(self):
         """Hard coded fragmentation feature
         """
+        self.natom = self.mol.natm
         if self.be_type=='be1':
             for i in range(self.natom):
                 self.fsites.append([i])
