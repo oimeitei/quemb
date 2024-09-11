@@ -10,7 +10,7 @@ import os, unittest
 from pyscf import gto, scf
 from molbe import fragpart, UBE
 
-class TestOne-Shot_Unrestricted(unittest.TestCase):
+class TestOneShot_Unrestricted(unittest.TestCase):
     def test_hexene_anion_sto3g_frz_ben(self):
         # Linear Equidistant (r=1Å) H8 Chain, STO-3G
         mol = gto.M()
