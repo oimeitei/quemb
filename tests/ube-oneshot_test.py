@@ -11,6 +11,7 @@ from pyscf import gto, scf
 from molbe import fragpart, UBE
 
 class TestOneShot_Unrestricted(unittest.TestCase):
+    @unittest.skipIf(os.getenv("GITHUB_ACTIONS") == "true", "Skip expensive tests on Github Actions")
     def test_hexene_anion_sto3g_frz_ben(self):
         # Linear Equidistant (r=1Å) H8 Chain, STO-3G
         mol = gto.M()
@@ -46,6 +47,7 @@ class TestOneShot_Unrestricted(unittest.TestCase):
         self.molecular_unrestricted_oneshot_test(mol, 'be2', 'Hexene Anion Unfrz (BE2)', False, -0.39053689)
         self.molecular_unrestricted_oneshot_test(mol, 'be3', 'Hexene Anion Unfrz (BE3)', False, -0.38960174)
 
+    @unittest.skipIf(os.getenv("GITHUB_ACTIONS") == "true", "Skip expensive tests on Github Actions")
     def test_hexene_cation_sto3g_unfrz_ben(self):
         mol = gto.M()
         mol.atom = os.path.join(os.path.dirname(__file__), 'xyz/hexene.xyz')
@@ -61,9 +63,9 @@ class TestOneShot_Unrestricted(unittest.TestCase):
         fobj = fragpart(frag_type='autogen', be_type=be_type, mol = mol, frozen_core = frz)
         mybe = UBE(mf, fobj)
         mybe.oneshot(solver="UCCSD", nproc=1, calc_frag_energy=True, clean_eri=True)
-        self.assertAlmostEqual(mybe.ebe_tot, exp_result,
+        self.assertAlmostEqual(mybe.ebe_tot - mybe.uhf_full_e, exp_result,
                                msg = "Unrestricted One-Shot Energy for " + test_name
-                               + " is incorrect by" + str(mybe.e_tot-exp_result), delta = delta)
+                               + " is incorrect by" + str(mybe.ebe_tot - mybe.uhf_full_e - exp_result), delta = delta)
 
 if __name__ == '__main__':
     unittest.main()
