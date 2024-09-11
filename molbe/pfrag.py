@@ -19,7 +19,8 @@ class Frags:
     def __init__(self, fsites, ifrag, edge=None, center=None,
                  edge_idx=None, center_idx=None, efac=None,
                  eri_file='eri_file.h5',
-                 centerf_idx=None):
+                 centerf_idx=None,
+                 unrestricted=False):
         """Constructor function for `Frags` class. 
 
         Parameters
@@ -42,6 +43,8 @@ class Frags:
             two-electron integrals stored as h5py file, by default 'eri_file.h5'
         centerf_idx : list, optional
             indices of the center site atoms in the fragment, by default None
+        unrestricted : bool, optional
+            unrestricted calculation, by default False
         """
         
         self.fsites = fsites
@@ -50,7 +53,10 @@ class Frags:
         self.TA_lo_eo = None
         self.h1 = None
         self.ifrag = ifrag
-        self.dname = 'f'+str(ifrag)
+        if unrestricted:
+            self.dname = ['f'+str(ifrag)+'/aa', 'f'+str(ifrag)+'/bb', 'f'+str(ifrag)+'/ab']
+        else:
+            self.dname = 'f'+str(ifrag)
         self.nao = None
         self.mo_coeffs = None 
         self._mo_coeffs = None 
@@ -86,7 +92,7 @@ class Frags:
         self.eri_file = eri_file
         self.unitcell_nkpt = 1.
 
-    def sd(self, lao, lmo, nocc):
+    def sd(self, lao, lmo, nocc, norb=None, return_orb_count=False):
         """
         Perform Schmidt decomposition for the fragment.
 
@@ -98,13 +104,25 @@ class Frags:
             Local molecular orbital coefficients.
         nocc : int
             Number of occupied orbitals.
+        norb : int, optional
+            Specify number of bath orbitals. 
+            Used for UBE, where different number of alpha and beta orbitals
+            Default is None, allowing orbitals to be chosen by threshold
+        return_orb_count : bool, optional
+            Retrun the number of orbitals in each space, for UBE use/
+            Default is False
         """
                 
-        TA = schmidt_decomposition(lmo, nocc, self.fsites)
+        if return_orb_count:
+                TA, n_f, n_b = schmidt_decomposition(lmo, nocc, self.fsites, norb=norb, return_orb_count=return_orb_count)
+        else:
+            TA = schmidt_decomposition(lmo, nocc, self.fsites)
         self.C_lo_eo = TA
         TA = numpy.dot(lao,TA)
         self.nao = TA.shape[1]
         self.TA = TA
+        if return_orb_count:
+                return [n_f, n_b]
 
     def cons_h1(self, h1):
         """
@@ -182,7 +200,7 @@ class Frags:
         return P_
             
             
-    def scf(self, heff=None, fs=False, eri=None, dm0 = None):
+    def scf(self, heff=None, fs=False, eri=None, dm0 = None, unrestricted=False, spin_ind=None):
         """
         Perform self-consistent field (SCF) calculation for the fragment.
 
@@ -196,6 +214,10 @@ class Frags:
             Electron repulsion integrals, by default None.
         dm0 : numpy.ndarray, optional
             Initial density matrix, by default None.
+        unrestricted : bool, optional
+            Specify if unrestricted calculation, by default False
+        spin_ind : int, optional
+            Alpha (0) or beta (1) spin for unrestricted calculation, by default None
         """
         
         import copy
@@ -204,7 +226,11 @@ class Frags:
         if heff is None: heff = self.heff
 
         if eri is None:
-            eri = get_eri(self.dname, self.nao, eri_file=self.eri_file)
+            if unrestricted:
+                dname = self.dname[spin_ind]
+            else: 
+                dname = self.dname
+            eri = get_eri(dname, self.nao, eri_file=self.eri_file)
 
         if dm0 is None:
             dm0 = numpy.dot( self._mo_coeffs[:,:self.nsocc],
@@ -321,7 +347,7 @@ class Frags:
         self.ebe = etmp
         return (e1+e2+ec)
 
-    def energy_hf(self, rdm_hf=None, mo_coeffs = None, eri=None, return_e1=False, unrestricted = False):
+    def energy_hf(self, rdm_hf=None, mo_coeffs = None, eri=None, return_e1=False, unrestricted = False, spin_ind=None):
         if mo_coeffs is None:
             mo_coeffs = self._mo_coeffs
 
@@ -329,12 +355,12 @@ class Frags:
             rdm_hf = numpy.dot(mo_coeffs[:,:self.nsocc],
                                mo_coeffs[:,:self.nsocc].conj().T)
 
-        unrestricted = 1. if unrestricted else 2.
+        unrestricted_fac = 1. if unrestricted else 2.
 
-        e1 = unrestricted*numpy.einsum("ij,ij->i", self.h1[:self.nfsites],
+        e1 = unrestricted_fac*numpy.einsum("ij,ij->i", self.h1[:self.nfsites],
                              rdm_hf[:self.nfsites])
 
-        ec = 0.5 * unrestricted * numpy.einsum("ij,ij->i",self.veff[:self.nfsites],
+        ec = 0.5 * unrestricted_fac * numpy.einsum("ij,ij->i",self.veff[:self.nfsites],
                           rdm_hf[:self.nfsites])
 
         if self.TA.ndim == 3:
@@ -343,7 +369,10 @@ class Frags:
             jmax = self.TA.shape[1]
         if eri is None:
             r = h5py.File(self.eri_file,'r')
-            eri = r[self.dname][()]
+            if isinstance(self.dname, list):
+                eri = [r[self.dname[0]][()],r[self.dname[1]][()]]
+            else:
+                eri = r[self.dname][()]
 
             r.close()
 
@@ -356,7 +385,10 @@ class Frags:
                         numpy.outer(rdm_hf[i], rdm_hf[j]))[:jmax,:jmax] 
                 Gij[numpy.diag_indices(jmax)] *= 0.5
                 Gij += Gij.T                
-                e2[i] += 0.5 * unrestricted * Gij[numpy.tril_indices(jmax)] @ eri[ij]
+                if unrestricted: #unrestricted ERI file has 3 spin components: a, b, ab
+                    e2[i] += 0.5 * unrestricted_fac * Gij[numpy.tril_indices(jmax)] @ eri[spin_ind][ij]
+                else:
+                    e2[i] += 0.5 * unrestricted_fac * Gij[numpy.tril_indices(jmax)] @ eri[ij]
 
         e_ = e1+e2+ec        
         etmp = 0.

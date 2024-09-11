@@ -51,6 +51,7 @@ def autogen(mol, frozen_core=True, be_type='be2',
         List of center fragment indices.
     ebe_weight : list of list
         Weights for each fragment. Each entry contains a weight and a list of LO indices.
+
     """
     from pyscf import lib
 

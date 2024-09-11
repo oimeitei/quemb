@@ -1,4 +1,4 @@
-# Author(s): Minsik Cho
+# Author(s): Minsik Cho, Leah Weisburn
 
 import numpy, os
 from pyscf import gto, scf
@@ -38,9 +38,9 @@ def libint2pyscf(xyzfile, hcore, basis, hcore_skiprows=1,
         Name of the basis set
     hcore_skiprows : int, optional
         # of first rows to skip from the core Hamiltonian file, by default 1
-    use_df : boolean, optional
+    use_df : bool, optional
         If true, use density-fitting to evaluate the two-electron integrals
-    unrestricted : boolean, optional
+    unrestricted : bool, optional
         If true, use UHF bath
     spin : int, optional
         2S, Difference between the number of alpha and beta electrons
@@ -219,16 +219,24 @@ def ube2fcidump(be_obj, fcidump_prefix, basis):
 
 def be2puffin(
     xyzfile,
-    hcore,
     basis,
+    hcore=None,
+    pts_and_charges=None,
     jk=None,
     use_df=False,
     charge=0,
+    spin=0,
     nproc=1,
     ompnum=1,
     be_type='be1',
     df_aux_basis=None,
     frozen_core=True,
+    localization_method='lowdin',
+    localization_basis=None,
+    unrestricted=False,
+    from_chk=False,
+    checkfile=None,
+    ecp=None
 ):
     """Front-facing API bridge tailored for SCINE Puffin
     Returns the CCSD oneshot energies
@@ -237,72 +245,166 @@ def be2puffin(
     ----------
     xyzfile : string
         Path to the xyz file
-    hcore : numpy.array
-        Two-dimensional array of the core Hamiltonian
     basis : string
         Name of the basis set
+    hcore : numpy.array
+        Two-dimensional array of the core Hamiltonian
+    pts_and_charges : tuple of numpy.array
+        QM/MM (points, charges). Use pyscf's QM/MM instead of starting Hamiltonian
     jk : numpy.array
         Coulomb and Exchange matrices (pyscf will calculate this if not given)
-    use_df : boolean, optional
+    use_df : bool, optional
         If true, use density-fitting to evaluate the two-electron integrals
     charge : int, optional
         Total charge of the system
+    spin : int, optional
+        Total spin of the system, pyscf definition
     nproc : int, optional
     ompnum: int, optional
         Set number of processors and ompnum for the jobs
     frozen_core: bool, optional
         Whether frozen core approximation is used or not, by default True
+    localization_method: string, optional
+        For now, lowdin is best supported for all cases. IAOs to be expanded
+        By default 'lowdin'
+    localization_basis: string, optional
+        IAO minimal-like basis, only nead specification with IAO localization
+        By default None
+    unrestricted: bool, optional
+        Unrestricted vs restricted HF and CCSD, by default False
+    from_chk: bool, optional
+        Run calculation from converged RHF/UHF checkpoint. By default False
+    checkfile: string, optional 
+        if not None:
+            if from_chk: specify the checkfile to run the embedding calculation
+            if not from_chk: specify where to save the checkfile
+        By default None
+    ecp: string, optional
+        specify the ECP for any atoms, accompanying the basis set
+        syntax: {'Atom_X': 'ECP_for_X'; 'Atom_Y': 'ECP_for_Y'}
+        By default None
     """
     from .fragment import fragpart
     from .mbe import BE
+    from .ube import UBE
 
     # Check input validity
     assert os.path.exists(xyzfile), "Input xyz file does not exist"
 
-    mol = gto.M(atom=xyzfile, basis=basis, charge=charge)
+    mol = gto.M(atom=xyzfile, basis=basis, charge=charge, spin=spin)
 
-    libint2pyscf = []
-    for labelidx, label in enumerate(mol.ao_labels()):
-        # pyscf: px py pz // 1 -1 0
-        # libint: py pz px // -1 0 1
-        if "p" not in label.split()[2]:
-            libint2pyscf.append(labelidx)
+    if not from_chk:
+        if hcore is None: #from point charges OR with no external potential
+            hcore_pyscf = None
+        else: #from starting Hamiltonian
+            libint2pyscf = []
+            for labelidx, label in enumerate(mol.ao_labels()):
+                # pyscf: px py pz // 1 -1 0
+                # libint: py pz px // -1 0 1
+                if "p" not in label.split()[2]:
+                    libint2pyscf.append(labelidx)
+                else:
+                    if "x" in label.split()[2]:
+                        libint2pyscf.append(labelidx + 2)
+                    elif "y" in label.split()[2]:
+                        libint2pyscf.append(labelidx - 1)
+                    elif "z" in label.split()[2]:
+                        libint2pyscf.append(labelidx - 1)
+
+            hcore_pyscf = hcore[numpy.ix_(libint2pyscf, libint2pyscf)]
+        if not jk is None:
+            jk_pyscf = (
+                jk[0][numpy.ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)],
+                jk[1][numpy.ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)],
+            )
+
+        mol.incore_anyway = True
+        if unrestricted:
+            if use_df and jk is None:
+                print("UHF and df are incompatible: use_df = False")
+                use_df = False
+            if hcore is None:
+                if pts_and_charges:
+                    from pyscf import qmmm
+                    print("Using QM/MM Point Charges: Assuming QM structure in Angstrom and MM Coordinates in Bohr !!!")
+                    mf1 = scf.UHF(mol).set(max_cycle = 200) #using SOSCF is more reliable
+                    #mf1 = scf.UHF(mol).set(max_cycle = 200, level_shift = (0.3, 0.2))
+                    # using level shift helps, but not always. level_shift and
+                    # scf.addons.dynamic_level_shift do not seem to work with QM/MM
+                    # note: from the SCINE database, the structure is in Angstrom but the MM point charges
+                    # are in Bohr !!
+                    mf = qmmm.mm_charge(mf1, pts_and_charges[0], pts_and_charges[1], unit='bohr').newton() #mf object, coordinates, charges
+                else:
+                    mf = scf.UHF(mol).set(max_cycle = 200, level_shift = (0.3, 0.2))
+            else:
+                mf = scf.UHF(mol).set(max_cycle = 200).newton()
+        else: # restricted
+            if pts_and_charges: # running QM/MM
+                from pyscf import qmmm
+                print("Using QM/MM Point Charges: Assuming QM structure in Angstrom and MM Coordinates in Bohr !!!")
+                mf1 = scf.RHF(mol).set(max_cycle = 200)
+                mf = qmmm.mm_charge(mf1, hcore[0], hcore[1], unit='bohr').newton()
+                print("Setting use_df to false and jk to none: have not tested DF and QM/MM from point charges at the same time")
+                use_df = False
+                jk = None
+            elif use_df and jk is None:
+                from pyscf import df
+                mf = scf.RHF(mol).density_fit(auxbasis=df_aux_basis)
+            else: mf = scf.RHF(mol)
+
+        if not hcore is None: mf.get_hcore = lambda *args: hcore_pyscf
+        if not jk is None: mf.get_jk = lambda *args: jk_pyscf
+
+        if checkfile: 
+            print("Saving checkfile to:", checkfile)
+            mf.chkfile = checkfile
+        time_pre_mf = time.time()
+        mf.kernel()
+        time_post_mf = time.time()
+        if mf.converged == True:
+            print("Reference HF Converged", flush=True)
         else:
-            if "x" in label.split()[2]:
-                libint2pyscf.append(labelidx + 2)
-            elif "y" in label.split()[2]:
-                libint2pyscf.append(labelidx - 1)
-            elif "z" in label.split()[2]:
-                libint2pyscf.append(labelidx - 1)
+            print("Reference HF Unconverged -- stopping the calculation", flush=True)
+            sys.exit()
+        if use_df:
+            print("Using auxillary basis in density fitting: ", mf.with_df.auxmol.basis, flush=True)
+            print("DF auxillary nao_nr", mf.with_df.auxmol.nao_nr(), flush=True)
+        print("Time for mf kernel to run: ", time_post_mf - time_pre_mf, flush=True)
 
-    hcore_pyscf = hcore[numpy.ix_(libint2pyscf, libint2pyscf)]
-    if not jk is None:
-        jk_pyscf = (
-            jk[0][numpy.ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)],
-            jk[1][numpy.ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)],
-        )
+    elif from_chk:
+        print("Running from chkfile", checkfile, flush=True)
+        scf_result_dic = chkfile.load(checkfile, 'scf')
+        if unrestricted:
+            mf = scf.UHF(mol)
+        else:
+            mf = scf.RHF(mol)
+        print("Running from chkfile not tested with density fitting: DF set to None")
+        mf.with_df = None
+        mf.__dict__.update(scf_result_dic)
+        time_post_mf = time.time()
+        print("Chkfile electronic energy:", mf.energy_elec(), flush=True)
+        print("Chkfile e_tot:", mf.e_tot, flush=True)
 
-    mol.incore_anyway = True
-    if use_df and jk is None:
-        from pyscf import df
-        mf = scf.RHF(mol).density_fit(auxbasis=df_aux_basis)
+    # Finished initial reference HF: now, fragmentation step
 
-    else: mf = scf.RHF(mol)
-    mf.get_hcore = lambda *args: hcore_pyscf
-    if not jk is None: mf.get_jk = lambda *args: jk_pyscf
-    time_pre_mf = time.time()
-    mf.kernel()
-    time_post_mf = time.time()
-    print("Time for mf kernel to run: ", time_post_mf - time_pre_mf)
-    print("Using auxillary basis in density fitting: ", mf.with_df.auxmol.basis)
-    print("DF auxillary nao_nr", mf.with_df.auxmol.nao_nr())
     fobj = fragpart(
-        mol.natm, be_type=be_type, frag_type="autogen", mol=mol, molecule=True, frozen_core=frozen_core
-    )
+        be_type=be_type, frag_type="autogen", mol=mol, frozen_core=frozen_core
+        )
     time_post_fragpart = time.time()
-    print("Time for fragmentation to run: ", time_post_fragpart - time_post_mf)
-    mybe = BE(mf, fobj, lo_method="lowdin")
-    mybe.oneshot(solver="CCSD", nproc=nproc, ompnum=ompnum, calc_frag_energy=True, clean_eri=True)
+    print("Time for fragmentation to run: ", time_post_fragpart - time_post_mf, flush=True)
+
+    # Run embedding setup
+
+    if unrestricted:
+        mybe = UBE(mf, fobj, lo_method="lowdin")
+        solver="UCCSD"
+    else:
+        mybe = BE(mf, fobj, lo_method="lowdin")
+        solver="CCSD"
+
+    # Run oneshot embedding and return system energy
+
+    mybe.oneshot(solver=solver, nproc=nproc, ompnum=ompnum, calc_frag_energy=True, clean_eri=True)
     return mybe.ebe_tot
 
 

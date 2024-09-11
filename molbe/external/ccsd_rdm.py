@@ -46,3 +46,23 @@ def make_rdm2_urlx(t1, t2, with_dm1=True):
                 dm2[i,j,j,i] -= 2
 
     return dm2  
+
+def make_rdm1_uccsd(ucc, relax=False):
+    from pyscf.cc.uccsd_rdm import make_rdm1
+    if relax==True:
+        rdm1 = make_rdm1(ucc, ucc.t1, ucc.t2, ucc.l1, ucc.l2)
+    else:
+        l1 = [numpy.zeros_like(ucc.t1[s]) for s in [0,1]]
+        l2 = [numpy.zeros_like(ucc.t2[s]) for s in [0,1,2]]
+        rdm1 = make_rdm1(ucc, ucc.t1, ucc.t2, l1, l2)
+    return rdm1
+
+def make_rdm2_uccsd(ucc, relax=False, with_dm1=True):
+    from pyscf.cc.uccsd_rdm import make_rdm2
+    if relax==True:
+        rdm2 = make_rdm2(ucc, ucc.t1, ucc.t2, ucc.l1, ucc.l2, with_dm1=with_dm1)
+    else:
+        l1 = [numpy.zeros_like(ucc.t1[s]) for s in [0,1]]
+        l2 = [numpy.zeros_like(ucc.t2[s]) for s in [0,1,2]]
+        rdm2 = make_rdm2(ucc, ucc.t1, ucc.t2, l1, l2, with_dm1=with_dm1)
+    return rdm2

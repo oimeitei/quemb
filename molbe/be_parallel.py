@@ -1,9 +1,11 @@
-# Author(s): Oinam Romesh Meitei
+# Author(s): Oinam Romesh Meitei, Leah Weisburn
 
 from .solver import solve_error
-from .solver import solve_mp2, solve_ccsd,make_rdm1_ccsd_t1
+from .solver import solve_mp2, solve_ccsd,make_rdm1_ccsd_t1,solve_uccsd
 from .solver import make_rdm2_urlx
 from .helper import get_frag_energy
+from molbe.external.unrestricted_utils import make_uhf_obj
+from molbe.external.ccsd_rdm import make_rdm1_uccsd, make_rdm2_uccsd
 import functools, numpy, sys
 from .helper import *
 
@@ -54,6 +56,8 @@ def run_solver(h1, dm0, dname, nao, nocc, nfsites,
         If True, use the cumulant approximation for RDM2. Default is True.
     frag_energy : bool, optional
         If True, compute the fragment energy. Default is False.
+    relax_density : bool, optional
+        If True, use CCSD relaxed density. Default is False
 
     Returns
     -------
@@ -191,9 +195,6 @@ def run_solver(h1, dm0, dname, nao, nocc, nfsites,
                 rdm2s -= nc
         e_f = get_frag_energy(mf_.mo_coeff, nocc, nfsites, efac, TA, h1_e, hf_veff, rdm1_tmp, rdm2s, dname, eri_file, veff0)
         if frag_energy:
-            # Compute and return fragment energy
-            # I am NOT returning any RDM's here, just the energies! 
-            # We could return both, but I haven't tested it
             return e_f
 
     if return_rdm_ao:
@@ -202,6 +203,117 @@ def run_solver(h1, dm0, dname, nao, nocc, nfsites,
     return (e_f, mf_.mo_coeff, rdm1, rdm2s)
     
 
+def run_solver_u(fobj_a, fobj_b, solver, enuc, hf_veff,
+                frag_energy=True, relax_density=False, frozen=False,
+                eri_file='eri_file.h5', use_cumulant=True, ereturn=True):
+    """
+    Run a quantum chemistry solver to compute the reduced density matrices.
+
+    Parameters
+    ----------
+    fobj_a :
+        Alpha spin molbe.pfrag.Frags object 
+    fobj_b :
+        Beta spin molbe.pfrag.Frags object
+    solver : str
+        High-level solver in bootstrap embedding. Supported value is "UCCSD"
+    enuc : float
+        Nuclear component of the energy
+    hf_veff : tuple of numpy.ndarray, optional
+        Alpha and beta spin Hartree-Fock effective potentials.
+    frag_energy : bool, optional
+        If True, calculates and returns fragment energies, defaults to True.
+    relax_density : bool, optional
+        If True, uses  relaxed density matrix for UCCSD, defaults to False.
+    frozen : bool, optional
+        If True, uses frozen core, defaults to False
+    eri_file : str, optional
+       Filename for the electron repulsion integrals. Default is 'eri_file.h5'. 
+    use_cumulant : bool, optional
+        If True, uses the cumulant approximation for RDM2. Default is True.
+    ereturn : bool, optional
+        If True, return the computed energy. Defaults to False.
+
+    Returns
+    -------
+    
+        As implemented, only returns the UCCSD fragment energy
+    """
+    print("obj type", type(fobj_a))
+    # Run SCF for alpha and beta spins
+    fobj_a.scf(unrestricted=True, spin_ind=0)
+    fobj_b.scf(unrestricted=True, spin_ind=1)
+
+    # Construct UHF object
+    full_uhf, eris = make_uhf_obj(fobj_a, fobj_b, frozen=frozen)
+
+    rdm_return = False
+    if relax_density:
+        rdm_return = True
+
+    if solver=='UCCSD':
+        if rdm_return:
+               ucc, rdm1_tmp, rdm2s = solve_uccsd(full_uhf, eris, relax=relax_density,
+                                                    rdm_return=True, rdm2_return=True,
+                                                    frozen=frozen)
+        else:
+               ucc = solve_uccsd(full_uhf, eris, relax = relax_density, rdm_return=False,
+                                                    frozen=frozen)
+               rdm1_tmp = make_rdm1_uccsd(ucc, relax=relax_density)
+    else:
+        raise NotImplementedError("Only UCCSD Solver implemented")
+
+    # Compute RDM1
+    fobj_a.__rdm1 = rdm1_tmp[0].copy()
+    fobj_a._rdm1 = functools.reduce(numpy.dot,
+                                  (fobj_a._mf.mo_coeff,
+                                   rdm1_tmp[0],
+                                   fobj_a._mf.mo_coeff.T))*0.5
+
+    fobj_b.__rdm1 = rdm1_tmp[1].copy()
+    fobj_b._rdm1 = functools.reduce(numpy.dot,
+                                  (fobj_b._mf.mo_coeff,
+                                   rdm1_tmp[1],
+                                   fobj_b._mf.mo_coeff.T))*0.5
+
+    # Calculate Energies
+    if ereturn:
+        if solver =='UCCSD' and not rdm_return:
+            with_dm1 = True
+            if use_cumulant: with_dm1=False
+            rdm2s = make_rdm2_uccsd(ucc, with_dm1=with_dm1)
+        else:
+            raise NotImplementedError("RDM Return not Implemented")
+
+        fobj_a.__rdm2 = rdm2s[0].copy() 
+        fobj_b.__rdm2 = rdm2s[1].copy()
+
+        # Calculate energy on a per-fragment basis
+        if frag_energy:
+            if frozen:
+                h1_ab = [full_uhf.h1[0]+full_uhf.full_gcore[0]+full_uhf.core_veffs[0],
+                        full_uhf.h1[1]+full_uhf.full_gcore[1]+full_uhf.core_veffs[1]]
+            else:
+                h1_ab = [fobj_a.h1, fobj_b.h1]
+            e_f = get_frag_energy_u((fobj_a._mo_coeffs,fobj_b._mo_coeffs),
+                                        (fobj_a.nsocc,fobj_b.nsocc),
+                                        (fobj_a.nfsites, fobj_b.nfsites),
+                                        (fobj_a.efac, fobj_b.efac),
+                                        (fobj_a.TA, fobj_b.TA),
+                                        h1_ab,
+                                        hf_veff,
+                                        rdm1_tmp,
+                                        rdm2s,
+                                        fobj_a.dname,
+                                        eri_file=fobj_a.eri_file,
+                                        gcores=full_uhf.full_gcore,
+                                        frozen=frozen
+                                    )
+            return e_f
+        else:
+            return NotImplementedError("Energy only calculated on a per-fragment basis")
+
+    
 def be_func_parallel(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
                      nproc=1, ompnum=4,
                      only_chem=False,relax_density=False,use_cumulant=True,
@@ -309,7 +421,7 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
     
     if frag_energy:
         # Compute and return fragment energy
-        #rdms are the energies: trying _not_ to compile all of the rdms, we only need energy
+        # rdms are the returned energies, not density matrices!
         e_1 = 0.
         e_2 = 0.
         e_c = 0.
@@ -343,3 +455,92 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
         
     return ernorm
 
+def be_func_parallel_u(pot, Fobjs, solver, enuc, hf_veff=None,
+                     nproc=1, ompnum=4,
+                     relax_density=False,use_cumulant=True,
+                     eeval=False, ereturn=False, frag_energy=False, 
+                     ecore=0., ebe_hf=0., frozen=False):
+    """
+    Embarrassingly Parallel High-Level Computation
+
+    Performs high-level unrestricted bootstrap embedding (UBE) computation for each fragment. Computes 1-RDMs 
+    and 2-RDMs for each fragment to return the energy. As such, this currently is equipped for one-shot U-CCSD BE.
+
+    Parameters
+    ----------
+    pot : list of float
+        Potentials (local & global) that are added to the 1-electron Hamiltonian component. 
+        The last element in the list is the chemical potential.
+        Should always be 0, as this is still a one-shot only implementation
+    Fobjs : list of tuples of MolBE.fragpart
+        Fragment definitions, alpha and beta components.
+    solver : str
+        High-level solver in bootstrap embedding. Supported value is 'UCCSD'.
+    enuc : float
+        Nuclear component of the energy.
+    hf_veff : tuple of numpy.ndarray, optional
+        Alpha and beta Hartree-Fock effective potential.
+    nproc : int, optional
+        Total number of processors assigned for the optimization. Defaults to 1. When nproc > 1, Python multithreading is invoked.
+    ompnum : int, optional
+        If nproc > 1, sets the number of cores for OpenMP parallelization. Defaults to 4.
+    eeval : bool, optional
+        Whether to evaluate energies. Defaults to False.
+    ereturn : bool, optional
+        Whether to return the computed energy. Defaults to False.
+    frag_energy : bool, optional
+        Whether to compute fragment energy. Defaults to False.
+    ecore : float, optional
+        Core energy. Defaults to 0.
+    ebe_hf : float, optional
+        Hartree-Fock energy. Defaults to 0.
+    frozen : bool, optional
+        Frozen core. Defaults to False
+
+    Returns
+    -------
+    float
+        Returns the computed energy 
+    """
+    from multiprocessing import Pool
+    import os
+
+    # Set the number of OpenMP threads
+    os.system('export OMP_NUM_THREADS='+str(ompnum))
+    nprocs = int(nproc/ompnum)
+
+    pool_ = Pool(nprocs)
+    results = []
+    energy_list = []
+
+    # Run solver in parallel for each fragment
+    for (fobj_a, fobj_b) in Fobjs:
+
+        result = pool_.apply_async(run_solver_u, [fobj_a, fobj_b,
+                                                solver,
+                                                enuc,
+                                                hf_veff,
+                                                frag_energy,
+                                                relax_density,
+                                                frozen,
+                                                use_cumulant,
+                                                True
+                                                ])
+        results.append(result)
+
+    # Collect results
+    [energy_list.append(result.get()) for result in results]
+    pool_.close()
+
+    if frag_energy:
+        # Compute and return fragment energy
+        e_1 = 0.
+        e_2 = 0.
+        e_c = 0.
+        for i in range(len(energy_list)):
+            e_1 += energy_list[i][0] 
+            e_2 += energy_list[i][1]
+            e_c += energy_list[i][2]
+        return (e_1+e_2+e_c, (e_1, e_2, e_c))
+    else:
+        return NotImplementedError("Only fragment-wise energy return implemented, no RDM return")
