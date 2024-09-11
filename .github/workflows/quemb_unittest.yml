@@ -32,6 +32,12 @@ jobs:
         pip install --upgrade --upgrade-strategy eager pytest
         if [ -f requirements.txt ]; then pip install --upgrade --upgrade-strategy eager -r requirements.txt; fi
         echo ${{ github.workspace }} > $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/quemb.pth
+    - name: Compile and install pyscf
+      run: |
+        wget https://github.com/pyscf/pyscf/archive/refs/tags/v2.6.2.tar.gz
+        tar -xf v2.6.2.tar.gz
+        echo ${{ github.workspace }}/molbe/external/restore_eri_addition.c >> pyscf-2.6.2/pyscf/lib/ao2mo/restore_eri.c
+        pip install ./pyscf-2.6.2
     - name: Test with pytest
       run: |
         pytest
