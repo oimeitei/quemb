@@ -41,7 +41,7 @@ be_energy = be2puffin(structure, # the QM region XYZ geometry
             unrestricted = False, # specify restricted calculation
             from_chk = True, # can save the RHF as PySCF checkpoint.
                               # Set to true if running from converged UHF chk
-            checkfile = 'data/oneshot_rbe_qmm.chk') # if not None, will save RHF calculation to a checkfile.
+            checkfile = 'data/oneshot_rbe_qmmm.chk') # if not None, will save RHF calculation to a checkfile.
                               # if rerunning from chk (from_chk=True), name the checkfile here
 #            ecp = ecp) # can add ECP for heavy atoms as: {'Ru': 'def2-SVP'}
 
