@@ -4,6 +4,8 @@ import numpy, os
 from pyscf import gto, scf
 import time
 
+from pyscf.lib import chkfile
+
 def libint2pyscf(xyzfile, hcore, basis, hcore_skiprows=1,
         use_df=False, unrestricted=False, spin=0, charge=0):
     """Build a pyscf Mole and RHF/UHF object using the given xyz file
@@ -221,6 +223,7 @@ def be2puffin(
     xyzfile,
     basis,
     hcore=None,
+    libint_inp=False,
     pts_and_charges=None,
     jk=None,
     use_df=False,
@@ -240,6 +243,13 @@ def be2puffin(
 ):
     """Front-facing API bridge tailored for SCINE Puffin
     Returns the CCSD oneshot energies
+    - QM/MM notes: Using QM/MM alongside big basis sets, especially with a frozen
+    core, can cause localization and numerical stability problems. Use with
+    caution. Additional work to this end on localization, frozen core, ECPs,
+    and QM/MM in this capacity is ongoing.
+    - If running unrestricted QM/MM calculations, with ECPs, in a large basis set,
+    do not freeze the core. Using an ECP for heavy atoms improves the localization
+    numerics, but this is not yet compatible with frozen core on the rest of the atoms.
 
     Parameters
     ----------
@@ -249,6 +259,9 @@ def be2puffin(
         Name of the basis set
     hcore : numpy.array
         Two-dimensional array of the core Hamiltonian
+    libint_inp : bool
+        True for hcore provided in Libint format. Else, hcore input is in PySCF format
+        Default is False, i.e., hcore input is in PySCF format
     pts_and_charges : tuple of numpy.array
         QM/MM (points, charges). Use pyscf's QM/MM instead of starting Hamiltonian
     jk : numpy.array
@@ -276,8 +289,8 @@ def be2puffin(
         Run calculation from converged RHF/UHF checkpoint. By default False
     checkfile: string, optional 
         if not None:
-            if from_chk: specify the checkfile to run the embedding calculation
-            if not from_chk: specify where to save the checkfile
+        - if from_chk: specify the checkfile to run the embedding calculation
+        - if not from_chk: specify where to save the checkfile
         By default None
     ecp: string, optional
         specify the ECP for any atoms, accompanying the basis set
@@ -296,22 +309,26 @@ def be2puffin(
     if not from_chk:
         if hcore is None: #from point charges OR with no external potential
             hcore_pyscf = None
-        else: #from starting Hamiltonian
-            libint2pyscf = []
-            for labelidx, label in enumerate(mol.ao_labels()):
-                # pyscf: px py pz // 1 -1 0
-                # libint: py pz px // -1 0 1
-                if "p" not in label.split()[2]:
-                    libint2pyscf.append(labelidx)
-                else:
-                    if "x" in label.split()[2]:
-                        libint2pyscf.append(labelidx + 2)
-                    elif "y" in label.split()[2]:
-                        libint2pyscf.append(labelidx - 1)
-                    elif "z" in label.split()[2]:
-                        libint2pyscf.append(labelidx - 1)
+        else: #from starting Hamiltonian in Libint format
+            if libint_inp == True:
+                libint2pyscf = []
+                for labelidx, label in enumerate(mol.ao_labels()):
+                    # pyscf: px py pz // 1 -1 0
+                    # libint: py pz px // -1 0 1
+                    if "p" not in label.split()[2]:
+                        libint2pyscf.append(labelidx)
+                    else:
+                        if "x" in label.split()[2]:
+                            libint2pyscf.append(labelidx + 2)
+                        elif "y" in label.split()[2]:
+                            libint2pyscf.append(labelidx - 1)
+                        elif "z" in label.split()[2]:
+                            libint2pyscf.append(labelidx - 1)
 
-            hcore_pyscf = hcore[numpy.ix_(libint2pyscf, libint2pyscf)]
+                hcore_pyscf = hcore[numpy.ix_(libint2pyscf, libint2pyscf)]
+            else:
+                # Input hcore is in PySCF format
+                hcore_pyscf = hcore
         if not jk is None:
             jk_pyscf = (
                 jk[0][numpy.ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)],
@@ -343,7 +360,7 @@ def be2puffin(
                 from pyscf import qmmm
                 print("Using QM/MM Point Charges: Assuming QM structure in Angstrom and MM Coordinates in Bohr !!!")
                 mf1 = scf.RHF(mol).set(max_cycle = 200)
-                mf = qmmm.mm_charge(mf1, hcore[0], hcore[1], unit='bohr').newton()
+                mf = qmmm.mm_charge(mf1, pts_and_charges[0], pts_and_charges[1], unit='bohr').newton()
                 print("Setting use_df to false and jk to none: have not tested DF and QM/MM from point charges at the same time")
                 use_df = False
                 jk = None
