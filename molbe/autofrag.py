@@ -7,7 +7,7 @@ from .helper import get_core
 def autogen(mol, frozen_core=True, be_type='be2', 
             write_geom=False,
             valence_basis = None, valence_only = False,
-            print_frags=True, mixed_basis_return = False):
+            print_frags=True):
     """
     Automatic molecular partitioning
 
@@ -34,8 +34,6 @@ def autogen(mol, frozen_core=True, be_type='be2',
         If True, all calculations will be performed in the valence basis in the IAO partitioning. This is an experimental feature. Defaults to False.
     print_frags : bool, optional
         Whether to print out the list of resulting fragments. Defaults to True.
-    mixed_basis_return : bool, optional
-        Whether to return other fragment information for mixed-basis BE code. Defaults to False
 
     Returns
     -------
@@ -53,12 +51,15 @@ def autogen(mol, frozen_core=True, be_type='be2',
         List of center fragment indices.
     ebe_weight : list of list
         Weights for each fragment. Each entry contains a weight and a list of LO indices.
-    if mixed_basis_return True: returns instead 4 items:
-        - Frag: list of lists: heavy atom indices for each fragment, per fragment
-        - cen: list: indices of all centers
-        - hlist: list of lists: all hydrogen indices for each fragment, per fragment
-        - add_centers: list of lists: "additional centers" for all fragments, per fragment:
-        -                            not centers in any other fragments
+    Frag: list of lists
+        Heavy atom indices for each fragment, per fragment
+    cen: list
+        Atom indices of all centers
+    hlist: list of lists
+        All hydrogen atom indices for each fragment, per fragment
+    add_centers: list of lists
+        "additional centers" for all fragments, per fragment: contains heavy atoms which are not
+        centers in any other fragments
 
     """
     from pyscf import lib
@@ -422,10 +423,8 @@ def autogen(mol, frozen_core=True, be_type='be2',
                     idx.append([fsites[j].index(k) for k in cntlist])
                 
             center_idx.append(idx)
-    if mixed_basis_return:
-        return Frag, cen, hlist, add_centers 
-    else:
-        return(fsites, edgsites, center, edge_idx, center_idx, centerf_idx, ebe_weight)
+
+    return(fsites, edgsites, center, edge_idx, center_idx, centerf_idx, ebe_weight, Frag, cen, hlist, add_centers)
 
 
 
