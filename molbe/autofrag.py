@@ -51,6 +51,15 @@ def autogen(mol, frozen_core=True, be_type='be2',
         List of center fragment indices.
     ebe_weight : list of list
         Weights for each fragment. Each entry contains a weight and a list of LO indices.
+    Frag: list of lists
+        Heavy atom indices for each fragment, per fragment
+    cen: list
+        Atom indices of all centers
+    hlist: list of lists
+        All hydrogen atom indices for each fragment, per fragment
+    add_centers: list of lists
+        "additional centers" for all fragments, per fragment: contains heavy atoms which are not
+        centers in any other fragments
 
     """
     from pyscf import lib
@@ -365,7 +374,9 @@ def autogen(mol, frozen_core=True, be_type='be2',
                 sys.exit()
         center.append(cen_)
     
-    Nfrag = len(fsites)    
+    Nfrag = len(fsites)
+
+    add_centers=[[] for x in range(Nfrag)] # additional centers for mixed-basis
     ebe_weight=[]
 
     # Compute weights for each fragment
@@ -375,6 +386,7 @@ def autogen(mol, frozen_core=True, be_type='be2',
         if ix in open_frag:
             for pidx__,pid__ in enumerate(open_frag):
                 if ix == pid__:
+                    add_centers[pid__].append(open_frag_cen[pidx__])
                     tmp_.extend([i.index(pq) for pq in sites__[open_frag_cen[pidx__]]])
                     tmp_.extend([i.index(pq) for pq in hsites[open_frag_cen[pidx__]]])    
         ebe_weight.append([1.0, tmp_])
@@ -412,7 +424,7 @@ def autogen(mol, frozen_core=True, be_type='be2',
                 
             center_idx.append(idx)
 
-    return(fsites, edgsites, center, edge_idx, center_idx, centerf_idx, ebe_weight)
+    return(fsites, edgsites, center, edge_idx, center_idx, centerf_idx, ebe_weight, Frag, cen, hlist, add_centers)
 
 
 

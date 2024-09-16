@@ -60,6 +60,12 @@ class fragpart:
         self.valence_basis = valence_basis
         self.valence_only = valence_only
 
+        # Initialize class attributes necessary for mixed-basis BE
+        self.Frag_atom = []
+        self.center_atom = []
+        self.hlist_atom = []
+        self.add_center_atom = []
+
         # Check for frozen core approximation
         if frozen_core:
             self.ncore, self.no_core_idx, self.core_list = get_core(mol)
@@ -85,8 +91,7 @@ class fragpart:
             fgs = autogen(mol, be_type=be_type, frozen_core=frozen_core,write_geom=write_geom,
                           valence_basis=valence_basis, valence_only=valence_only, print_frags=print_frags)
                           
-            self.fsites, self.edge, self.center, self.edge_idx, self.center_idx, self.centerf_idx, self.ebe_weight = fgs
-                
+            self.fsites, self.edge, self.center, self.edge_idx, self.center_idx, self.centerf_idx, self.ebe_weight, self.Frag_atom, self.center_atom, self.hlist_atom, self.add_center_atom = fgs
             self.Nfrag = len(self.fsites)
             
         else:
