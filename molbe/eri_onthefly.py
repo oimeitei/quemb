@@ -57,7 +57,9 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
             be_var.INTEGRAL_TRANSFORM_MAX_MEMORY * 1e9 / 8 / nao / nao / naux / nfrag
         )) #max(int(500*.24e6/8/nao),1)
 
-    if be_var.PRINT_LEVEL > 2: print('Evaluating fragment ERIs on-the-fly using density fitting...', flush=True)
+    if be_var.PRINT_LEVEL > 2:
+        print('Evaluating fragment ERIs on-the-fly using density fitting...', flush=True)
+        print('In this case, note that HF-in-HF error includes DF error on top of numerical error from embedding.', flush=True)
     auxmol = make_auxmol(mf.mol, auxbasis = auxbasis)
     j2c = auxmol.intor(mf.mol._add_suffix('int2c2e'), hermi=1) # (L|M)
     low = cholesky(j2c, lower=True)
