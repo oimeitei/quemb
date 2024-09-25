@@ -55,7 +55,8 @@ class BE:
                  mo_energy = None, 
                  save_file='storebe.pk',hci_pt=False,
                  nproc=1, ompnum=4,
-                 hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None):
+                 hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
+                 integral_direct_DF=False, auxbasis = None):
         """
         Constructor for BE object.
 
@@ -85,6 +86,10 @@ class BE:
             Number of processors for parallel calculations, by default 1. If set to >1, threaded parallel computation is invoked.
         ompnum : int, optional
             Number of OpenMP threads, by default 4.
+        integral_direct_DF: bool, optional
+            If mf._eri is None (i.e. ERIs are not saved in memory using incore_anyway), this flag is used to determine if the ERIs are computed integral-directly using density fitting; by default False.
+        auxbasis : str, optional
+            Auxiliary basis for density fitting, by default None (uses default auxiliary basis defined in PySCF).
         """
         
         if restart:
@@ -111,6 +116,8 @@ class BE:
         self.unrestricted = False
         self.nproc = nproc
         self.ompnum = ompnum
+        self.integral_direct_DF = integral_direct_DF
+        self.auxbasis = auxbasis
 
         # Fragment information from fobj
         self.frag_type=fobj.frag_type
@@ -303,7 +310,8 @@ class BE:
             #   Yes -- ao2mo, incore version
             #   No  -- Do we have (ij|P) from density fitting?
             #            Yes -- ao2mo, outcore version, using saved (ij|P)
-            assert (not eri_ is None) or (hasattr(self.mf, 'with_df')), "Input mean-field object is missing ERI (mf._eri) or DF (mf.with_df) object. You may want to ensure that incore_anyway was set for non-DF calculations."
+            #            No  -- if integral_direct_DF is requested, invoke on-the-fly routine
+            assert (not eri_ is None) or (hasattr(self.mf, 'with_df')) or (self.integral_direct_DF), "Input mean-field object is missing ERI (mf._eri) or DF (mf.with_df) object AND integral direct DF routine was not requested. Please check your inputs."
             if not eri_ is None: # incore ao2mo using saved eri from mean-field calculation
                 for I in range(self.Nfrag):
                     eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
@@ -313,6 +321,15 @@ class BE:
                 for I in range(self.Nfrag):
                     eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
                     file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
+            else:
+                # If ERIs are not saved on memory, compute fragment ERIs integral-direct
+                if self.integral_direct_DF: # Use density fitting to generate fragment ERIs on-the-fly
+                    from .eri_onthefly import integral_direct_DF
+                    integral_direct_DF(self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis)
+                else: # Calculate ERIs on-the-fly to generate fragment ERIs
+                    # TODO: Future feature to be implemented
+                    # NOTE: Ideally, we want AO shell pair screening for this.
+                    return NotImplementedError
         else:
             eri=None
         
