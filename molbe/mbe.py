@@ -49,7 +49,7 @@ class BE:
     """
 
     def __init__(self, mf, fobj, eri_file='eri_file.h5', 
-                 lo_method='lowdin',compute_hf=True, 
+                 lo_method='lowdin', pop_method=None, compute_hf=True, 
                  restart=False, save=False,
                  restart_file='storebe.pk',
                  mo_energy = None, 
@@ -208,10 +208,10 @@ class BE:
                 
         if not restart:
             # Localize orbitals
-            self.localize(lo_method, mol=self.mol, valence_basis=fobj.valence_basis, valence_only=fobj.valence_only)
+            self.localize(lo_method, pop_method=pop_method, mol=self.mol, valence_basis=fobj.valence_basis, valence_only=fobj.valence_only)
             
             if fobj.valence_only and lo_method=='iao':
-                self.Ciao_pao = self.localize(lo_method, mol=self.mol, valence_basis=fobj.valence_basis,
+                self.Ciao_pao = self.localize(lo_method, pop_method=pop_method, mol=self.mol, valence_basis=fobj.valence_basis,
                                               hstack=True,
                                               valence_only=False, nosave=True)
             
