@@ -212,10 +212,6 @@ def get_loc(mol, C, method, pop_method=None, init_guess=None):
 
     return C_
 
-
-
-
-
 def localize(self, lo_method, mol=None, valence_basis='sto-3g',
              hstack=False, pop_method=None, init_guess=None,
              valence_only=False, nosave=False):

@@ -1,13 +1,18 @@
 # Author(s): Oinam Romesh Meitei, Leah Weisburn
 
-import numpy,functools,sys, time,os
+import numpy
+import functools
+import sys
+import time
+import os
+from molbe import be_var
 from molbe.external.ccsd_rdm import make_rdm1_ccsd_t1, make_rdm2_urlx, make_rdm1_uccsd, make_rdm2_uccsd
 
 def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
             only_chem = False, nproc=4,hci_pt=False,
             hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
             eeval=False, ereturn=False, frag_energy=False, relax_density=False,
-            return_vec=False, ecore=0., ebe_hf=0., be_iter=None, use_cumulant=True):
+            return_vec=False, ecore=0., ebe_hf=0., be_iter=None, use_cumulant=True, **solver_kwargs):
     """
     Perform bootstrap embedding calculations for each fragment.
 
@@ -177,7 +182,19 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
             ci.config['get_2rdm_csv'] = True
             ci.kernel(h1, eri, nmo, nelec)
             rdm1_tmp, rdm2s = ci.make_rdm12(0,nmo,nelec)
-
+        
+        elif solver in ['block2', 'DMRG','DMRGCI','DMRGSCF']:
+            
+            if be_var.CREATE_SCRATCH_DIR:
+                scratch = os.path.join(be_var.SCRATCH, str(os.getpid()), str(fobj.dname))
+                os.system('mkdir -p '+scratch)
+            else:
+                scratch = None
+            
+            rdm1_tmp, rdm2s = solve_block2(fobj._mf, 
+                                           fobj.nsocc, 
+                                           scratch = scratch,
+                                           **solver_kwargs)
 
         else:
             print('Solver not implemented',flush=True)
@@ -587,6 +604,128 @@ def solve_ccsd(mf, frozen=None, mo_coeff=None,relax=False, use_cumulant=False, w
         return(t1, t2, rdm1a, cc__)
 
     return (t1, t2)
+
+def solve_block2(mf:object, nocc:int, scratch:str = None, **solver_kwargs):
+    """ DMRG fragment solver using the pyscf.dmrgscf wrapper.
+    
+    Parameters
+    ----------
+        mf: pyscf.scf.hf.RHF
+            Mean field object or similar following the data signature of the pyscf.RHF class.
+        nocc: int
+            Number of occupied MOs in the fragment, used for constructing the fragment 1- and 2-RDMs.
+        scratch: str|pathlike, optional
+            Fragment-level DMRG scratch directory.
+        force_cleanup: bool, optional    
+            If True, all fragment files written to scratch will be deleted immediately after finishing.
+        max_mem: int, optional
+            Maximum memory in GB.
+        root: int, optional
+            Number of roots to solve for.
+        startM: int, optional
+            Starting MPS bond dimension - where the sweep schedule begins.
+        maxM: int, optional
+            Maximum MPS bond dimension - where the sweep schedule terminates.
+        max_iter: int, optional
+            Maximum number of sweeps.
+        twodot_to_onedot: int, optional
+            Sweep index at which to transition to one-dot DMRG algorithm. All sweeps prior to this will use the two-dot algorithm.
+        block_extra_keyword: list(str), optional
+            Other keywords to be passed to block2. See: https://block2.readthedocs.io/en/latest/user/keywords.html
+        
+    Returns
+    -------
+        rdm1: numpy.ndarray
+            1-Particle reduced density matrix for fragment.
+        rdm2: numpy.ndarray
+            2-Particle reduced density matrix for fragment.
+    
+    Other Parameters
+    ----------------
+        schedule_kwargs: dict, optional
+            Dictionary containing DMRG scheduling parameters to be passed to block2.
+            
+            e.g. The default schedule used here would be equivalent to the following:
+            schedule_kwargs = {
+                scheduleSweeps = [0, 10, 20, 30, 40, 50]
+                scheduleMaxMs = [25, 50, 100, 200, 500, 500]
+                scheduleTols = [1e-5,1e-5, 1e-6, 1e-6, 1e-8, 1e-8]
+                scheduleNoises = [0.01, 0.01, 0.001, 0.001, 1e-4, 0.0]
+            }
+        
+    Raises
+    ------
+
+
+    """
+    from pyscf import mcscf, dmrgscf, lo, lib
+    
+    force_cleanup = solver_kwargs.pop("force_cleanup", False)
+    use_cumulant = solver_kwargs.pop("use_cumulant", True)
+    norb = solver_kwargs.pop("norb", mf.mo_coeff.shape[1])
+    nelec =  solver_kwargs.pop("nelec", mf.mo_coeff.shape[1])
+    lo_method = solver_kwargs.pop("lo_method", None)
+    startM = solver_kwargs.pop("startM", 25)
+    maxM = solver_kwargs.pop("maxM", 500)
+    max_iter = solver_kwargs.pop("n_sweeps", 60)
+    max_mem = solver_kwargs.pop("max_mem", 100)
+    twodot_to_onedot = solver_kwargs.pop("twodot_to_onedot", 50)
+    root = solver_kwargs.pop("root", 0)
+    block_extra_keyword = solver_kwargs.pop("block_extra_keyword", ['fiedler'])
+    schedule_kwargs =  solver_kwargs.pop("schedule_kwargs", {})
+    
+    if norb <= 2:
+        block_extra_keyword = ['noreorder'] #Other reordering algorithms explode if the network is too small.
+    
+    if lo_method is None:
+        orbs = mf.mo_coeff
+    elif isinstance(lo_method, str):
+        raise NotImplementedError("Localization within the fragment+bath subspace is currently not supported.")
+        
+    mc = mcscf.CASCI(mf, norb, nelec)
+    mc.fcisolver = dmrgscf.DMRGCI(mf.mol)
+    ###Sweep scheduling
+    mc.fcisolver.scheduleSweeps = schedule_kwargs.pop("scheduleSweeps", [0, 10, 20, 30, 40, 50])
+    mc.fcisolver.scheduleMaxMs  = schedule_kwargs.pop("scheduleMaxMs", [startM, 
+                                    startM*2 if (startM*2<maxM) else maxM, 
+                                    startM*4 if (startM*4<maxM) else maxM, 
+                                    startM*8 if (startM*8<maxM) else maxM,
+                                    maxM,
+                                    maxM])
+    mc.fcisolver.scheduleTols = schedule_kwargs.pop("scheduleTols", [1e-5,1e-5, 1e-6, 1e-6, 1e-8, 1e-8])
+    mc.fcisolver.scheduleNoises = schedule_kwargs.pop("scheduleNoises", [0.01, 0.01, 0.001, 0.001, 1e-4, 0.0])
+    ###Other DMRG parameters
+    mc.fcisolver.threads = int(os.environ.get("OMP_NUM_THREADS", 8))
+    mc.fcisolver.twodot_to_onedot = int(twodot_to_onedot)
+    mc.fcisolver.maxIter = int(max_iter)
+    mc.fcisolver.block_extra_keyword = list(block_extra_keyword)
+    mc.fcisolver.scratchDirectory = str(scratch)
+    mc.fcisolver.runtimeDir = str(scratch)
+    mc.fcisolver.memory = int(max_mem)
+
+    mc.kernel(orbs)
+    rdm1, rdm2 = dmrgscf.DMRGCI.make_rdm12(mc.fcisolver, root, norb, nelec)
+    
+    ###Subtract off non-cumulant contribution to correlated 2RDM.
+    if use_cumulant:
+        hf_dm = numpy.zeros_like(rdm1)
+        hf_dm[numpy.diag_indices(nocc)] += 2.
+
+        del_rdm1 = rdm1.copy()
+        del_rdm1[numpy.diag_indices(nocc)] -= 2.
+        nc = numpy.einsum('ij,kl->ijkl',hf_dm, hf_dm) + \
+             numpy.einsum('ij,kl->ijkl',hf_dm, del_rdm1) + \
+             numpy.einsum('ij,kl->ijkl',del_rdm1, hf_dm)
+        nc -= (numpy.einsum('ij,kl->iklj',hf_dm, hf_dm) + \
+               numpy.einsum('ij,kl->iklj',hf_dm, del_rdm1) + \
+               numpy.einsum('ij,kl->iklj',del_rdm1, hf_dm))*0.5
+        
+        rdm2 -= nc
+
+    if force_cleanup:
+        os.system('rm -r '+scratch)
+    
+    return rdm1, rdm2
 
 def solve_uccsd(mf, eris_inp, frozen=None, mo_coeff=None, relax=False,
                 use_cumulant=False, with_dm1=True, rdm2_return = False,
