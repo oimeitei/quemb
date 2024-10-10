@@ -144,7 +144,12 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
             
         elif solver=='SHCI':
             from pyscf.shciscf import shci
-        
+
+            if be_var.CREATE_SCRATCH_DIR:
+                scratch = os.path.join(be_var.SCRATCH, str(os.getpid()), str(fobj.dname))
+                os.system('mkdir -p '+scratch)
+            else:
+                scratch = None
             nao, nmo = fobj._mf.mo_coeff.shape
             
             nelec = (fobj.nsocc, fobj.nsocc)
@@ -159,7 +164,7 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
             mch.fcisolver.sweep_iter = [0]
             mch.fcisolver.DoRDM = True
             mch.fcisolver.sweep_epsilon = [ hci_cutoff ]
-            mch.fcisolver.scratchDirectory='/scratch/oimeitei/'+jobid+'/'+fobj.dname+jobid
+            mch.fcisolver.scratchDirectory = scratch
             mch.mc1step()
             rdm1_tmp, rdm2s = mch.fcisolver.make_rdm12(0, nmo, nelec)
            
