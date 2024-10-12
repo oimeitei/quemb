@@ -208,11 +208,12 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
                                                 scratch = tmp,
                                                 **solver_kwargs_)
             except Exception as inst:
-                print(f"Fragment DMRG solver failed with Exception: {type(inst)}\n", inst)
+                print(f"Fragment DMRG solver failed with Exception: {type(inst)}\n", inst, flush=True)
                 
             finally:
                 if solver_kwargs_.pop('force_cleanup', False):
-                    os.system('rm -r '+ os.path.join(tmp,'F*'))
+                    os.system('rm -r '+ os.path.join(tmp,'F.*'))
+                    os.system('rm -r '+ os.path.join(tmp,'FCIDUMP*'))
                     os.system('rm -r '+ os.path.join(tmp,'node*'))
 
         else:
@@ -743,7 +744,8 @@ def solve_block2(mf:object, nocc:int, scratch:str = None, **solver_kwargs):
     mc.fcisolver.scratchDirectory = str(scratch)
     mc.fcisolver.runtimeDir = str(scratch)
     mc.fcisolver.memory = int(max_mem)
-
+    os.system('cd '+scratch)
+    
     mc.kernel(orbs)
     rdm1, rdm2 = dmrgscf.DMRGCI.make_rdm12(mc.fcisolver, root, norb, nelec)
     
