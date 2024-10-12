@@ -88,29 +88,29 @@ Comprehensive documentation for QuEmb is available at `quemb/docs`. The document
 
 Alternatively, you can view the latest documentation online [here](https://quemb.readthedocs.io/).
 
-## References
+# References
 
-# For this library (QuEmb):
+### For this library (QuEmb):
 - [INSERT SOFTWARE PAPER HERE]
 
-# For general BE theory:
+### For general BE theory:
 - Welborn, M., Tsuchimochi, T. & Van Voorhis, T. Bootstrap embedding: An internally consistent fragment-based method. The Journal of Chemical Physics 145, 074102 (2016). ()
 - Ye, H.-Z., Ricke, N. D., Tran, H. K. & Van Voorhis, T. Bootstrap Embedding for Molecules. J. Chem. Theory Comput. 15, 4497–4506 (2019).
 - Ye, H.-Z., Tran, H. K. & Van Voorhis, T. Bootstrap Embedding For Large Molecular Systems. J. Chem. Theory Comput. 16, 5035–5046 (2020).
 - Ye, H.-Z. & Van Voorhis, T. Atom-Based Bootstrap Embedding For Molecules. J. Phys. Chem. Lett. 10, 6368–6374 (2019).
 
-# For periodic BE theory and implementation: 
+### For periodic BE theory and implementation: 
 - OR Meitei, T Van Voorhis, Periodic bootstrap embedding, [JCTC 19 3123 2023](https://doi.org/10.1021/acs.jctc.3c00069)  
 - OR Meitei, T Van Voorhis, Electron correlation in 2D periodic systems, [arXiv:2308.06185](https://arxiv.org/abs/2308.06185)  
 
-# For BE-DMRG theory and implementation:
+### For BE-DMRG theory and implementation:
 - [INSERT BE-DMRG PAPER HERE]
-- 
-# For Unrestricted BE theory and implementation:
+
+### For Unrestricted BE theory and implementation:
 - Tran, H. K., Ye, H.-Z. & Van Voorhis, T. Bootstrap embedding with an unrestricted mean-field bath. The Journal of Chemical Physics 153, 214101 (2020).
 - [INSERT LEAH PAPER HERE]
 
-# For QuEmb dependencies:
+### For QuEmb dependencies:
 - *pyscf* (https://pubs.aip.org/aip/jcp/article/153/2/024109/1061482/Recent-developments-in-the-PySCF-program-package)
 - *block2* (https://pubs.aip.org/aip/jcp/article-abstract/159/23/234801/2930207/Block2-A-comprehensive-open-source-framework-to?redirectedFrom=fulltext)
 - *libcint* (https://onlinelibrary.wiley.com/doi/abs/10.1002/jcc.23981)
