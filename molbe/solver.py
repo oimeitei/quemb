@@ -664,10 +664,10 @@ def solve_block2(mf:object, nocc:int, scratch:str = None, **solver_kwargs):
             
             e.g. The default schedule used here would be equivalent to the following:
             schedule_kwargs = {
-                scheduleSweeps = [0, 10, 20, 30, 40, 50]
-                scheduleMaxMs = [25, 50, 100, 200, 500, 500]
-                scheduleTols = [1e-5,1e-5, 1e-6, 1e-6, 1e-8, 1e-8]
-                scheduleNoises = [0.01, 0.01, 0.001, 0.001, 1e-4, 0.0]
+                'scheduleSweeps': [0, 10, 20, 30, 40, 50],
+                'scheduleMaxMs': [25, 50, 100, 200, 500, 500],
+                'scheduleTols': [1e-5,1e-5, 1e-6, 1e-6, 1e-8, 1e-8],
+                'scheduleNoises': [0.01, 0.01, 0.001, 0.001, 1e-4, 0.0],
             }
         
     Raises
