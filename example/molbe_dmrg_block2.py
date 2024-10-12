@@ -1,6 +1,6 @@
 # A run through the `QuEmb` interface with `block2` for performing BE-DMRG.
 # `block2` is a DMRG and sparse tensor network library developed by the 
-# 
+# Garnet-Chan group at Caltech: https://block2.readthedocs.io/en/latest/index.html
 
 import os, numpy, sys
 import matplotlib.pyplot as plt
