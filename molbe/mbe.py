@@ -54,7 +54,7 @@ class BE:
                  restart_file='storebe.pk',
                  mo_energy = None, 
                  save_file='storebe.pk',hci_pt=False,
-                 nproc=1, ompnum=4,
+                 nproc=1, ompnum=4, scratch=None,
                  hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
                  integral_direct_DF=False, auxbasis = None):
         """
@@ -163,6 +163,7 @@ class BE:
         self.Fobjs = []
         self.pot = initialize_pot(self.Nfrag, self.edge_idx)
         self.eri_file = eri_file
+        self.scratch = scratch
                 
         # Set scratch directory
         jobid=''
@@ -375,7 +376,8 @@ class BE:
             fobj.udim = couti
             couti = fobj.set_udim(couti)
                         
-    def oneshot(self, solver='MP2', nproc=1, ompnum=4, calc_frag_energy=False, clean_eri=False):
+    def oneshot(self, solver='MP2', nproc=1, ompnum=4, calc_frag_energy=False, clean_eri=False, 
+                scratch=None, **solver_kwargs):
         """
         Perform a one-shot bootstrap embedding calculation.
 
@@ -395,6 +397,9 @@ class BE:
         from .solver import be_func
         from .be_parallel import be_func_parallel
 
+        self.scratch = scratch
+        self.solver_kwargs = solver_kwargs
+        
         print("Calculating Energy by Fragment? ", calc_frag_energy)
         if nproc == 1:
             rets  = be_func(None, self.Fobjs, self.Nocc, solver, self.enuc, hf_veff=self.hf_veff,
@@ -402,14 +407,14 @@ class BE:
                         ci_coeff_cutoff = self.ci_coeff_cutoff,
                         select_cutoff = self.select_cutoff,
                         nproc=ompnum, frag_energy=calc_frag_energy,
-                        ereturn=True, eeval=True)
+                        ereturn=True, eeval=True, scratch=self.scratch, **self.solver_kwargs)
         else:
             rets  = be_func_parallel(None, self.Fobjs, self.Nocc, solver, self.enuc, hf_veff=self.hf_veff,
                                  hci_cutoff=self.hci_cutoff,
                                  ci_coeff_cutoff = self.ci_coeff_cutoff,
                                  select_cutoff = self.select_cutoff,
                                  ereturn=True, eeval=True, frag_energy=calc_frag_energy,
-                                 nproc=nproc, ompnum=ompnum)
+                                 nproc=nproc, ompnum=ompnum, scratch=self.scratch, **self.solver_kwargs)
 
         print('-----------------------------------------------------',
                   flush=True)

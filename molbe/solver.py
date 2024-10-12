@@ -9,10 +9,11 @@ from molbe import be_var
 from molbe.external.ccsd_rdm import make_rdm1_ccsd_t1, make_rdm2_urlx, make_rdm1_uccsd, make_rdm2_uccsd
 
 def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
-            only_chem = False, nproc=4,hci_pt=False,
+            only_chem = False, nproc=4, hci_pt=False,
             hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
             eeval=False, ereturn=False, frag_energy=False, relax_density=False,
-            return_vec=False, ecore=0., ebe_hf=0., be_iter=None, use_cumulant=True, **solver_kwargs):
+            return_vec=False, ecore=0., ebe_hf=0., be_iter=None, use_cumulant=True, 
+            scratch=None, **solver_kwargs):
     """
     Perform bootstrap embedding calculations for each fragment.
 
@@ -145,11 +146,14 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
         elif solver=='SHCI':
             from pyscf.shciscf import shci
 
-            if be_var.CREATE_SCRATCH_DIR:
-                scratch = os.path.join(be_var.SCRATCH, str(os.getpid()), str(fobj.dname))
-                os.system('mkdir -p '+scratch)
+            if scratch is None and be_var.CREATE_SCRATCH_DIR:
+                tmp = os.path.join(be_var.SCRATCH, str(os.getpid()), str(fobj.dname))
+            elif scratch is None:
+                tmp = be_var.SCRATCH
             else:
-                scratch = None
+                tmp = os.path.join(scratch, str(os.getpid()), str(fobj.dname))
+            if not os.path.isdir(tmp):
+                os.system('mkdir -p '+tmp)
             nao, nmo = fobj._mf.mo_coeff.shape
             
             nelec = (fobj.nsocc, fobj.nsocc)
@@ -190,16 +194,26 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
         
         elif solver in ['block2', 'DMRG','DMRGCI','DMRGSCF']:
             
-            if be_var.CREATE_SCRATCH_DIR:
-                scratch = os.path.join(be_var.SCRATCH, str(os.getpid()), str(fobj.dname))
-                os.system('mkdir -p '+scratch)
+            solver_kwargs_ = solver_kwargs.copy()
+            if scratch is None and be_var.CREATE_SCRATCH_DIR:
+                tmp = os.path.join(be_var.SCRATCH, str(os.getpid()), str(fobj.dname))
             else:
-                scratch = None
-            
-            rdm1_tmp, rdm2s = solve_block2(fobj._mf, 
-                                           fobj.nsocc, 
-                                           scratch = scratch,
-                                           **solver_kwargs)
+                tmp = os.path.join(scratch, str(os.getpid()), str(fobj.dname))
+            if not os.path.isdir(tmp):
+                os.system('mkdir -p '+tmp)
+                
+            try:
+                rdm1_tmp, rdm2s = solve_block2(fobj._mf, 
+                                                fobj.nsocc, 
+                                                scratch = tmp,
+                                                **solver_kwargs_)
+            except Exception as inst:
+                print(f"Fragment DMRG solver failed with Exception: {type(inst)}\n", inst)
+                
+            finally:
+                if solver_kwargs_.pop('force_cleanup', False):
+                    os.system('rm -r '+ os.path.join(tmp,'F*'))
+                    os.system('rm -r '+ os.path.join(tmp,'node*'))
 
         else:
             print('Solver not implemented',flush=True)
@@ -266,7 +280,7 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
 def be_func_u(pot, Fobjs, solver, enuc, hf_veff=None,
             eeval=False, ereturn=False, frag_energy=True, 
             relax_density=False, ecore=0., ebe_hf=0.,
-            use_cumulant=True, frozen=False):
+            scratch=None, use_cumulant=True, frozen=False):
     """
     Perform bootstrap embedding calculations for each fragment with UCCSD.
 
@@ -621,8 +635,6 @@ def solve_block2(mf:object, nocc:int, scratch:str = None, **solver_kwargs):
             Number of occupied MOs in the fragment, used for constructing the fragment 1- and 2-RDMs.
         scratch: str|pathlike, optional
             Fragment-level DMRG scratch directory.
-        force_cleanup: bool, optional    
-            If True, all fragment files written to scratch will be deleted immediately after finishing.
         max_mem: int, optional
             Maximum memory in GB.
         root: int, optional
@@ -664,17 +676,18 @@ def solve_block2(mf:object, nocc:int, scratch:str = None, **solver_kwargs):
 
     """
     from pyscf import mcscf, dmrgscf, lo, lib
-    
-    force_cleanup = solver_kwargs.pop("force_cleanup", False)
+
     use_cumulant = solver_kwargs.pop("use_cumulant", True)
     norb = solver_kwargs.pop("norb", mf.mo_coeff.shape[1])
     nelec =  solver_kwargs.pop("nelec", mf.mo_coeff.shape[1])
     lo_method = solver_kwargs.pop("lo_method", None)
     startM = solver_kwargs.pop("startM", 25)
     maxM = solver_kwargs.pop("maxM", 500)
-    max_iter = solver_kwargs.pop("n_sweeps", 60)
+    max_iter = solver_kwargs.pop("max_iter", 60)
     max_mem = solver_kwargs.pop("max_mem", 100)
-    twodot_to_onedot = solver_kwargs.pop("twodot_to_onedot", 50)
+    max_noise = solver_kwargs.pop("max_noise", 1e-3)
+    min_tol = solver_kwargs.pop("min_tol", 1e-8)
+    twodot_to_onedot = solver_kwargs.pop("twodot_to_onedot", int((5*max_iter)//6))
     root = solver_kwargs.pop("root", 0)
     block_extra_keyword = solver_kwargs.pop("block_extra_keyword", ['fiedler'])
     schedule_kwargs =  solver_kwargs.pop("schedule_kwargs", {})
@@ -690,15 +703,38 @@ def solve_block2(mf:object, nocc:int, scratch:str = None, **solver_kwargs):
     mc = mcscf.CASCI(mf, norb, nelec)
     mc.fcisolver = dmrgscf.DMRGCI(mf.mol)
     ###Sweep scheduling
-    mc.fcisolver.scheduleSweeps = schedule_kwargs.pop("scheduleSweeps", [0, 10, 20, 30, 40, 50])
-    mc.fcisolver.scheduleMaxMs  = schedule_kwargs.pop("scheduleMaxMs", [startM, 
-                                    startM*2 if (startM*2<maxM) else maxM, 
-                                    startM*4 if (startM*4<maxM) else maxM, 
-                                    startM*8 if (startM*8<maxM) else maxM,
-                                    maxM,
-                                    maxM])
-    mc.fcisolver.scheduleTols = schedule_kwargs.pop("scheduleTols", [1e-5,1e-5, 1e-6, 1e-6, 1e-8, 1e-8])
-    mc.fcisolver.scheduleNoises = schedule_kwargs.pop("scheduleNoises", [0.01, 0.01, 0.001, 0.001, 1e-4, 0.0])
+    mc.fcisolver.scheduleSweeps = schedule_kwargs.pop("scheduleSweeps", 
+        [(1*max_iter)//6, 
+        (2*max_iter)//6, 
+        (3*max_iter)//6, 
+        (4*max_iter)//6, 
+        (5*max_iter)//6, 
+        max_iter]
+        )
+    mc.fcisolver.scheduleMaxMs  = schedule_kwargs.pop("scheduleMaxMs", 
+        [startM if (startM<maxM) else maxM, 
+        startM*2 if (startM*2<maxM) else maxM, 
+        startM*4 if (startM*4<maxM) else maxM, 
+        startM*8 if (startM*8<maxM) else maxM,
+        maxM,
+        maxM]
+        )
+    mc.fcisolver.scheduleTols = schedule_kwargs.pop("scheduleTols", 
+        [min_tol*1e3,
+        min_tol*1e3, 
+        min_tol*1e2, 
+        min_tol*1e1, 
+        min_tol, 
+        min_tol]
+        )
+    mc.fcisolver.scheduleNoises = schedule_kwargs.pop("scheduleNoises", 
+        [max_noise, 
+        max_noise, 
+        max_noise/10, 
+        max_noise/100, 
+        max_noise/100, 
+        0.0]
+        )
     ###Other DMRG parameters
     mc.fcisolver.threads = int(os.environ.get("OMP_NUM_THREADS", 8))
     mc.fcisolver.twodot_to_onedot = int(twodot_to_onedot)
@@ -726,9 +762,6 @@ def solve_block2(mf:object, nocc:int, scratch:str = None, **solver_kwargs):
                numpy.einsum('ij,kl->iklj',del_rdm1, hf_dm))*0.5
         
         rdm2 -= nc
-
-    if force_cleanup:
-        os.system('rm -r '+scratch)
     
     return rdm1, rdm2
 
