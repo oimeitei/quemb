@@ -15,7 +15,7 @@ while the `kbe` library is designed to handle periodic systems such as extended 
 - **Periodic Bootstrap Embedding:** Extends molecular BE to treat periodic systems (1D & 2D systems)
 using reciprocal space sums. 
 - **High accuracy and efficiency:** Capable of recovering ~99.9% of electron correlation energy.
-- **Parallel computing:** We employ Python's multiprocessing module to perform parallel computations across multiple processors.
+- **Parallel computing:** Performs parallel computations across multiple processors using standard python multiprocessing tools.
 
 ## Installation
 
@@ -27,7 +27,7 @@ using reciprocal space sums.
 - Scipy
 - libDMET<sup>##</sup> (required for periodic BE)
 - [Wannier90](https://github.com/wannier-developers/wannier90)<sup>&&</sup> (to use Wannier functions)
-- [dmrgscf]( https://github.com/pyscf/dmrgscf)<sup>&&</sup> (for dmrg functionality with block2)
+- [dmrgscf]( https://github.com/pyscf/dmrgscf) (for dmrg functionality with block2)
 
 <sub><sup>##</sup>The modified version of [libDMET](https://github.com/gkclab/libdmet_preview) available
 at [here](https://github.com/oimeitei/libdmet_preview) is
