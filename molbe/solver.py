@@ -1,4 +1,4 @@
-# Author(s): Oinam Romesh Meitei, Leah Weisburn
+# Author(s): Oinam Romesh Meitei, Leah Weisburn, Shaun Weatherly
 
 import numpy
 import functools
