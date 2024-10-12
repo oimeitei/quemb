@@ -1,9 +1,7 @@
 # QuEmb
 
-QuEmb is a robust framework implementing the Bootstrap Embedding (BE) method, designed to
-efficiently treat electron correlation in molecules, surfaces, and solids. This repository contains
-the Python implementation of the BE methods, including the molecular and periodic bootstrap embedding.
-The code leverages the [PySCF](https://github.com/pyscf/pyscf) library for quantum chemistry calculations and utilizes Python's
+QuEmb is a robust framework for performing Bootstrap Embedded (BE) quantum chemistry, geared towards
+efficiently handling electron correlation in molecules, surfaces, and solids. The molecular and periodic BE implementations in this repository are written in Python to allow for easy integration with external codes. QuEmb relies extensively on the [PySCF](https://github.com/pyscf/pyscf) library for standard quantum chemistry functions and utilizes Python's
 multiprocessing module to enable parallel computations in high-performance computing environments.
 
 QuEmb includes two libraries: `molbe` and `kbe`.
@@ -13,13 +11,11 @@ while the `kbe` library is designed to handle periodic systems such as extended 
 
 ## Features
 
-- **Fragment-based quantum embedding:** Utilizes flexible and automated system partioning with overlapping regions to
-improve embedded system accuracy and handle a truly general input system.
-- **Periodic Bootstrap Embedding:** Extends BE method to treat periodic systems (1D & 2D systems)
-using reciprocal space sums.
+- **Fragment-based quantum embedding:** Automated and versatile fragmentation scheme with overlapping regions, which improves accuracy and allows for a truly general input system.
+- **Periodic Bootstrap Embedding:** Extends molecular BE to treat periodic systems (1D & 2D systems)
+using reciprocal space sums. 
 - **High accuracy and efficiency:** Capable of recovering ~99.9% of electron correlation energy.
-- **Parallel computing:** We employ Python's multiprocessing module to perform parallel computations across multiple
-processors.
+- **Parallel computing:** We employ Python's multiprocessing module to perform parallel computations across multiple processors.
 
 ## Installation
 
@@ -109,7 +105,13 @@ Alternatively, you can view the latest documentation online [here](https://quemb
 
 # For BE-DMRG theory and implementation:
 - [INSERT BE-DMRG PAPER HERE]
-
+- 
 # For Unrestricted BE theory and implementation:
 - Tran, H. K., Ye, H.-Z. & Van Voorhis, T. Bootstrap embedding with an unrestricted mean-field bath. The Journal of Chemical Physics 153, 214101 (2020).
 - [INSERT LEAH PAPER HERE]
+
+# For QuEmb dependencies:
+- *pyscf* (https://pubs.aip.org/aip/jcp/article/153/2/024109/1061482/Recent-developments-in-the-PySCF-program-package)
+- *block2* (https://pubs.aip.org/aip/jcp/article-abstract/159/23/234801/2930207/Block2-A-comprehensive-open-source-framework-to?redirectedFrom=fulltext)
+- *libcint* (https://onlinelibrary.wiley.com/doi/abs/10.1002/jcc.23981)
+
