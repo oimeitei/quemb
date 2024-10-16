@@ -13,7 +13,7 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
             hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
             eeval=False, ereturn=False, frag_energy=False, relax_density=False,
             return_vec=False, ecore=0., ebe_hf=0., be_iter=None, use_cumulant=True, 
-            scratch=None, **solver_kwargs):
+            scratch_dir=None, **solver_kwargs):
     """
     Perform bootstrap embedding calculations for each fragment.
 
@@ -146,12 +146,12 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
         elif solver=='SHCI':
             from pyscf.shciscf import shci
 
-            if scratch is None and be_var.CREATE_SCRATCH_DIR:
+            if scratch_dir is None and be_var.CREATE_SCRATCH_DIR:
                 tmp = os.path.join(be_var.SCRATCH, str(os.getpid()), str(fobj.dname))
-            elif scratch is None:
+            elif scratch_dir is None:
                 tmp = be_var.SCRATCH
             else:
-                tmp = os.path.join(scratch, str(os.getpid()), str(fobj.dname))
+                tmp = os.path.join(scratch_dir, str(os.getpid()), str(fobj.dname))
             if not os.path.isdir(tmp):
                 os.system('mkdir -p '+tmp)
             nao, nmo = fobj._mf.mo_coeff.shape
@@ -168,7 +168,7 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
             mch.fcisolver.sweep_iter = [0]
             mch.fcisolver.DoRDM = True
             mch.fcisolver.sweep_epsilon = [ hci_cutoff ]
-            mch.fcisolver.scratchDirectory = scratch
+            mch.fcisolver.scratchDirectory = scratch_dir
             mch.mc1step()
             rdm1_tmp, rdm2s = mch.fcisolver.make_rdm12(0, nmo, nelec)
            
@@ -195,17 +195,17 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
         elif solver in ['block2', 'DMRG','DMRGCI','DMRGSCF']:
             
             solver_kwargs_ = solver_kwargs.copy()
-            if scratch is None and be_var.CREATE_SCRATCH_DIR:
+            if scratch_dir is None and be_var.CREATE_SCRATCH_DIR:
                 tmp = os.path.join(be_var.SCRATCH, str(os.getpid()), str(fobj.dname))
             else:
-                tmp = os.path.join(scratch, str(os.getpid()), str(fobj.dname))
+                tmp = os.path.join(scratch_dir, str(os.getpid()), str(fobj.dname))
             if not os.path.isdir(tmp):
                 os.system('mkdir -p '+tmp)
                 
             try:
                 rdm1_tmp, rdm2s = solve_block2(fobj._mf, 
                                                 fobj.nsocc, 
-                                                scratch = tmp,
+                                                frag_scratch = tmp,
                                                 **solver_kwargs_)
             except Exception as inst:
                 print(f"Fragment DMRG solver failed with Exception: {type(inst)}\n", inst, flush=True)
@@ -281,7 +281,7 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
 def be_func_u(pot, Fobjs, solver, enuc, hf_veff=None,
             eeval=False, ereturn=False, frag_energy=True, 
             relax_density=False, ecore=0., ebe_hf=0.,
-            scratch=None, use_cumulant=True, frozen=False):
+            scratch_dir=None, use_cumulant=True, frozen=False):
     """
     Perform bootstrap embedding calculations for each fragment with UCCSD.
 
@@ -625,7 +625,7 @@ def solve_ccsd(mf, frozen=None, mo_coeff=None,relax=False, use_cumulant=False, w
 
     return (t1, t2)
 
-def solve_block2(mf:object, nocc:int, scratch:str = None, **solver_kwargs):
+def solve_block2(mf:object, nocc:int, frag_scratch:str = None, **solver_kwargs):
     """ DMRG fragment solver using the pyscf.dmrgscf wrapper.
     
     Parameters
@@ -634,7 +634,7 @@ def solve_block2(mf:object, nocc:int, scratch:str = None, **solver_kwargs):
             Mean field object or similar following the data signature of the pyscf.RHF class.
         nocc: int
             Number of occupied MOs in the fragment, used for constructing the fragment 1- and 2-RDMs.
-        scratch: str|pathlike, optional
+        frag_scratch: str|pathlike, optional
             Fragment-level DMRG scratch directory.
         max_mem: int, optional
             Maximum memory in GB.
@@ -741,10 +741,10 @@ def solve_block2(mf:object, nocc:int, scratch:str = None, **solver_kwargs):
     mc.fcisolver.twodot_to_onedot = int(twodot_to_onedot)
     mc.fcisolver.maxIter = int(max_iter)
     mc.fcisolver.block_extra_keyword = list(block_extra_keyword)
-    mc.fcisolver.scratchDirectory = str(scratch)
-    mc.fcisolver.runtimeDir = str(scratch)
+    mc.fcisolver.scratchDirectory = str(frag_scratch)
+    mc.fcisolver.runtimeDir = str(frag_scratch)
     mc.fcisolver.memory = int(max_mem)
-    os.system('cd '+scratch)
+    os.system('cd '+frag_scratch)
     
     mc.kernel(orbs)
     rdm1, rdm2 = dmrgscf.DMRGCI.make_rdm12(mc.fcisolver, root, norb, nelec)
