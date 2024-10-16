@@ -3,8 +3,10 @@ This script tests the QuEmb to block2 interface for performing ground state BE-D
 Author(s): Shaun Weatherly
 """
 
-import os, unittest, tempfile
-from pyscf import cc, gto, scf
+import os
+import unittest
+import tempfile
+from pyscf import gto, scf
 from molbe import fragpart, BE
 
 class TestBE_DMRG(unittest.TestCase):
