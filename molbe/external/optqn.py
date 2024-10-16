@@ -1,10 +1,12 @@
 # Author(s): Hong-Zhou Ye
 #            Oinam Romesh Meitei
-# NOTICE: The following code is entirely written by Hong-Zhou Ye.
+#            Minsik Cho
+# NOTICE: The following code is mostly written by Hong-Zhou Ye (except for the trust region routine)
 #         The code has been slightly modified.
 #
 
 import numpy,sys, h5py
+from .. import be_var
 
 
 def line_search_LF(func, xold, fold, dx, iter_):
@@ -45,10 +47,76 @@ def line_search_LF(func, xold, fold, dx, iter_):
     print(flush=True)
     return alp, xk, fk
 
-def opt_QN(self):
+def trustRegion(func, xold, fold, Binv, c = 0.5):
+    """Perform Trust Region Optimization. See "A Broyden Trust Region Quasi-Newton Method 
+    for Nonlinear Equations" (https://www.iaeng.org/IJCS/issues_v46/issue_3/IJCS_46_3_09.pdf)
+    Algorithm 1 for more information
 
-    J0 = self.get_be_error_jacobian(solver)
+    Parameters
+    ----------
+    func : function
+        Cost function
+    xold : list or numpy.ndarray
+        Current x_p (potentials in BE optimization)
+    fold : list or numpy.ndarray
+        Current f(x_p) (error vector)
+    Binv : numpy.ndarray
+        Inverse of Jacobian approximate (B^{-1}); This is updated in Broyden's Method through Sherman-Morrison formula
+    c : float, optional
+        Initial value of trust radius ∈ (0, 1), by default 0.5
 
+    Returns
+    -------
+    xnew, fnew
+        x_{p+1} and f_{p+1}. These values are used to proceed with Broyden's Method.
+    """
+    # c := initial trust radius (trust_radius = c^p)
+    microiter = 0 # p
+    rho = 0.001 # Threshold for trust region subproblem
+    ratio = 0 # Initial r
+    B = numpy.linalg.inv(Binv) # approx Jacobian
+    #dx_gn = - Binv@fold
+    dx_gn = -(Binv@Binv.T)@B.T@fold
+    dx_sd = - B.T@fold # Steepest Descent step
+    t = numpy.linalg.norm(dx_sd)**2 / numpy.linalg.norm(B@dx_sd)**2
+    prevdx = None
+    while (ratio < rho or ared < 0.):
+        # Trust Region subproblem
+        # minimize (1/2) ||F_k + B_k d||^2 w.r.t. d, s.t. d w/i trust radius
+        # to pick the optimal direction using dog leg method
+        if numpy.linalg.norm(dx_gn) < max(1.0, numpy.linalg.norm(xold)) * (c ** microiter): # Gauss-Newton step within the trust radius
+            print('  Trust Region Optimization Step ', microiter, ': Gauss-Newton', flush=True)
+            dx = dx_gn
+        elif t * numpy.linalg.norm(dx_sd) > max(1.0, numpy.linalg.norm(xold)) * (c ** microiter): # GN step outside, SD step also outside
+            print('  Trust Region Optimization Step ', microiter, ': Steepest Descent', flush=True)
+            dx = (c ** microiter) / numpy.linalg.norm(dx_sd) * dx_sd
+        else: # GN step outside, SD step inside (dog leg step)
+              # dx := t*dx_sd + s (dx_gn - t*dx_sd) s.t. ||dx|| = c^p
+            print('  Trust Region Optimization Step ', microiter, ': Dog Leg', flush=True)
+            tdx_sd = t*dx_sd
+            diff = dx_gn - tdx_sd
+            #s = (-dx_sd.T@diff + numpy.sqrt((dx_sd.T@diff)**2 - numpy.linalg.norm(diff)**2*(numpy.linalg.norm(dx_sd)**2-(c ** microiter)**2))) / (numpy.linalg.norm(dx_sd))**2
+            # s is largest value in [0, 1] s.t. ||dx|| \le trust radius
+            s = 1
+            dx = tdx_sd + s*diff
+            while (numpy.linalg.norm(dx) > c ** microiter and s > 0):
+                s -= 0.001
+                dx = tdx_sd + s*diff
+        if prevdx is None or not numpy.all(dx == prevdx):
+            # Actual Reduction := f(x_k) - f(x_k + dx)
+            fnew = func(xold + dx)
+            ared = 0.5 * (numpy.linalg.norm(fold)**2 - numpy.linalg.norm(fnew)**2)
+            # Predicted Reduction := q(0) - q(dx) where q = (1/2) ||F_k + B_k d||^2
+            pred = 0.5 * (numpy.linalg.norm(fold)**2 - numpy.linalg.norm(fold + B@dx)**2)
+        # Trust Region convergence criteria
+        # r = ared/pred \le rho
+        ratio = ared / pred
+        microiter += 1
+        if prevdx is None or not numpy.all(dx == prevdx) and be_var.PRINT_LEVEL > 2:
+            print('    ||δx||: ', numpy.linalg.norm(dx), flush=True)
+            print('    Reduction Ratio (Actual / Predicted): ', ared, '/', pred, '=', ratio, flush=True)
+        prevdx = dx
+    return xold + dx, fnew # xnew
 
 class FrankQN:
     """ Quasi Newton Optimization
@@ -59,7 +127,7 @@ class FrankQN:
 
     """
     
-    def __init__(self, func, x0, f0, J0, trust=0.3, max_space=500):
+    def __init__(self, func, x0, f0, J0, trust=0.5, max_space=500):
               
         self.x0 = x0
         self.n = x0.size        
@@ -83,7 +151,7 @@ class FrankQN:
         self.B = None
         self.trust = trust
         
-    def next_step(self):
+    def next_step(self, trust_region=False):
 
         if self.iter_ == 0:            
             self.xnew = self.x0            
@@ -106,14 +174,17 @@ class FrankQN:
                 (dx_i@self.Binv@df_i)
             self.Binv += tmp__            
             us_tmp = self.Binv@self.fnew
-                
-        self.us[self.iter_] = self.get_Bnfn(self.iter_)
-                
-        alp, self.xnew, self.fnew = line_search_LF(
-            self.func, self.xold, self.fold, -self.us[self.iter_], self.iter_)
-        
-        # udpate vs, dxs, and fs        
-        self.vs[self.iter_] = numpy.dot(self.B0, self.fnew)
+
+        if trust_region:
+            self.xnew, self.fnew = trustRegion(self.func, self.xold, self.fold, self.Binv, c = self.trust)
+        else:
+            self.us[self.iter_] = self.get_Bnfn(self.iter_)
+                    
+            alp, self.xnew, self.fnew = line_search_LF(
+                self.func, self.xold, self.fold, -self.us[self.iter_], self.iter_)
+            
+            # udpate vs, dxs, and fs        
+            self.vs[self.iter_] = numpy.dot(self.B0, self.fnew)
         self.dxs[self.iter_] = self.xnew - self.xold
         self.fs[self.iter_+1] = self.fnew.copy()
 
