@@ -118,7 +118,7 @@ class BEOPT:
         return errvec_
     
 
-    def optimize(self, method, J0 = None):
+    def optimize(self, method, J0 = None, trust_region=False):
         """Main kernel to perform BE optimization
 
         Parameters
@@ -127,6 +127,8 @@ class BEOPT:
            High-level quantum chemistry method.
         J0 : list of list of float, optional
            Initial Jacobian
+        trust_region : bool, optional
+           Use trust-region based QN optimization, by default False
         """
         from molbe.external.optqn import FrankQN
         import sys
@@ -155,19 +157,24 @@ class BEOPT:
             optQN = FrankQN(self.objfunc, numpy.array(self.pot),
                             f0, J0,
                             max_space=self.max_space)
-
-            # Perform optimization steps
-            for iter_ in range(self.max_space):
-                optQN.next_step()
-                self.iter += 1
-                print('-- In iter ',self.iter, flush=True)    
-                print('Error in density matching      :   {:>2.4e}'.format(self.err), flush=True)
+            
+            if self.err < self.conv_tol:
                 print(flush=True)
-                if self.err < self.conv_tol:
+                print('CONVERGED w/o Optimization Steps',flush=True)
+                print(flush=True)
+            else:
+                # Perform optimization steps
+                for iter_ in range(self.max_space):
+                    print('-- In iter ',self.iter, flush=True)
+                    optQN.next_step(trust_region=trust_region)
+                    self.iter += 1
+                    print('Error in density matching      :   {:>2.4e}'.format(self.err), flush=True)
                     print(flush=True)
-                    print('CONVERGED',flush=True)
-                    print(flush=True)
-                    break
+                    if self.err < self.conv_tol:
+                        print(flush=True)
+                        print('CONVERGED',flush=True)
+                        print(flush=True)
+                        break
         else:
             print('This optimization method for BE is not supported')
             sys.exit()
@@ -176,8 +183,9 @@ class BEOPT:
             
 
 def optimize(self, solver='MP2',method='QN',
-             only_chem=False, conv_tol = 1.e-6,relax_density=False, use_cumulant=True,
-             J0=None, nproc=1, ompnum=4, max_iter=500, scratch_dir=None,  **solver_kwargs):
+             only_chem=False, conv_tol = 1.e-6, relax_density=False, use_cumulant=True,
+             J0=None, nproc=1, ompnum=4, max_iter=500, scratch_dir=None, trust_region=False,
+             **solver_kwargs):
     """BE optimization function
 
     Interfaces BEOPT to perform bootstrap embedding optimization.
@@ -207,6 +215,8 @@ def optimize(self, solver='MP2',method='QN',
        If nproc > 1, ompnum sets the number of cores for OpenMP parallelization. Defaults to 4
     J0 : list of list of float
        Initial Jacobian.
+    trust_region : bool, optional
+       Use trust-region based QN optimization, by default False
     """
     from .misc import print_energy
 
@@ -239,7 +249,7 @@ def optimize(self, solver='MP2',method='QN',
             J0 = self.get_be_error_jacobian(jac_solver='HF')                        
 
         # Perform the optimization
-        be_.optimize(method, J0=J0)
+        be_.optimize(method, J0=J0, trust_region=trust_region)
         self.ebe_tot = self.ebe_hf + be_.Ebe[0]
         # Print the energy components
         print_energy(be_.Ebe[0], be_.Ebe[1][1], be_.Ebe[1][0]+be_.Ebe[1][2], self.ebe_hf)
