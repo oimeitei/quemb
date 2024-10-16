@@ -49,12 +49,12 @@ class BE:
     """
 
     def __init__(self, mf, fobj, eri_file='eri_file.h5', 
-                 lo_method='lowdin',compute_hf=True, 
+                 lo_method='lowdin', pop_method=None, compute_hf=True, 
                  restart=False, save=False,
                  restart_file='storebe.pk',
                  mo_energy = None, 
                  save_file='storebe.pk',hci_pt=False,
-                 nproc=1, ompnum=4,
+                 nproc=1, ompnum=4, scratch_dir=None,
                  hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
                  integral_direct_DF=False, auxbasis = None):
         """
@@ -163,6 +163,7 @@ class BE:
         self.Fobjs = []
         self.pot = initialize_pot(self.Nfrag, self.edge_idx)
         self.eri_file = eri_file
+        self.scratch_dir = scratch_dir
                 
         # Set scratch directory
         jobid=''
@@ -173,7 +174,7 @@ class BE:
                 jobid = ''
         if not be_var.SCRATCH=='': 
             self.scratch_dir = be_var.SCRATCH+str(jobid)
-            os.system('mkdir '+self.scratch_dir)
+            os.system('mkdir -p '+self.scratch_dir)
         else:
             self.scratch_dir = None
         if jobid == '':
@@ -208,10 +209,10 @@ class BE:
                 
         if not restart:
             # Localize orbitals
-            self.localize(lo_method, mol=self.mol, valence_basis=fobj.valence_basis, valence_only=fobj.valence_only)
+            self.localize(lo_method, pop_method=pop_method, mol=self.mol, valence_basis=fobj.valence_basis, valence_only=fobj.valence_only)
             
             if fobj.valence_only and lo_method=='iao':
-                self.Ciao_pao = self.localize(lo_method, mol=self.mol, valence_basis=fobj.valence_basis,
+                self.Ciao_pao = self.localize(lo_method, pop_method=pop_method, mol=self.mol, valence_basis=fobj.valence_basis,
                                               hstack=True,
                                               valence_only=False, nosave=True)
             
@@ -375,7 +376,8 @@ class BE:
             fobj.udim = couti
             couti = fobj.set_udim(couti)
                         
-    def oneshot(self, solver='MP2', nproc=1, ompnum=4, calc_frag_energy=False, clean_eri=False):
+    def oneshot(self, solver='MP2', nproc=1, ompnum=4, calc_frag_energy=False, clean_eri=False, 
+                scratch_dir=None, **solver_kwargs):
         """
         Perform a one-shot bootstrap embedding calculation.
 
@@ -394,7 +396,10 @@ class BE:
         """
         from .solver import be_func
         from .be_parallel import be_func_parallel
-
+        
+        self.scratch_dir = scratch_dir
+        self.solver_kwargs = solver_kwargs
+        
         print("Calculating Energy by Fragment? ", calc_frag_energy)
         if nproc == 1:
             rets  = be_func(None, self.Fobjs, self.Nocc, solver, self.enuc, hf_veff=self.hf_veff,
@@ -402,14 +407,14 @@ class BE:
                         ci_coeff_cutoff = self.ci_coeff_cutoff,
                         select_cutoff = self.select_cutoff,
                         nproc=ompnum, frag_energy=calc_frag_energy,
-                        ereturn=True, eeval=True)
+                        ereturn=True, eeval=True, scratch_dir=self.scratch_dir, **self.solver_kwargs)
         else:
             rets  = be_func_parallel(None, self.Fobjs, self.Nocc, solver, self.enuc, hf_veff=self.hf_veff,
                                  hci_cutoff=self.hci_cutoff,
                                  ci_coeff_cutoff = self.ci_coeff_cutoff,
                                  select_cutoff = self.select_cutoff,
                                  ereturn=True, eeval=True, frag_energy=calc_frag_energy,
-                                 nproc=nproc, ompnum=ompnum)
+                                 nproc=nproc, ompnum=ompnum, scratch_dir=self.scratch_dir, **self.solver_kwargs)
 
         print('-----------------------------------------------------',
                   flush=True)

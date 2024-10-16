@@ -1,5 +1,4 @@
-# Author(s): Henry Tran
-#            Oinam Meitei
+# Author(s): Henry Tran, Oinam Meitei, Shaun Weatherly
 #
 from pyscf import lib
 import numpy,sys
@@ -193,7 +192,7 @@ def get_pao_native(Ciao, S, mol, valence_basis):
 
     return Cpao
 
-def get_loc(mol, C, method):
+def get_loc(mol, C, method, pop_method=None, init_guess=None):
     if method.upper() == 'ER':
         from pyscf.lo import ER as Localizer
     elif method.upper() == 'PM':
@@ -202,19 +201,18 @@ def get_loc(mol, C, method):
         from pyscf.lo import Boys as Localizer
     else:
         raise NotImplementedError('Localization scheme not understood')
-
+    
     mlo = Localizer(mol, C)
-    mlo.init_guess = None 
+    if pop_method is not None:
+        mlo.pop_method=str(pop_method)
+
+    mlo.init_guess = init_guess 
     C_ = mlo.kernel()
 
     return C_
 
-
-
-
-
 def localize(self, lo_method, mol=None, valence_basis='sto-3g',
-             hstack=False,
+             hstack=False, pop_method=None, init_guess=None,
              valence_only=False, nosave=False):
     """ Molecular orbital localization
 
@@ -298,6 +296,37 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g',
                 self.lmo_coeff = functools.reduce(numpy.dot,
                                                   (self.W.T, self.S, self.C))            
 
+    elif lo_method in ['pipek-mezey','pipek', 'PM']:
+    
+        es_, vs_ = eigh(self.S)
+        edx = es_ > 1.e-15                
+        self.W = numpy.dot(vs_[:,edx]/numpy.sqrt(es_[edx]), vs_[:,edx].T)
+        
+        es_, vs_ = eigh(self.S)
+        edx = es_ > 1.e-15                
+        W_ = numpy.dot(vs_[:,edx]/numpy.sqrt(es_[edx]), vs_[:,edx].T)
+        if self.frozen_core:                    
+            P_core = numpy.eye(W_.shape[0]) - numpy.dot(self.P_core, self.S)
+            C_ = numpy.dot(P_core, W_)
+            Cpop = functools.reduce(numpy.dot,
+                                    (C_.T, self.S, C_))
+            Cpop = numpy.diag(Cpop)
+            no_core_idx = numpy.where(Cpop > 0.55)[0]
+            C_ = C_[:,no_core_idx]
+            S_ = functools.reduce(numpy.dot, (C_.T, self.S, C_))
+            es_, vs_ = eigh(S_)
+            s_ = numpy.sqrt(es_)
+            s_ = numpy.diag(1.0/s_)
+            W_ = functools.reduce(numpy.dot,
+                                    (vs_, s_, vs_.T))
+            W_ = numpy.dot(C_, W_)            
+
+        self.W = get_loc(self.mol, W_, 'PM', pop_method=pop_method, init_guess=init_guess)
+        
+        if not self.frozen_core:
+            self.lmo_coeff = self.W.T @ self.S @ self.C
+        else:                
+            self.lmo_coeff = self.W.T @ self.S @ self.C[:,self.ncore:]
 
     elif lo_method=='iao':        
         from pyscf import lo

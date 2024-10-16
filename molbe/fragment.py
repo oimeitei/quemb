@@ -108,6 +108,7 @@ class fragpart:
         if self.be_type=='be1':
             for i in range(self.natom):
                 self.fsites.append([i])
+                self.edge.append([])
             self.Nfrag = len(self.fsites)
                 
         elif self.be_type=='be2':

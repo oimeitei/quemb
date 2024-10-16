@@ -45,7 +45,7 @@ class BEOPT:
                  only_chem=False, hf_veff = None,
                  hci_pt=False,hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
                  max_space=500, conv_tol = 1.e-6,relax_density = False,
-                 ebe_hf =0.):
+                 ebe_hf =0., scratch_dir=None, **solver_kwargs):
         
         # Initialize class attributes 
         self.ebe_hf=ebe_hf
@@ -70,6 +70,8 @@ class BEOPT:
         self.ci_coeff_cutoff = ci_coeff_cutoff
         self.select_cutoff = select_cutoff
         self.hci_pt = hci_pt
+        self.solver_kwargs=solver_kwargs
+        self.scratch_dir=scratch_dir
 
     def objfunc(self, xk):
         """
@@ -97,7 +99,8 @@ class BEOPT:
                                          nproc=self.ompnum, relax_density=self.relax_density,
                                          ci_coeff_cutoff = self.ci_coeff_cutoff,
                                          select_cutoff = self.select_cutoff, hci_pt=self.hci_pt,
-                                         ecore=self.ecore, ebe_hf=self.ebe_hf, be_iter=self.iter)
+                                         ecore=self.ecore, ebe_hf=self.ebe_hf, be_iter=self.iter,
+                                         scratch_dir=self.scratch_dir, **self.solver_kwargs)
         else:
             err_, errvec_,ebe_ = be_func_parallel(xk, self.Fobjs, self.Nocc, self.solver, self.enuc,
                                                   eeval=True, return_vec=True, hf_veff = self.hf_veff,
@@ -106,7 +109,8 @@ class BEOPT:
                                                   hci_cutoff=self.hci_cutoff,relax_density=self.relax_density,
                                                   ci_coeff_cutoff = self.ci_coeff_cutoff,
                                                   select_cutoff = self.select_cutoff,
-                                                  ecore=self.ecore, ebe_hf=self.ebe_hf, be_iter=self.iter)
+                                                  ecore=self.ecore, ebe_hf=self.ebe_hf, be_iter=self.iter, 
+                                                  scratch_dir=self.scratch_dir, **self.solver_kwargs)
                                                   
         # Update error and BE energy
         self.err = err_
@@ -173,7 +177,7 @@ class BEOPT:
 
 def optimize(self, solver='MP2',method='QN',
              only_chem=False, conv_tol = 1.e-6,relax_density=False, use_cumulant=True,
-             J0=None, nproc=1, ompnum=4, max_iter=500):
+             J0=None, nproc=1, ompnum=4, max_iter=500, scratch_dir=None,  **solver_kwargs):
     """BE optimization function
 
     Interfaces BEOPT to perform bootstrap embedding optimization.
@@ -216,13 +220,14 @@ def optimize(self, solver='MP2',method='QN',
 
     # Initialize the BEOPT object
     be_ = BEOPT(pot, self.Fobjs, self.Nocc, self.enuc, hf_veff = self.hf_veff,
-                nproc=nproc, ompnum=ompnum,
+                nproc=nproc, ompnum=ompnum, scratch_dir=scratch_dir,
                 max_space=max_iter,conv_tol = conv_tol,
                 only_chem=only_chem,
                 hci_cutoff=self.hci_cutoff,
                 ci_coeff_cutoff = self.ci_coeff_cutoff,relax_density=relax_density,
                 select_cutoff = self.select_cutoff,hci_pt=self.hci_pt,
-                solver=solver, ecore=self.E_core, ebe_hf=self.ebe_hf)
+                solver=solver, ecore=self.E_core, ebe_hf=self.ebe_hf,
+                **solver_kwargs)
 
     if method=='QN':
         # Prepare the initial Jacobian matrix
