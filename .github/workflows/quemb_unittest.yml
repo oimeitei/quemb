@@ -39,7 +39,7 @@ jobs:
     - name: Test with pytest
       run: |
         cd tests
-        pytest --doctest-modules --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml --cov=quemb --cov-report=xml --cov-report=html
+        pytest --doctest-modules --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml
       if: always()
 
     - name: Upload pytest junit results
@@ -54,8 +54,3 @@ jobs:
         name: quemb-tests-coverage_${{ matrix.python-version }}
         path: tests/htmlcov
       if: always()
-
-    - name: Download all artifacts
-      uses: actions/download-artifact@v4
-      if: always()
-  
