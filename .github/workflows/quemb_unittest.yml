@@ -1,7 +1,7 @@
 # Author(s): Minsik Cho, Shaun Weatherly
 # Based on: https://docs.github.com/en/actions/use-cases-and-examples/building-and-testing/building-and-testing-python
 
-name: Run Unit Tests for quemb (Continuous Integration)
+name: Run Unit Tests for quemb
 
 on:
   push:
