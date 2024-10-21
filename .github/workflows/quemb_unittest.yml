@@ -15,14 +15,17 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11"]
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python 3.9
+    - name: Set up Python ${{ matrix.python-version }}$
       uses: actions/setup-python@v5
       with:
-        python-version: "3.9"
+        python-version: ${{ matrix.python-version }}
 
     - uses: actions/cache@v4
       with:
@@ -48,9 +51,9 @@ jobs:
         name: quemb-test-results_${{ matrix.python-version }}
         path: tests/junit/quemb-test-results_${{ matrix.python-version }}.xml
 
-    - name: Upload pytest html results
-      uses: actions/upload-artifact@v4
-      with:
-        name: quemb-tests-coverage_${{ matrix.python-version }}
-        path: tests/htmlcov
-      if: always()
+    #- name: Upload pytest html results
+    #  uses: actions/upload-artifact@v4
+    #  with:
+    #    name: quemb-tests-coverage_${{ matrix.python-version }}
+    #    path: tests/htmlcov
+    #  if: always()
