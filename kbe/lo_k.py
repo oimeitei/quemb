@@ -3,16 +3,17 @@
 #
 
 import numpy
+from numpy.linalg import multi_dot
 import scipy
-from functools import reduce
+from pyscf.pbc import gto as pgto  # intor_cross
+
 
 
 def dot_gen(A, B, ovlp):
     if ovlp is None:
-        Ad = numpy.dot(A.conj().T, B)
+        return A.conj().T @ B
     else:
-        Ad = reduce(numpy.dot, (A.conj().T, ovlp, B))
-    return Ad
+        return A.conj().T @ ovlp @ B
 
 
 def get_cano_orth_mat(A, thr=1.0e-7, ovlp=None):
@@ -29,9 +30,7 @@ def get_cano_orth_mat(A, thr=1.0e-7, ovlp=None):
 
 def cano_orth(A, thr=1.0e-7, ovlp=None):
     """Canonically orthogonalize columns of A"""
-    U = get_cano_orth_mat(A, thr, ovlp)
-
-    return A @ U
+    return A @ get_cano_orth_mat(A, thr, ovlp)
 
 
 def get_symm_orth_mat_k(A, thr=1.0e-7, ovlp=None):
@@ -39,20 +38,16 @@ def get_symm_orth_mat_k(A, thr=1.0e-7, ovlp=None):
     e, u = scipy.linalg.eigh(S)
     if int(numpy.sum(e < thr)) > 0:
         raise ValueError(
-            "Linear dependence is detected in the column space of A: smallest eigenvalue (%.3E) is less than thr (%.3E). Please use 'cano_orth' instead."
+            "Linear dependence is detected in the column space of A: "
+            "smallest eigenvalue (%.3E) is less than thr (%.3E). Please use 'cano_orth' instead."
             % (numpy.min(e), thr)
         )
-    U = reduce(numpy.dot, (u, numpy.diag(e**-0.5), u.conj().T))
-    # U = reduce(numpy.dot, (u/numpy.sqrt(e), u.conj().T))
-    return U
+    return multi_dot((u, numpy.diag(e**-0.5), u.conj().T))
 
 
 def symm_orth_k(A, thr=1.0e-7, ovlp=None):
     """Symmetrically orthogonalize columns of A"""
-    U = get_symm_orth_mat_k(A, thr, ovlp)
-    AU = numpy.dot(A, U)
-
-    return AU
+    return A @ get_symm_orth_mat_k(A, thr, ovlp)
 
 
 def get_xovlp_k(cell, kpts, basis="sto-3g"):
@@ -65,8 +60,6 @@ def get_xovlp_k(cell, kpts, basis="sto-3g"):
         S12 - Overlap of two basis sets
         S22 - Overlap in new basis set
     """
-
-    from pyscf.pbc import gto as pgto  # intor_cross
 
     cell_alt = cell.copy()
     cell_alt.basis = basis
@@ -94,9 +87,7 @@ def remove_core_mo_k(Clo, Ccore, S, thr=0.5):
     pop = numpy.diag(Clo1.conj().T @ S @ Clo1)
     idx_keep = numpy.where(pop > thr)[0]
     assert len(idx_keep) == nlo - ncore
-    Clo2 = symm_orth_k(Clo1[:, idx_keep], ovlp=S)
-
-    return Clo2
+    return symm_orth_k(Clo1[:, idx_keep], ovlp=S)
 
 
 def get_iao_k(Co, S12, S1, S2=None, ortho=True):
@@ -121,22 +112,19 @@ def get_iao_k(Co, S12, S1, S2=None, ortho=True):
 
     Ciao = numpy.zeros((nk, nao, S12.shape[-1]), dtype=numpy.complex128)
     for k in range(nk):
-        # Cotil = P1[k] @ S12[k] @ P2[k] @ S12[k].conj().T @ Co[k]
-        Cotil = reduce(numpy.dot, (P1[k], S12[k], P2[k], S12[k].conj().T, Co[k]))
-        ptil = numpy.dot(P1[k], S12[k])
-        Stil = reduce(numpy.dot, (Cotil.conj().T, S1[k], Cotil))
+        Cotil = multi_dot((P1[k], S12[k], P2[k], S12[k].conj().T, Co[k]))
+        ptil = P1[k] @ S12[k]
+        Stil = multi_dot((Cotil.conj().T, S1[k], Cotil))
 
-        Po = numpy.dot(Co[k], Co[k].conj().T)
+        Po = Co[k] @ Co[k].conj().T
 
         Stil_inv = numpy.linalg.inv(Stil)
 
-        Potil = reduce(numpy.dot, (Cotil, Stil_inv, Cotil.conj().T))
+        Potil = multi_dot((Cotil, Stil_inv, Cotil.conj().T))
 
         Ciao[k] = (
             numpy.eye(nao, dtype=numpy.complex128)
-            - numpy.dot(
-                (Po + Potil - 2.0 * reduce(numpy.dot, (Po, S1[k], Potil))), S1[k]
-            )
+            - (Po + Potil - 2.0 * multi_dot((Po, S1[k], Potil))) @ S1[k]
         ) @ ptil
         if ortho:
             Ciao[k] = symm_orth_k(Ciao[k], ovlp=S1[k])
@@ -172,9 +160,7 @@ def get_pao_k(Ciao, S, S12, S2):
         numpy.o0 = cpao_.shape[-1]
         Cpao.append(cano_orth(cpao_, ovlp=S[k]))
         numpy.o1 = Cpao[k].shape[-1]
-    Cpao = numpy.asarray(Cpao)
-
-    return Cpao
+    return numpy.asarray(Cpao)
 
 
 def get_pao_native_k(Ciao, S, mol, valence_basis, kpts, ortho=True):
@@ -207,7 +193,7 @@ def get_pao_native_k(Ciao, S, mol, valence_basis, kpts, ortho=True):
     niao = len(vir_idx)
     Cpao = numpy.zeros((nk, nao, niao), dtype=numpy.complex128)
     for k in range(nk):
-        Piao = reduce(numpy.dot, (Ciao[k], Ciao[k].conj().T, S[k]))
+        Piao = multi_dot((Ciao[k], Ciao[k].conj().T, S[k]))
         cpao_ = (numpy.eye(nao) - Piao)[:, vir_idx]
         if ortho:
             try:

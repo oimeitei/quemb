@@ -144,5 +144,3 @@ class fragpart:
             print("Fragmentation type = ", frag_type, " not implemented!", flush=True)
             print("exiting", flush=True)
             sys.exit()
-
-    from .chain import polychain
