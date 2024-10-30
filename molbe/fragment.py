@@ -1,6 +1,6 @@
 # Author: Oinam Romesh Meitei
 
-import numpy, sys
+import sys
 from .helper import get_core
 from .autofrag import autogen
 
@@ -151,7 +151,7 @@ class fragpart:
             tmp_ = []
             elist_ = [ xx for yy in self.edge[ix] for xx in yy]
             for j in i:
-                if not j in elist_: tmp_.append(i.index(j))
+                if j not in elist_: tmp_.append(i.index(j))
             self.ebe_weight.append([1.0, tmp_])
 
         if not self.be_type=='be1':

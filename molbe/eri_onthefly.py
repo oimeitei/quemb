@@ -1,6 +1,6 @@
 # Author(s): Minsik Cho, Hong-Zhou Ye
 
-import numpy, os
+import numpy
 
 from pyscf import lib
 from pyscf.df.addons import make_auxmol

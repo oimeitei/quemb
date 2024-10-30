@@ -1,8 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
 from pyscf import lib
-import numpy, functools
-import numpy as np
+import numpy
 
 def sgeom(cell, kmesh=None):
     """

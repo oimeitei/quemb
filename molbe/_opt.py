@@ -2,7 +2,8 @@
 
 from .solver import be_func
 from .be_parallel import be_func_parallel
-import scipy,sys,numpy,time, h5py
+import sys
+import numpy
 
 
 class BEOPT:

@@ -12,7 +12,8 @@ TODO
   Add iterative UBE
 """
 
-import numpy, os
+import numpy
+import os
 from .mbe import BE
 from .pfrag import Frags
 import molbe.be_var as be_var
@@ -249,7 +250,7 @@ class UBE(BE):  # 🍠
 
             a_TA = fobj_a.TA.shape
             b_TA = fobj_b.TA.shape
-            if eri_ is None and not self.mf.with_df is None:
+            if eri_ is None and self.mf.with_df is not None:
                 # NOT IMPLEMENTED: should not be called, as no unrestricted DF tested
                 # for density-fitted integrals; if mf is provided, pyscf.ao2mo uses DF object in an outcore fashion
                 eri_a = ao2mo.kernel(
@@ -384,8 +385,8 @@ class UBE(BE):  # 🍠
         print(flush=True)
 
         self.ebe_tot = E + self.uhf_full_e
-        print("Total Energy : {:>12.8f} Ha".format((self.ebe_tot), flush=True))
-        print("Corr  Energy : {:>12.8f} Ha".format((E), flush=True))
+        print("Total Energy : {:>12.8f} Ha".format((self.ebe_tot), ))
+        print("Corr  Energy : {:>12.8f} Ha".format((E), ))
 
         if clean_eri == True:
             try:

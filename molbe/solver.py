@@ -3,7 +3,6 @@
 import numpy
 import functools
 import sys
-import time
 import os
 from molbe import be_var
 from molbe.external.ccsd_rdm import make_rdm1_ccsd_t1, make_rdm2_urlx, make_rdm1_uccsd, make_rdm2_uccsd
@@ -62,7 +61,7 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
         Depending on the options, it returns the norm of the error vector, the energy, or a combination of these values.
     """
     from pyscf import fci
-    import h5py,os
+    import os
     from pyscf import ao2mo
     from .helper import get_frag_energy
 
@@ -76,7 +75,7 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
     # Loop over each fragment and solve using the specified solver
     for fobj in Fobjs:
         # Update the effective Hamiltonian
-        if not pot is None:
+        if pot is not None:
             heff_ = fobj.update_heff(pot, return_heff=True,
                                      only_chem=only_chem)
         else:
@@ -105,8 +104,6 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
 
 
         elif solver=='FCI':
-            from .helper import get_eri
-            import scipy
 
             mc = fci.FCI(fobj._mf, fobj._mf.mo_coeff)
             efci, civec = mc.kernel()
@@ -114,7 +111,6 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
 
         elif solver=='HCI':
             from pyscf import hci
-            from .helper import get_eri
             # pilot pyscf.hci only in old versions
 
             nao, nmo = fobj._mf.mo_coeff.shape
@@ -322,9 +318,6 @@ def be_func_u(pot, Fobjs, solver, enuc, hf_veff=None,
     float or tuple
         Depending on the options, it returns the norm of the error vector, the energy, or a combination of these values.
     """
-    from pyscf import scf
-    import h5py,os
-    from pyscf import ao2mo
     from .helper import get_frag_energy_u
     from molbe.external.unrestricted_utils import make_uhf_obj
 
@@ -427,7 +420,6 @@ def solve_error(Fobjs, Nocc, only_chem=False):
     numpy.ndarray
         Error vector.
     """
-    import math
 
     err_edge = []
     err_chempot = 0.
@@ -676,7 +668,7 @@ def solve_block2(mf:object, nocc:int, frag_scratch:str = None, **solver_kwargs):
 
 
     """
-    from pyscf import mcscf, dmrgscf, lo, lib
+    from pyscf import mcscf, dmrgscf
 
     use_cumulant = solver_kwargs.pop("use_cumulant", True)
     norb = solver_kwargs.pop("norb", mf.mo_coeff.shape[1])
@@ -811,7 +803,6 @@ def solve_uccsd(mf, eris_inp, frozen=None, mo_coeff=None, relax=False,
         - rdm2 (tuple, numpy.ndarray, optional): Two-particle density matrix (if rdm2_return is True and rdm_return is True).
     """
     from pyscf import cc, ao2mo
-    from pyscf.cc.uccsd_rdm import make_rdm1, make_rdm2
     from molbe.external.uccsd_eri import make_eris_incore
 
     C = mf.mo_coeff
@@ -909,18 +900,17 @@ def schmidt_decomposition(mo_coeff, nocc, Frag_sites, cinv = None, rdm=None,  no
         returns TA (above), number of orbitals in the fragment space, and number of orbitals in bath space
     """
 
-    import scipy.linalg
     import functools
 
     # Threshold for eigenvalue significance
     thres = 1.0e-10
 
     # Compute the reduced density matrix (RDM) if not provided
-    if not mo_coeff is None:
+    if mo_coeff is not None:
         C = mo_coeff[:,:nocc]
     if rdm is None:
         Dhf = numpy.dot(C, C.T)
-        if not cinv is None:
+        if cinv is not None:
             Dhf = functools.reduce(numpy.dot,
                                    (cinv, Dhf, cinv.conj().T))
     else:
@@ -931,9 +921,9 @@ def schmidt_decomposition(mo_coeff, nocc, Frag_sites, cinv = None, rdm=None,  no
 
     # Identify environment sites (indices not in Frag_sites)
     Env_sites1 = numpy.array([i for i in range(Tot_sites)
-                              if not i in Frag_sites])
+                              if i not in Frag_sites])
     Env_sites = numpy.array([[i] for i in range(Tot_sites)
-                             if not i in Frag_sites])
+                             if i not in Frag_sites])
     Frag_sites1 = numpy.array([[i] for i in Frag_sites])
 
     # Compute the environment part of the density matrix

@@ -1,10 +1,8 @@
 # Author(s): Henry Tran, Oinam Meitei, Shaun Weatherly
 #
-from pyscf import lib
-import numpy,sys
-from copy import deepcopy
-from functools import reduce
-from molbe.external.lo_helper import get_symm_mat_pow, get_aoind_by_atom, reorder_by_atom_
+import numpy
+import sys
+from molbe.external.lo_helper import get_aoind_by_atom, reorder_by_atom_
 
 def dot_gen(A, B, ovlp):
     return A.T @ B if ovlp is None else A.T @ ovlp @ B
@@ -175,7 +173,7 @@ def get_pao_native(Ciao, S, mol, valence_basis):
     full_ao_labels = mol.ao_labels()
     valence_ao_labels = mol_alt.ao_labels()
 
-    vir_idx = [idx for idx, label in enumerate(full_ao_labels) if (not label in valence_ao_labels)]
+    vir_idx = [idx for idx, label in enumerate(full_ao_labels) if (label not in valence_ao_labels)]
 
     Piao = Ciao @ Ciao.T @ S
     Cpao = (numpy.eye(n) - Piao)[:, vir_idx]
@@ -232,9 +230,7 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g',
        This is an experimental feature.
     """
     from numpy.linalg import eigh
-    from pyscf.lo import iao
-    from pyscf.lo import orth
-    import scipy.linalg,functools
+    import functools
     from  .helper import ncore_
 
     if lo_method == 'lowdin':
@@ -329,8 +325,6 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g',
             self.lmo_coeff = self.W.T @ self.S @ self.C[:,self.ncore:]
 
     elif lo_method=='iao':
-        from pyscf import lo
-        import os, h5py
 
         loc_type = 'SO'
         val_basis = 'sto-3g'
@@ -426,7 +420,6 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g',
             self.lmo_coeff = self.W.T @ self.S @ self.C[:,self.ncore:]
 
     elif lo_method == 'boys':
-        from pyscf.lo import Boys
         es_, vs_ = eigh(self.S)
         edx = es_ > 1.e-15
         W_ = numpy.dot(vs_[:,edx]/numpy.sqrt(es_[edx]), vs_[:,edx].T)

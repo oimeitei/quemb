@@ -5,7 +5,7 @@
 #         The code has been slightly modified.
 #
 
-import numpy,sys, h5py
+import numpy
 from .. import be_var
 
 

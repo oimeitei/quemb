@@ -6,7 +6,8 @@ without frozen core.
 Author(s): Leah Weisburn
 """
 
-import os, unittest
+import os
+import unittest
 from pyscf import gto, scf
 from molbe import fragpart, UBE
 

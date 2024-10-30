@@ -1,6 +1,6 @@
 # Author(s): Oinam Romesh Meitei
 
-import numpy, sys, scipy
+import numpy
 
 def rdm1_fullbasis(self, return_ao=True, only_rdm1=False,
                    only_rdm2=False, return_lo=False,
@@ -38,7 +38,7 @@ def rdm1_fullbasis(self, return_ao=True, only_rdm1=False,
     rdm2MO : numpy.ndarray
         The two-particle RDM in the MO basis (if return_ao is False and return_RDM2 is True).
     """
-    from pyscf import scf, ao2mo
+    from pyscf import ao2mo
 
     # Copy the molecular orbital coefficients
     C_mo = self.C.copy()

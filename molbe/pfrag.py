@@ -2,10 +2,9 @@
 
 from .solver import schmidt_decomposition
 from .helper import *
-import numpy,h5py
-import functools,sys, math
-from pyscf import ao2mo
-from functools import reduce
+import numpy
+import h5py
+import functools
 
 
 class Frags:
@@ -220,7 +219,6 @@ class Frags:
             Alpha (0) or beta (1) spin for unrestricted calculation, by default None
         """
 
-        import copy
         if self._mf is not None: self._mf = None
         if self._mc is not None: self._mc = None
         if heff is None: heff = self.heff

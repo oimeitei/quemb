@@ -2,7 +2,8 @@
 #            Oinam Meitei
 #
 
-import numpy, sys, scipy
+import numpy
+import scipy
 from functools import reduce
 
 def dot_gen(A, B, ovlp):
@@ -181,7 +182,7 @@ def get_pao_native_k(Ciao, S, mol, valence_basis, kpts, ortho=True):
     full_ao_labels = mol.ao_labels()
     valence_ao_labels = mol_alt.ao_labels()
 
-    vir_idx = [idx for idx, label in enumerate(full_ao_labels) if (not label in valence_ao_labels)]
+    vir_idx = [idx for idx, label in enumerate(full_ao_labels) if (label not in valence_ao_labels)]
 
     niao = len(vir_idx)
     Cpao = numpy.zeros((nk, nao, niao), dtype=numpy.complex128)

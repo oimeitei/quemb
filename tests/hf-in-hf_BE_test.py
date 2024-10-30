@@ -4,7 +4,8 @@ This script tests the HF-in-HF energies of sample restricted molecular and perio
 Author(s): Minsik Cho
 """
 
-import os, unittest
+import os
+import unittest
 from pyscf import gto, scf
 from molbe import fragpart, BE
 

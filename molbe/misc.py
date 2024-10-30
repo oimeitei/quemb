@@ -1,6 +1,7 @@
 # Author(s): Minsik Cho, Leah Weisburn
 
-import numpy, os
+import numpy
+import os
 from pyscf import gto, scf
 import time
 
@@ -329,7 +330,7 @@ def be2puffin(
             else:
                 # Input hcore is in PySCF format
                 hcore_pyscf = hcore
-        if not jk is None:
+        if jk is not None:
             jk_pyscf = (
                 jk[0][numpy.ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)],
                 jk[1][numpy.ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)],
@@ -365,12 +366,11 @@ def be2puffin(
                 use_df = False
                 jk = None
             elif use_df and jk is None:
-                from pyscf import df
                 mf = scf.RHF(mol).density_fit(auxbasis=df_aux_basis)
             else: mf = scf.RHF(mol)
 
-        if not hcore is None: mf.get_hcore = lambda *args: hcore_pyscf
-        if not jk is None: mf.get_jk = lambda *args: jk_pyscf
+        if hcore is not None: mf.get_hcore = lambda *args: hcore_pyscf
+        if jk is not None: mf.get_jk = lambda *args: jk_pyscf
 
         if checkfile:
             print("Saving checkfile to:", checkfile)

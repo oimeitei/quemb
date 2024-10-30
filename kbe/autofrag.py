@@ -3,7 +3,6 @@
 import sys
 import numpy
 from molbe.helper import get_core
-from itertools import compress
 
 def warn_large_fragment():
     print('Fragments that spans more than 2 unit-cells are not supported')
@@ -89,11 +88,11 @@ def sidefunc(cell, Idx, unit1, unit2, main_list, sub_list, coord,
     if be_type == 'be3' or be_type == 'be4':
         for lmin1 in unit2[numpy.where(unit1==Idx)[0]]:
             for jdx, j in enumerate(coord):
-                if not jdx in unit1 and not jdx in unit2 \
+                if jdx not in unit1 and jdx not in unit2 \
                    and not cell.atom_pure_symbol(jdx) == 'H':
                     dist = numpy.linalg.norm(coord[lmin1] - j)
                     if dist <= bond:
-                        if not jdx in sub_list: # avoid repeated occurence
+                        if jdx not in sub_list: # avoid repeated occurence
                             main_list.append(jdx)
                             sub_list.append(jdx)
                             close_be3.append(jdx)
@@ -102,7 +101,7 @@ def sidefunc(cell, Idx, unit1, unit2, main_list, sub_list, coord,
                                 for kdx, k in enumerate(coord):
                                     if kdx == jdx:
                                         continue
-                                    if not kdx in unit1 and not kdx in unit2 \
+                                    if kdx not in unit1 and kdx not in unit2 \
                                        and not cell.atom_pure_symbol(kdx) == 'H':
                                         dist = numpy.linalg.norm(coord[jdx] - k)
                                         if dist <= bond:
@@ -122,10 +121,10 @@ def surround(cell, sidx, unit1, unit2, flist, coord, be_type, ext_list,
     if not be_type_ == 0:
         sidefunc(cell, sidx, unit1, unit2, flist, sublist_, coord, be_type_,
                  bond=bond, klist=klist, ext_list=ext_list,NK=NK, rlist=rlist)
-        sublist = [tmpi for tmpi in sublist_ if not tmpi in rlist]
+        sublist = [tmpi for tmpi in sublist_ if tmpi not in rlist]
         sublist = []
         for tmpi in sublist_:
-            if not tmpi in rlist:
+            if tmpi not in rlist:
                 for tmp_jdx, tmpj in enumerate(ext_list):
                     if tmpj == tmpi and klist[tmp_jdx] == NK:
                         break
@@ -711,8 +710,8 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
 
             if (dist <= bond) or (interlayer and dist in inter_layer_dict[idx][1] \
                                   and jdx in inter_layer_dict[idx][0] and \
-                                  dist < perpend_dist*ang2bohr and not jdx in pedg):
-                  if not jdx in clist_check:
+                                  dist < perpend_dist*ang2bohr and jdx not in pedg):
+                  if jdx not in clist_check:
                       flist.append(jdx)
                       pedg.append(jdx)
                   if dist > bond: continue
@@ -903,7 +902,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                               if (dist <= bond) or (interlayer and dist in inter_layer_dict[jdx][1] \
                                                     and kdx in inter_layer_dict[jdx][0] and \
                                                     dist < perpend_dist*ang2bohr):
-                                  if not kdx in pedg and not kdx in clist_check:
+                                  if kdx not in pedg and kdx not in clist_check:
                                       flist.append(kdx)
                                       pedg.append(kdx)
                                   if be_type=='be4':
@@ -1051,7 +1050,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                                                                                    coord[k][2]/ang2bohr))
         w.close()
 
-    if not valence_basis is None:
+    if valence_basis is not None:
         pao = True
     else:
         pao = False

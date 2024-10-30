@@ -1,6 +1,5 @@
 # Author(s): Oinam Romesh Meitei
 
-import sys
 
 # Old fragmentation code - do not use other than debugging!
 
@@ -15,7 +14,7 @@ def findH(mol,nh, tmphlist = []):
                           (nh[1]-coord_[idx][1])**2 +
                           (nh[2]-coord_[idx][2])**2)
             if d*0.52917721092< 1.6:
-                if not idx in tmphlist:
+                if idx not in tmphlist:
                     hidx.append(idx)
 
     return hidx
@@ -158,7 +157,7 @@ def polychain(self, mol, frozen_core=False, unitcell=1):
                 elist_ = [ xx for yy in self.edge[ix] for xx in yy]
 
                 for j in i:
-                    if not j in elist_: tmp_.append(i.index(j))
+                    if j not in elist_: tmp_.append(i.index(j))
 
                 self.ebe_weight.append([1.0, tmp_])
 
@@ -189,7 +188,7 @@ def polychain(self, mol, frozen_core=False, unitcell=1):
 
                 elist_ = [xx for yy in self.edge[ix] for xx in yy]
                 for j in i:
-                    if not j in elist_: tmp_.append(i.index(j))
+                    if j not in elist_: tmp_.append(i.index(j))
                 self.ebe_weight.append([1.0, tmp_])
         else:
 
@@ -216,7 +215,7 @@ def polychain(self, mol, frozen_core=False, unitcell=1):
                     tmp_.extend([i.index(k) for k in self.edge[ix][0]])
                 elist_ = [ xx for yy in self.edge[ix] for xx in yy]
                 for j in i:
-                    if not j in elist_: tmp_.append(i.index(j))
+                    if j not in elist_: tmp_.append(i.index(j))
                 if ix == self.Nfrag-1:
                     tmp_.extend([i.index(k) for k in self.edge[ix][1]])
                 self.ebe_weight.append([1.0, tmp_])
@@ -257,7 +256,7 @@ def polychain(self, mol, frozen_core=False, unitcell=1):
                 tmp_ = []
                 elist_ = [ xx for yy in self.edge[ix] for xx in yy]
                 for j in i:
-                    if not j in elist_: tmp_.append(i.index(j))
+                    if j not in elist_: tmp_.append(i.index(j))
                 self.ebe_weight.append([1.0, tmp_])
 
         elif self.allcen:
@@ -302,7 +301,7 @@ def polychain(self, mol, frozen_core=False, unitcell=1):
 
                 elist_ = [xx for yy in self.edge[ix] for xx in yy]
                 for j in i:
-                    if not j in elist_: tmp_.append(i.index(j))
+                    if j not in elist_: tmp_.append(i.index(j))
                 self.ebe_weight.append([1.0, tmp_])
 
         else:
@@ -335,7 +334,7 @@ def polychain(self, mol, frozen_core=False, unitcell=1):
                         tmp_.extend([i.index(k) for k in self.edge[ix][edg_ix]])
                 elist_ = [ xx for yy in self.edge[ix] for xx in yy]
                 for j in i:
-                    if not j in elist_: tmp_.append(i.index(j))
+                    if j not in elist_: tmp_.append(i.index(j))
                 if ix == self.Nfrag-1:
                     for edg_ix in range(2):
 

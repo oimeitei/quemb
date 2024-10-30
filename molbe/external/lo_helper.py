@@ -4,10 +4,7 @@
 #         The code has been slightly modified.
 #
 
-from pyscf import lib
-import numpy,sys
-from copy import deepcopy
-from functools import reduce
+import numpy
 
 def get_symm_mat_pow(A, p, check_symm=True, thresh=1.E-8):
     """A ** p where A is symmetric
@@ -28,7 +25,6 @@ def get_symm_mat_pow(A, p, check_symm=True, thresh=1.E-8):
 
 
 def get_aoind_by_atom(mol, atomind_by_motif=None):
-    import numpy as np
     natom = mol.natm
     aoslice_by_atom = mol.aoslice_by_atom()
     aoshift_by_atom = [0]+[aoslice_by_atom[ia][-1]

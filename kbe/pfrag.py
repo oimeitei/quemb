@@ -4,9 +4,10 @@ from .solver import schmidt_decomp_svd
 from .helper import *
 from molbe.helper import get_eri, get_scfObj
 from .misc import *
-import numpy,h5py
-import functools,sys, math
-from pyscf import ao2mo
+import numpy
+import h5py
+import functools
+import sys
 
 class Frags:
     """
@@ -243,7 +244,6 @@ class Frags:
         numpy.ndarray
             Projected density matrix.
         """
-        import scipy.linalg
 
         nk, nao, neo = self.TA.shape
         dm_ = numpy.zeros((nk, nao, nao), dtype=numpy.result_type(C,C))
@@ -285,7 +285,6 @@ class Frags:
         dm0 : numpy.ndarray, optional
             Initial density matrix, by default None.
         """
-        import copy
         if self._mf is not None: self._mf = None
         if self._mc is not None: self._mc = None
         if heff is None: heff = self.heff
@@ -323,7 +322,6 @@ class Frags:
         """
         Update the effective Hamiltonian for the fragment.
         """
-        import h5py
 
         heff_ = numpy.zeros_like(self.h1)
 
