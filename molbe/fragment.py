@@ -8,7 +8,7 @@ class fragpart:
     """Fragment/partitioning definition
 
     Interfaces two main fragmentation functions (autogen & chain) in MolBE. It defines edge &
-    center for density matching and energy estimation. It also forms the base for IAO/PAO partitioning for 
+    center for density matching and energy estimation. It also forms the base for IAO/PAO partitioning for
     a large basis set bootstrap calculation.
 
     Parameters
@@ -28,7 +28,7 @@ class fragpart:
     valence_basis: str
         Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
     valence_only: bool
-        If this option is set to True, all calculation will be performed in the valence basis in the IAO partitioning. 
+        If this option is set to True, all calculation will be performed in the valence basis in the IAO partitioning.
         This is an experimental feature.
     frozen_core: bool
         Whether to invoke frozen core approximation. This is set to False by default
@@ -43,7 +43,7 @@ class fragpart:
                  valence_basis=None,valence_only=False,
                  print_frags=True, write_geom=False,
                  be_type='be2', mol=None, frozen_core=False):
-        
+
         # Initialize class attributes
         self.mol = mol
         self.frag_type = frag_type
@@ -56,7 +56,7 @@ class fragpart:
         self.center_idx = []
         self.centerf_idx = []
         self.be_type = be_type
-        self.frozen_core = frozen_core        
+        self.frozen_core = frozen_core
         self.valence_basis = valence_basis
         self.valence_only = valence_only
 
@@ -80,26 +80,26 @@ class fragpart:
                       flush=True)
                 print('exiting',flush=True)
                 sys.exit()
-            self.chain(mol, frozen_core=frozen_core,closed=closed)            
+            self.chain(mol, frozen_core=frozen_core,closed=closed)
         elif frag_type=='autogen':
             if mol is None:
                 print('Provide pyscf gto.M object in fragpart() and restart!',
                       flush=True)
                 print('exiting',flush=True)
                 sys.exit()
-                    
+
             fgs = autogen(mol, be_type=be_type, frozen_core=frozen_core,write_geom=write_geom,
                           valence_basis=valence_basis, valence_only=valence_only, print_frags=print_frags)
-                          
+
             self.fsites, self.edge, self.center, self.edge_idx, self.center_idx, self.centerf_idx, self.ebe_weight, self.Frag_atom, self.center_atom, self.hlist_atom, self.add_center_atom = fgs
             self.Nfrag = len(self.fsites)
-            
+
         else:
             print('Fragmentation type = ',frag_type,' not implemented!',
                   flush=True)
             print('exiting',flush=True)
             sys.exit()
-            
+
     from .lchain import chain
     def hchain_simple(self):
         """Hard coded fragmentation feature
@@ -110,7 +110,7 @@ class fragpart:
                 self.fsites.append([i])
                 self.edge.append([])
             self.Nfrag = len(self.fsites)
-                
+
         elif self.be_type=='be2':
             for i in range(self.natom-2):
                 self.fsites.append([i, i+1, i+2])
@@ -121,47 +121,47 @@ class fragpart:
             for i in self.fsites[1:-1]:
                 self.edge.append([[i[0]],[i[-1]]])
             self.edge.append([[self.fsites[-1][0]]])
-                        
+
             self.center.append([1])
             for i in range(self.Nfrag-2):
                 self.center.append([i,i+2])
             self.center.append([self.Nfrag-2])
-                     
+
         elif self.be_type=='be3':
             for i in range(self.natom-4):
                 self.fsites.append([i, i+1, i+2, i+3, i+4])
                 self.centerf_idx.append([2])
             self.Nfrag = len(self.fsites)
-                
+
             self.edge.append([[3],[4]])
             for i in self.fsites[1:-1]:
                 self.edge.append([[i[0]],[i[1]],[i[-2]],[i[-1]]])
             self.edge.append([[self.fsites[-1][0]],[self.fsites[-1][1]]])
-            
+
             self.center.append([1,2])
             self.center.append([0,0,2,3])
             for i in range(self.Nfrag-4):
                 self.center.append([i,i+1, i+3,i+4])
-            
+
             self.center.append([self.Nfrag-4,self.Nfrag-3,
                                 self.Nfrag-1,self.Nfrag-1])
-            self.center.append([self.Nfrag-3,self.Nfrag-2])   
-                
+            self.center.append([self.Nfrag-3,self.Nfrag-2])
+
         for ix, i in enumerate(self.fsites):
             tmp_ = []
             elist_ = [ xx for yy in self.edge[ix] for xx in yy]
             for j in i:
                 if not j in elist_: tmp_.append(i.index(j))
-            self.ebe_weight.append([1.0, tmp_])            
-                
+            self.ebe_weight.append([1.0, tmp_])
+
         if not self.be_type=='be1':
             for i in range(self.Nfrag):
                 idx = []
                 for j in self.edge[i]:
-                    
+
                     idx.append([self.fsites[i].index(k) for k in j])
                 self.edge_idx.append(idx)
-                        
+
             for i in range(self.Nfrag):
                 idx = []
                 for j in range(len(self.center[i])):

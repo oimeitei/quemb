@@ -141,7 +141,7 @@ class UBE(BE):  # 🍠
                 jobid = str(os.environ['SLURM_JOB_ID'])
             except:
                 jobid = ''
-        if not be_var.SCRATCH=='': 
+        if not be_var.SCRATCH=='':
             self.scratch_dir = be_var.SCRATCH+str(jobid)
             os.system('mkdir -p '+self.scratch_dir)
         else:
@@ -317,7 +317,7 @@ class UBE(BE):  # 🍠
         print("| Fragment |    Nocc   | Fragment Orbs | Bath Orbs | Schmidt Space |", flush=True)
         print("____________________________________________________________________", flush=True)
         for I in range(self.Nfrag):
-            print('|    {:>2}    | ({:>3},{:>3}) |   ({:>3},{:>3})   | ({:>3},{:>3}) |   ({:>3},{:>3})   |'.format(I, all_noccs[I][0],all_noccs[I][1], 
+            print('|    {:>2}    | ({:>3},{:>3}) |   ({:>3},{:>3})   | ({:>3},{:>3}) |   ({:>3},{:>3})   |'.format(I, all_noccs[I][0],all_noccs[I][1],
                                                                                     orb_count_a[I][0], orb_count_b[I][0],
                                                                                     orb_count_a[I][1], orb_count_b[I][1],
                                                                                     orb_count_a[I][0]+orb_count_a[I][1],
@@ -373,7 +373,7 @@ class UBE(BE):  # 🍠
                         relax_density=False,
                         frag_energy=calc_frag_energy,
                         frozen=self.frozen_core,
-                        nproc=nproc, 
+                        nproc=nproc,
                         ompnum=ompnum)
 
 
@@ -386,7 +386,7 @@ class UBE(BE):  # 🍠
         self.ebe_tot = E + self.uhf_full_e
         print("Total Energy : {:>12.8f} Ha".format((self.ebe_tot), flush=True))
         print("Corr  Energy : {:>12.8f} Ha".format((E), flush=True))
-        
+
         if clean_eri == True:
             try:
                 os.remove(self.eri_file)

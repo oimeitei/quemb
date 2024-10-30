@@ -25,18 +25,18 @@ pip install
 -----------
 
 ::
-   
+
   pip install .
 
 Add to ``PYTHONPATH``
 ---------------------
 Simply add ``path/to/quemb`` to ``PYTHONPATH``
 ::
-   
+
    export PYTHONPATH=/path/to/quemb:$PYTHONPATH
 
 Conda or virtual environment
 ----------------------------
 For conda (or virtual environment) installations, after creating your environment, specify the path to mol-be source as a path file, as in::
-  
+
   echo path/to/quemb > $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/quemb.pth

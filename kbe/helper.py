@@ -25,7 +25,7 @@ def get_veff(eri_, dm, S, TA, hf_veff, return_veff0=False):
         Hartree-Fock effective potential for the full system.
 
     """
-    
+
     # construct rdm
     nk, nao, neo = TA.shape
     P_ = numpy.zeros((neo, neo), dtype=numpy.complex128)
@@ -40,18 +40,18 @@ def get_veff(eri_, dm, S, TA, hf_veff, return_veff0=False):
     eri_ = numpy.asarray(eri_, dtype=numpy.double)
     vj, vk = scf.hf.dot_eri_dm(eri_, P_, hermi=1, with_j=True, with_k=True)
     Veff_ = vj - 0.5*vk
-            
+
     # remove core contribution from hf_veff
-    
+
     Veff0 = numpy.zeros((neo, neo), dtype=numpy.complex128)
     for k in range(nk):
         Veff0 += functools.reduce(numpy.dot,
                                  (TA[k].conj().T, hf_veff[k], TA[k]))
     Veff0 /= float(nk)
-                    
+
     Veff = Veff0 - Veff_
 
     if return_veff0:
         return(Veff0, Veff)
-        
+
     return Veff

@@ -7,7 +7,7 @@ Main BE optimization
 .. toctree::
    :maxdepth: 4
 .. autoclass:: molbe._opt.BEOPT
-   :members:	       
+   :members:
 
 Quasi-Newton optimization
 =========================

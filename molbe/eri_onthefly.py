@@ -40,7 +40,7 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
         ints = getints3c(mf.mol._add_suffix('int3c2e'), atm, bas, env, shls_slice, 1, 's1', ao_loc, cintopt, out=None)
         if be_var.PRINT_LEVEL > 10: print('Finish calculating (μν|P) for range', aux_range, flush=True)
         return ints
-    
+
     def block_step_size(nfrag, naux, nao):
         """ Internal function to calculate the block step size for the 3-center integrals calculation
 

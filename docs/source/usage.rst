@@ -15,9 +15,9 @@ Simple example of BE calculation on molecular system::
 
   # Perform pyscf calculations to get mol, mf objects
   # See quemb/example/molbe_h8_density_matching.py
-  # get mol: pyscf.gto.M 
-  # get mf: pyscf.scf.RHF 
-  
+  # get mol: pyscf.gto.M
+  # get mf: pyscf.scf.RHF
+
   # Define fragments
   myFrag = fragpart(be_type='be2', mol=mol)
 
@@ -26,7 +26,7 @@ Simple example of BE calculation on molecular system::
 
   # Perform density matching in BE
   mybe.optimize(solver='CCSD')
-  
+
 
 Simple example of periodic BE calculation on 1D periodic system::
 
@@ -47,4 +47,4 @@ Simple example of periodic BE calculation on 1D periodic system::
 
   # Perform density matching in BE
   mybe.optimize(solver='CCSD')
-  
+

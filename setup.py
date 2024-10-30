@@ -20,5 +20,4 @@ setup(
         'scipy>=1.7.0',
         'pyscf>=2.0.0',
     ],
-    python_requires='>=3.6',
 )

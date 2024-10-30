@@ -8,9 +8,9 @@ from molbe import BE, fragpart
 mol = gto.M(atom='''
 H 0. 0. 0.
 H 0. 0. 1.
-H 0. 0. 2. 
+H 0. 0. 2.
 H 0. 0. 3.
-H 0. 0. 4. 
+H 0. 0. 4.
 H 0. 0. 5.
 H 0. 0. 6.
 H 0. 0. 7.
@@ -41,7 +41,7 @@ print(f'*** BE1 Correlation Energy Error (%) : {err_:>8.4f} %')
 
 # Define BE2 fragments
 fobj = fragpart(be_type='be2', mol=mol)
-mybe = BE(mf, fobj) 
+mybe = BE(mf, fobj)
 mybe.optimize(solver='FCI')
 
 # Compute BE error
@@ -51,7 +51,7 @@ print(f'*** BE2 Correlation Energy Error (%) : {err_:>8.4f} %')
 
 # Define BE3 fragments
 fobj = fragpart(be_type='be3', mol=mol)
-mybe = BE(mf, fobj) 
+mybe = BE(mf, fobj)
 mybe.optimize(solver='FCI')
 
 # Compute BE error

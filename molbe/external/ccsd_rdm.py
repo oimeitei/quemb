@@ -33,19 +33,19 @@ def make_rdm2_urlx(t1, t2, with_dm1=True):
     if with_dm1:
         dm1 = make_rdm1_ccsd_t1(t1)
         dm1[numpy.diag_indices(nocc)] -= 2
-        
+
         for i in range(nocc):
             dm2[i,i,:,:] += dm1 * 2
             dm2[:,:,i,i] += dm1 * 2
             dm2[:,i,i,:] -= dm1
             dm2[i,:,:,i] -= dm1.T
-        
+
         for i in range(nocc):
             for j in range(nocc):
                 dm2[i,i,j,j] += 4
                 dm2[i,j,j,i] -= 2
 
-    return dm2  
+    return dm2
 
 def make_rdm1_uccsd(ucc, relax=False):
     from pyscf.cc.uccsd_rdm import make_rdm1

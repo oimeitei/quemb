@@ -19,7 +19,7 @@ class TestHFinHF_restricted(unittest.TestCase):
         self.molecular_restricted_test(mol, 'be1', 'H8 (BE1)')
         self.molecular_restricted_test(mol, 'be2', 'H8 (BE2)')
         self.molecular_restricted_test(mol, 'be3', 'H8 (BE3)')
-    
+
     def test_h8_ccpvdz_ben(self):
         # Linear Equidistant (r=1Å) H8 Chain, cc-pVDZ
         mol = gto.M()
@@ -41,7 +41,7 @@ class TestHFinHF_restricted(unittest.TestCase):
         self.molecular_restricted_test(mol, 'be1', 'Octane (BE1)')
         self.molecular_restricted_test(mol, 'be2', 'Octane (BE2)')
         self.molecular_restricted_test(mol, 'be3', 'Octane (BE3)')
-    
+
     def molecular_restricted_test(self, mol, be_type, test_name, delta = 1e-5):
         mf = scf.RHF(mol); mf.kernel()
         fobj = fragpart(frag_type='autogen', be_type=be_type, mol = mol)

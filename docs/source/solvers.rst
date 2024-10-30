@@ -14,7 +14,7 @@ Crystalline orbital localization
 --------------------------------
 
 .. autofunction:: kbe.lo.localize
-		  
+
 Density Matching Error
 ======================
 
@@ -24,9 +24,9 @@ Interface to Quantum Chemistry Methods
 ======================================
 
 .. autofunction:: molbe.solver.solve_mp2
-		  
+
 .. autofunction:: molbe.solver.solve_ccsd
-		  
+
 .. autofunction:: molbe.helper.get_scfObj
 
 Schmidt Decomposition
@@ -44,15 +44,15 @@ Periodic Schmidt decomposition
 
 Handling Hamiltonian
 ====================
-		  
+
 .. autofunction:: molbe.helper.get_eri
-		  
+
 .. autofunction:: molbe.helper.get_core
 
 
 Build molecular HF potential
 ----------------------------
-		  
+
 .. autofunction:: molbe.helper.get_veff
 
 Build perioidic HF potential
@@ -63,9 +63,9 @@ Build perioidic HF potential
 
 Handling Energies
 =================
-		  
+
 .. autofunction:: molbe.helper.get_frag_energy
-		  
+
 .. autofunction:: molbe.rdm.compute_energy_full
 
 Handling Densities

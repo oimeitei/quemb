@@ -23,7 +23,7 @@ class BEOPT:
     enuc : float
        Nuclear component of the energy.
     solver : str
-       High-level solver in bootstrap embedding. 'MP2', 'CCSD', 'FCI' are supported. Selected CI versions, 
+       High-level solver in bootstrap embedding. 'MP2', 'CCSD', 'FCI' are supported. Selected CI versions,
        'HCI', 'SHCI', & 'SCI' are also supported. Defaults to 'MP2'
     only_chem : bool
        Whether to perform chemical potential optimization only. Refer to bootstrap embedding literatures.
@@ -39,15 +39,15 @@ class BEOPT:
     ebe_hf : float
        Hartree-Fock energy. Defaults to 0.0
     """
-    
+
     def __init__(self, pot, Fobjs, Nocc, enuc,solver='MP2', ecore=0.,
                  nproc=1,ompnum=4,
                  only_chem=False, hf_veff = None,
                  hci_pt=False,hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
                  max_space=500, conv_tol = 1.e-6,relax_density = False,
                  ebe_hf =0., scratch_dir=None, **solver_kwargs):
-        
-        # Initialize class attributes 
+
+        # Initialize class attributes
         self.ebe_hf=ebe_hf
         self.hf_veff = hf_veff
         self.pot = pot
@@ -83,7 +83,7 @@ class BEOPT:
         ----------
         xk : list
             Current potentials in the BE optimization.
-  
+
         Returns
         -------
         list
@@ -94,7 +94,7 @@ class BEOPT:
         if self.nproc == 1:
             err_, errvec_,ebe_ = be_func(xk, self.Fobjs, self.Nocc, self.solver, self.enuc,
                                          eeval=True, return_vec=True, hf_veff = self.hf_veff,
-                                         only_chem=self.only_chem, 
+                                         only_chem=self.only_chem,
                                          hci_cutoff=self.hci_cutoff,
                                          nproc=self.ompnum, relax_density=self.relax_density,
                                          ci_coeff_cutoff = self.ci_coeff_cutoff,
@@ -109,14 +109,14 @@ class BEOPT:
                                                   hci_cutoff=self.hci_cutoff,relax_density=self.relax_density,
                                                   ci_coeff_cutoff = self.ci_coeff_cutoff,
                                                   select_cutoff = self.select_cutoff,
-                                                  ecore=self.ecore, ebe_hf=self.ebe_hf, be_iter=self.iter, 
+                                                  ecore=self.ecore, ebe_hf=self.ebe_hf, be_iter=self.iter,
                                                   scratch_dir=self.scratch_dir, **self.solver_kwargs)
-                                                  
+
         # Update error and BE energy
         self.err = err_
         self.Ebe = ebe_
         return errvec_
-    
+
 
     def optimize(self, method, J0 = None, trust_region=False):
         """Main kernel to perform BE optimization
@@ -132,7 +132,7 @@ class BEOPT:
         """
         from molbe.external.optqn import FrankQN
         import sys
-        
+
         print('-----------------------------------------------------',
                   flush=True)
         print('             Starting BE optimization ', flush=True)
@@ -142,13 +142,13 @@ class BEOPT:
         print('-----------------------------------------------------',
                   flush=True)
         print(flush=True)
-        
+
         if method=='QN':
-                
-            print('-- In iter ',self.iter, flush=True)            
+
+            print('-- In iter ',self.iter, flush=True)
 
             # Initial step
-            f0 = self.objfunc(self.pot)                
+            f0 = self.objfunc(self.pot)
 
             print('Error in density matching      :   {:>2.4e}'.format(self.err), flush=True)
             print(flush=True)
@@ -157,7 +157,7 @@ class BEOPT:
             optQN = FrankQN(self.objfunc, numpy.array(self.pot),
                             f0, J0,
                             max_space=self.max_space)
-            
+
             if self.err < self.conv_tol:
                 print(flush=True)
                 print('CONVERGED w/o Optimization Steps',flush=True)
@@ -178,9 +178,9 @@ class BEOPT:
         else:
             print('This optimization method for BE is not supported')
             sys.exit()
-            
-            
-            
+
+
+
 
 def optimize(self, solver='MP2',method='QN',
              only_chem=False, conv_tol = 1.e-6, relax_density=False, use_cumulant=True,
@@ -244,9 +244,9 @@ def optimize(self, solver='MP2',method='QN',
         if only_chem:
             J0 = [[0.]]
             J0 = self.get_be_error_jacobian(jac_solver='HF')
-            J0 = [[J0[-1,-1]]]            
+            J0 = [[J0[-1,-1]]]
         else:
-            J0 = self.get_be_error_jacobian(jac_solver='HF')                        
+            J0 = self.get_be_error_jacobian(jac_solver='HF')
 
         # Perform the optimization
         be_.optimize(method, J0=J0, trust_region=trust_region)
@@ -256,4 +256,4 @@ def optimize(self, solver='MP2',method='QN',
     else:
         print('This optimization method for BE is not supported')
         sys.exit()
-        
+

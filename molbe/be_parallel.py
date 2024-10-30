@@ -71,15 +71,15 @@ def run_solver(h1, dm0, dname, nao, nocc, nfsites,
     # Initialize SCF object
     mf_ = get_scfObj(h1, eri, nocc, dm0=dm0)
     rdm_return = False
-    
+
     if relax_density:
         rdm_return = True
 
     # Select solver
-    if solver=='MP2': 
+    if solver=='MP2':
         mc_ = solve_mp2(mf_, mo_energy=mf_.mo_energy)
         rdm1_tmp = mc_.make_rdm1()
-        
+
     elif solver=='CCSD':
         if not rdm_return:
             t1, t2 = solve_ccsd(mf_,
@@ -94,7 +94,7 @@ def run_solver(h1, dm0, dname, nao, nocc, nfsites,
                                                  relax=True)
     elif solver=='FCI':
         from pyscf import fci
-        
+
         mc_ = fci.FCI(mf_, mf_.mo_coeff)
         efci, civec = mc_.kernel()
         rdm1_tmp = mc_.make_rdm1(civec, mc_.norb, mc_.nelec)
@@ -103,25 +103,25 @@ def run_solver(h1, dm0, dname, nao, nocc, nfsites,
 
         nao, nmo = mf_.mo_coeff.shape
         eri = ao2mo.kernel(mf_._eri, mf_.mo_coeff, aosym='s4',
-                               compact=False).reshape(4*((nmo),))            
+                               compact=False).reshape(4*((nmo),))
         ci_ = hci.SCI(mf_.mol)
         if select_cutoff is None and ci_coeff_cutoff is None:
             select_cutoff = hci_cutoff
             ci_coeff_cutoff = hci_cutoff
         elif select_cutoff is None or ci_coeff_cutoff is None:
             sys.exit()
-        
+
         ci_.select_cutoff = select_cutoff
         ci_.ci_coeff_cutoff = ci_coeff_cutoff
-        
-        nelec = (nocc, nocc)            
+
+        nelec = (nocc, nocc)
         h1_ = functools.reduce(numpy.dot, (mf_.mo_coeff.T, h1, mf_.mo_coeff))
         eci, civec = ci_.kernel(h1_, eri,  nmo, nelec)
         civec = numpy.asarray(civec)
-                
+
         (rdm1a_, rdm1b_), (rdm2aa, rdm2ab, rdm2bb) = ci_.make_rdm12s(civec, nmo, nelec)
         rdm1_tmp = rdm1a_ + rdm1b_
-        rdm2s = rdm2aa + rdm2ab + rdm2ab.transpose(2,3,0,1) + rdm2bb        
+        rdm2s = rdm2aa + rdm2ab + rdm2ab.transpose(2,3,0,1) + rdm2bb
 
     elif solver=='SHCI':
         from pyscf.shciscf import shci
@@ -140,7 +140,7 @@ def run_solver(h1, dm0, dname, nao, nocc, nfsites,
             mch.fcisolver.restart=True
         mch.mc1step()
         rdm1_tmp, rdm2s = mch.fcisolver.make_rdm12(0, nmo, nelec)
-    
+
     elif solver == 'SCI':
         from pyscf import cornell_shci
         from pyscf import ao2mo, mcscf
@@ -160,23 +160,23 @@ def run_solver(h1, dm0, dname, nao, nocc, nfsites,
         ci.config['get_2rdm_csv'] = True
         ci.kernel(h1, eri, nmo, nelec)
         rdm1_tmp, rdm2s = ci.make_rdm12(0,nmo,nelec)
-        
+
     else:
         print('Solver not implemented',flush=True)
-        print('exiting',flush=True) 
+        print('exiting',flush=True)
         sys.exit()
 
     # Compute RDM1
     rdm1 = functools.reduce(numpy.dot,
                             (mf_.mo_coeff,
                              rdm1_tmp,
-                             mf_.mo_coeff.T))*0.5    
+                             mf_.mo_coeff.T))*0.5
     if eeval:
         if solver =='CCSD' and not rdm_return:
             with_dm1 = True
             if use_cumulant: with_dm1 = False
             rdm2s = make_rdm2_urlx(t1, t2, with_dm1 = with_dm1)
-            
+
         elif solver == 'MP2':
             rdm2s = mc_.make_rdm2()
         elif solver == 'FCI':
@@ -199,9 +199,9 @@ def run_solver(h1, dm0, dname, nao, nocc, nfsites,
 
     if return_rdm_ao:
         return(e_f, mf_.mo_coeff, rdm1, rdm2s, rdm1_tmp)
-    
+
     return (e_f, mf_.mo_coeff, rdm1, rdm2s)
-    
+
 
 def run_solver_u(fobj_a, fobj_b, solver, enuc, hf_veff,
                 frag_energy=True, relax_density=False, frozen=False,
@@ -212,7 +212,7 @@ def run_solver_u(fobj_a, fobj_b, solver, enuc, hf_veff,
     Parameters
     ----------
     fobj_a :
-        Alpha spin molbe.pfrag.Frags object 
+        Alpha spin molbe.pfrag.Frags object
     fobj_b :
         Beta spin molbe.pfrag.Frags object
     solver : str
@@ -228,7 +228,7 @@ def run_solver_u(fobj_a, fobj_b, solver, enuc, hf_veff,
     frozen : bool, optional
         If True, uses frozen core, defaults to False
     eri_file : str, optional
-       Filename for the electron repulsion integrals. Default is 'eri_file.h5'. 
+       Filename for the electron repulsion integrals. Default is 'eri_file.h5'.
     use_cumulant : bool, optional
         If True, uses the cumulant approximation for RDM2. Default is True.
     ereturn : bool, optional
@@ -236,7 +236,7 @@ def run_solver_u(fobj_a, fobj_b, solver, enuc, hf_veff,
 
     Returns
     -------
-    
+
         As implemented, only returns the UCCSD fragment energy
     """
     print("obj type", type(fobj_a))
@@ -285,7 +285,7 @@ def run_solver_u(fobj_a, fobj_b, solver, enuc, hf_veff,
         else:
             raise NotImplementedError("RDM Return not Implemented")
 
-        fobj_a.__rdm2 = rdm2s[0].copy() 
+        fobj_a.__rdm2 = rdm2s[0].copy()
         fobj_b.__rdm2 = rdm2s[1].copy()
 
         # Calculate energy on a per-fragment basis
@@ -313,24 +313,24 @@ def run_solver_u(fobj_a, fobj_b, solver, enuc, hf_veff,
         else:
             return NotImplementedError("Energy only calculated on a per-fragment basis")
 
-    
+
 def be_func_parallel(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
                      nproc=1, ompnum=4,
                      only_chem=False,relax_density=False,use_cumulant=True,
-                     eeval=False, ereturn=False, frag_energy=False, 
+                     eeval=False, ereturn=False, frag_energy=False,
                      hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
                      return_vec=False, ecore=0., ebe_hf=0., be_iter=None, writeh1=False):
     """
     Embarrassingly Parallel High-Level Computation
 
-    Performs high-level bootstrap embedding (BE) computation for each fragment. Computes 1-RDMs 
-    and 2-RDMs for each fragment. It also computes error vectors in BE density match. For selected 
+    Performs high-level bootstrap embedding (BE) computation for each fragment. Computes 1-RDMs
+    and 2-RDMs for each fragment. It also computes error vectors in BE density match. For selected
     CI solvers, this function exposes thresholds used in selected CI calculations (hci_cutoff, ci_coeff_cutoff, select_cutoff).
 
     Parameters
     ----------
     pot : list of float
-        Potentials (local & global) that are added to the 1-electron Hamiltonian component. 
+        Potentials (local & global) that are added to the 1-electron Hamiltonian component.
         The last element in the list is the chemical potential.
     Fobjs : list of MolBE.fragpart
         Fragment definitions.
@@ -368,7 +368,7 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
     Returns
     -------
     float or tuple
-        Depending on the parameters, returns the error norm or a tuple containing the error norm, 
+        Depending on the parameters, returns the error norm or a tuple containing the error norm,
         error vector, and the computed energy.
     """
     from multiprocessing import Pool
@@ -386,16 +386,16 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
     nprocs = int(nproc/ompnum)
 
     # Update the effective Hamiltonian with potentials
-    if not pot is None:    
+    if not pot is None:
         for fobj in Fobjs:
             fobj.update_heff(pot, only_chem=only_chem)
-        
+
     pool_ = Pool(nprocs)
-    results = []    
+    results = []
     rdms = []
 
     # Run solver in parallel for each fragment
-    for nf in range(nfrag):        
+    for nf in range(nfrag):
         h1 = Fobjs[nf].fock + Fobjs[nf].heff
         dm0 = Fobjs[nf].dm0.copy()
         dname = Fobjs[nf].dname
@@ -412,13 +412,13 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
                                                 solver,Fobjs[nf].eri_file, veff0,
                                                 hci_cutoff, ci_coeff_cutoff,select_cutoff,
                                                 ompnum, writeh1, True, True, use_cumulant, relax_density, frag_energy])
-        
+
         results.append(result)
 
     # Collect results
     [rdms.append(result.get()) for result in results]
     pool_.close()
-    
+
     if frag_energy:
         # Compute and return fragment energy
         # rdms are the returned energies, not density matrices!
@@ -426,50 +426,50 @@ def be_func_parallel(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
         e_2 = 0.
         e_c = 0.
         for i in range(len(rdms)):
-            e_1 += rdms[i][0] 
+            e_1 += rdms[i][0]
             e_2 += rdms[i][1]
             e_c += rdms[i][2]
         return (e_1+e_2+e_c, (e_1, e_2, e_c))
-    
+
     # Compute total energy
     e_1 = 0.
     e_2 = 0.
     e_c = 0.
     for idx, fobj in enumerate(Fobjs):
-        e_1 += rdms[idx][0][0] 
+        e_1 += rdms[idx][0][0]
         e_2 += rdms[idx][0][1]
-        e_c += rdms[idx][0][2]       
+        e_c += rdms[idx][0][2]
         fobj.mo_coeffs = rdms[idx][1]
         fobj._rdm1 = rdms[idx][2]
         fobj.__rdm2 = rdms[idx][3]
         fobj.__rdm1 = rdms[idx][4]
-        
-    del rdms        
+
+    del rdms
     ernorm, ervec = solve_error(Fobjs,Nocc, only_chem=only_chem)
-    
+
     if return_vec:
         return (ernorm, ervec, [e_1+e_2+e_c, [e_1, e_2, e_c]])
-    
+
     if eeval:
         print('Error in density matching      :   {:>2.4e}'.format(ernorm), flush=True)
-        
+
     return ernorm
 
 def be_func_parallel_u(pot, Fobjs, solver, enuc, hf_veff=None,
                      nproc=1, ompnum=4,
                      relax_density=False,use_cumulant=True,
-                     eeval=False, ereturn=False, frag_energy=False, 
+                     eeval=False, ereturn=False, frag_energy=False,
                      ecore=0., ebe_hf=0., frozen=False):
     """
     Embarrassingly Parallel High-Level Computation
 
-    Performs high-level unrestricted bootstrap embedding (UBE) computation for each fragment. Computes 1-RDMs 
+    Performs high-level unrestricted bootstrap embedding (UBE) computation for each fragment. Computes 1-RDMs
     and 2-RDMs for each fragment to return the energy. As such, this currently is equipped for one-shot U-CCSD BE.
 
     Parameters
     ----------
     pot : list of float
-        Potentials (local & global) that are added to the 1-electron Hamiltonian component. 
+        Potentials (local & global) that are added to the 1-electron Hamiltonian component.
         The last element in the list is the chemical potential.
         Should always be 0, as this is still a one-shot only implementation
     Fobjs : list of tuples of MolBE.fragpart
@@ -500,7 +500,7 @@ def be_func_parallel_u(pot, Fobjs, solver, enuc, hf_veff=None,
     Returns
     -------
     float
-        Returns the computed energy 
+        Returns the computed energy
     """
     from multiprocessing import Pool
     import os
@@ -538,7 +538,7 @@ def be_func_parallel_u(pot, Fobjs, solver, enuc, hf_veff=None,
         e_2 = 0.
         e_c = 0.
         for i in range(len(energy_list)):
-            e_1 += energy_list[i][0] 
+            e_1 += energy_list[i][0]
             e_2 += energy_list[i][1]
             e_c += energy_list[i][2]
         return (e_1+e_2+e_c, (e_1, e_2, e_c))

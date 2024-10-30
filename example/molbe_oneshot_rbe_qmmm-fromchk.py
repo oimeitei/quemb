@@ -30,14 +30,14 @@ structure = 'data/octane.xyz'
 # using checkfile from converged RHF
 be_energy = be2puffin(structure, # the QM region XYZ geometry
             'sto-3g', # the chosen basis set
-            pts_and_charges = [coords, charges], # the loaded hamiltonian 
+            pts_and_charges = [coords, charges], # the loaded hamiltonian
             use_df = False, # density fitting
             charge = 0, # charge of QM region
             spin = 0, # spin of QM region
             nproc = 1, # number of processors to parallize across
             ompnum = 2,
             be_type = 'be2', # BE type: this sets the fragment size.
-            frozen_core = False, # Frozen core 
+            frozen_core = False, # Frozen core
             unrestricted = False, # specify restricted calculation
             from_chk = True, # can save the RHF as PySCF checkpoint.
                               # Set to true if running from converged UHF chk
@@ -48,7 +48,7 @@ be_energy = be2puffin(structure, # the QM region XYZ geometry
 """
 To not use or generate checkfile:
 from_chk = False
-checkfile = None 
+checkfile = None
 
 To generate checkfile in be2puffin:
 from_chk = False

@@ -35,7 +35,7 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True
     valence_basis: str
        Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
     valence_only: bool
-       If this option is set to True, all calculation will be performed in the valence basis in the IAO partitioning. 
+       If this option is set to True, all calculation will be performed in the valence basis in the IAO partitioning.
        This is an experimental feature.
     iao_wannier : bool
        Whether to perform Wannier localization in the IAO space
@@ -54,9 +54,9 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True
         elif iao_val_core:
             sys.exit('valence_basis='+valence_basis+' not supported for iao_val_core=True')
 
-        
+
     if lo_method == 'lowdin':
-        
+
         # Lowdin orthogonalization with k-points
         W = numpy.zeros_like(self.S)
         nk, nao, nmo = self.C.shape
@@ -67,18 +67,18 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True
         else:
             lmo_coeff = numpy.zeros_like(self.C)
             cinv_ = numpy.zeros((nk, nmo, nao), dtype=numpy.complex128)
-        
+
         for k in range(self.nkpt):
-            
+
             es_, vs_ = scipy.linalg.eigh(self.S[k])
             edx = es_ > 1.e-14
-           
+
             W[k] =  numpy.dot(vs_[:,edx]/numpy.sqrt(es_[edx]), vs_[:,edx].conj().T)
             for i in range(W[k].shape[1]):
                 if W[k][i,i] < 0:
                     W[:,i] *= -1
             if self.frozen_core:
-                
+
                 pcore = numpy.eye(W[k].shape[0]) - numpy.dot(self.P_core[k], self.S[k])
                 C_ = numpy.dot(pcore, W[k])
 
@@ -88,18 +88,18 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True
                 Cpop = functools.reduce(numpy.dot,
                                         (C_.conj().T, self.S[k], C_))
                 Cpop = numpy.diag(Cpop.real)
-                
+
                 no_core_idx = numpy.where(Cpop > 0.7)[0]
                 C_ = C_[:,no_core_idx]
-                
+
                 S_ = functools.reduce(numpy.dot,
                                       (C_.conj().T, self.S[k], C_))
-                
+
                 es_, vs_ = scipy.linalg.eigh(S_)
                 edx = es_ > 1.e-14
                 W_ = numpy.dot(vs_[:,edx]/numpy.sqrt(es_[edx]), vs_[:,edx].conj().T)
                 W_nocore[k] = numpy.dot(C_,W_)
-                
+
                 lmo_coeff[k] = functools.reduce(numpy.dot,
                                                 (W_nocore[k].conj().T,self.S[k],
                                                  self.C[k][:,self.ncore:]))
@@ -114,49 +114,49 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True
         else:
             self.W = W
         self.lmo_coeff = lmo_coeff
-        self.cinv = cinv_     
+        self.cinv = cinv_
 
     elif lo_method=='iao':
         from libdmet.lo import pywannier90
         from pyscf import lo
         import os, h5py
-        
+
         from .lo_k import get_xovlp_k, get_iao_k, get_pao_k, get_pao_native_k,symm_orth_k , remove_core_mo_k
         from pyscf import gto, lo
 
         if not iao_val_core or not self.frozen_core:
             Co = self.C[:,:,:self.Nocc].copy()
             S12, S2 = get_xovlp_k(self.cell, self.kpts, basis=valence_basis)
-            ciao_ = get_iao_k(Co, S12, self.S, S2=S2) 
-            
+            ciao_ = get_iao_k(Co, S12, self.S, S2=S2)
+
             arrange_by_atom = True
             # tmp - aos are not rearrange and so below is not necessary
             if arrange_by_atom:
-                
+
                 nk, nao, nlo = ciao_.shape
                 Ciao_ = numpy.zeros((nk, nao, nlo), dtype=numpy.complex128)
                 for k in range(self.nkpt):
-                    aoind_by_atom = get_aoind_by_atom(self.cell)                    
+                    aoind_by_atom = get_aoind_by_atom(self.cell)
                     ctmp, iaoind_by_atom = reorder_by_atom_(ciao_[k], aoind_by_atom, self.S[k])
                     Ciao_[k] = ctmp
             else:
                 Ciao_ = ciao_.copy()
-                
+
             # get_pao_k returns canonical orthogonalized orbitals
             #Cpao = get_pao_k(Ciao, self.S, S12, S2, self.cell)
             # get_pao_native_k returns symm orthogonalized orbitals
             cpao_ = get_pao_native_k(Ciao_, self.S, self.cell, valence_basis, self.kpts)
-            
+
             if arrange_by_atom:
                 nk, nao, nlo = cpao_.shape
                 Cpao_ = numpy.zeros((nk, nao, nlo), dtype=numpy.complex128)
                 for k in range(self.nkpt):
                     aoind_by_atom = get_aoind_by_atom(self.cell)
                     ctmp, paoind_by_atom = reorder_by_atom_(cpao_[k], aoind_by_atom, self.S[k])
-                    Cpao_[k] = ctmp                    
+                    Cpao_[k] = ctmp
             else:
                 Cpao_ = cpao_.copy()
-            
+
             nk, nao, nlo = Ciao_.shape
             if self.frozen_core:
                 nk, nao, nlo = Ciao_.shape
@@ -209,35 +209,35 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True
             c_core_val = numpy.zeros((nk_, nao, Ciao_.shape[-1]+self.ncore), dtype=Ciao_.dtype)
             for k in range(nk_):
                 c_core_val[k] = numpy.hstack((ciao_core[k], Ciao_[k]))
-                
+
             arrange_by_atom = True
             # tmp - aos are not rearrange and so below is not necessary (iaoind_by_atom is used to stack iao|pao later)
             if arrange_by_atom:
                 nk, nao, nlo = c_core_val.shape
                 for k in range(self.nkpt):
-                    aoind_by_atom = get_aoind_by_atom(self.cell)                    
+                    aoind_by_atom = get_aoind_by_atom(self.cell)
                     ctmp, iaoind_by_atom = reorder_by_atom_(c_core_val[k], aoind_by_atom, self.S[k])
-                    
-            cpao_ = get_pao_native_k(c_core_val, self.S, self.cell, valence_basis, self.kpts, ortho=True)                
+
+            cpao_ = get_pao_native_k(c_core_val, self.S, self.cell, valence_basis, self.kpts, ortho=True)
             if arrange_by_atom:
                 nk, nao, nlo = cpao_.shape
                 Cpao_ = numpy.zeros((nk, nao, nlo), dtype=numpy.complex128)
                 for k in range(self.nkpt):
                     aoind_by_atom = get_aoind_by_atom(self.cell)
                     ctmp, paoind_by_atom = reorder_by_atom_(cpao_[k], aoind_by_atom, self.S[k])
-                    Cpao_[k] = ctmp  
-                
+                    Cpao_[k] = ctmp
+
         Cpao = Cpao_.copy()
         Ciao = Ciao_.copy()
 
         if iao_wannier:
-            mo_energy_ = []            
+            mo_energy_ = []
             for k in range(nk):
                 fock_iao = reduce(numpy.dot, (Ciao_[k].conj().T, self.FOCK[k], Ciao_[k]))
                 S_iao = reduce(numpy.dot, (Ciao_[k].conj().T, self.S[k], Ciao_[k]))
-                e_iao, v_iao = scipy.linalg.eigh(fock_iao, S_iao)  
+                e_iao, v_iao = scipy.linalg.eigh(fock_iao, S_iao)
                 mo_energy_.append(e_iao)
-            iaomf = KMF(self.mol, kpts = self.kpts, mo_coeff = Ciao_, mo_energy = mo_energy_) 
+            iaomf = KMF(self.mol, kpts = self.kpts, mo_coeff = Ciao_, mo_energy = mo_energy_)
 
             num_wann = numpy.asarray(iaomf.mo_coeff).shape[2]
             keywords = '''
@@ -263,55 +263,55 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True
                 else:
                     ovlp_ciao = uciao[k].conj().T @ self.S[k] @ Ciao[k]
                     A_matrix[k] = ovlp_ciao
-            A_matrix = A_matrix.transpose(1,2,0)            
-            
+            A_matrix = A_matrix.transpose(1,2,0)
+
             w90.kernel(A_matrix=A_matrix)
 
             u_mat = numpy.array(w90.U_matrix.transpose(2,0,1), order='C', dtype=numpy.complex128)
 
             os.system('cp wannier90.wout wannier90_iao.wout')
             os.system('rm wannier90.*')
-            
+
             nk, nao, nlo = Ciao_.shape
             Ciao = numpy.zeros((nk, nao, nlo), dtype=numpy.complex128)
-            
+
             for k in range(self.nkpt):
-                Ciao[k] = numpy.dot(Ciao_[k], u_mat[k])            
+                Ciao[k] = numpy.dot(Ciao_[k], u_mat[k])
 
         # Stack Ciao|Cpao
         Wstack = numpy.zeros((self.nkpt, Ciao.shape[1], Ciao.shape[2]+Cpao.shape[2]),
-                             dtype=numpy.complex128)  
+                             dtype=numpy.complex128)
         if self.frozen_core:
             for k in range(self.nkpt):
                 shift = 0
-                ncore = 0                    
+                ncore = 0
                 for ix in range(self.cell.natm):
                     nc = ncore_(self.cell.atom_charge(ix))
                     ncore += nc
-                    niao = len(iaoind_by_atom[ix])            
+                    niao = len(iaoind_by_atom[ix])
                     iaoind_ix = [i_ - ncore for i_ in iaoind_by_atom[ix][nc:]]
                     Wstack[k][:, shift:shift+niao-nc] = Ciao[k][:, iaoind_ix]
                     shift += niao-nc
                     npao = len(paoind_by_atom[ix])
-                    
+
                     Wstack[k][:,shift:shift+npao] = Cpao[k][:, paoind_by_atom[ix]]
                     shift += npao
         else:
             for k in range(self.nkpt):
-                shift = 0                    
+                shift = 0
                 for ix in range(self.cell.natm):
                     niao = len(iaoind_by_atom[ix])
                     Wstack[k][:, shift:shift+niao] = Ciao[k][:, iaoind_by_atom[ix]]
                     shift += niao
                     npao = len(paoind_by_atom[ix])
                     Wstack[k][:,shift:shift+npao] = Cpao[k][:, paoind_by_atom[ix]]
-                    shift += npao            
+                    shift += npao
         self.W = Wstack
-                
+
         nmo = self.C.shape[2] - self.ncore
         nlo = self.W.shape[2]
         nao = self.S.shape[2]
-        
+
         lmo_coeff = numpy.zeros((self.nkpt, nlo, nmo), dtype=numpy.complex128)
         cinv_ = numpy.zeros((self.nkpt, nlo, nao), dtype=numpy.complex128)
 
@@ -336,9 +336,9 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True
             for k in range(self.nkpt):
                 lmo_coeff[k] = reduce(numpy.dot, (self.W[k].conj().T, self.S[k], self.C[k][:,self.ncore:]))
                 cinv_[k] = numpy.dot(self.W[k].conj().T, self.S[k])
-                
+
                 assert(numpy.allclose(lmo_coeff[k].conj().T @ lmo_coeff[k], numpy.eye(lmo_coeff[k].shape[1])))
-                
+
         self.lmo_coeff = lmo_coeff
         self.cinv = cinv_
 
@@ -356,8 +356,8 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True
 
             if self.frozen_core:
                 Ccore = self.C[k][:,:self.ncore]
-                lorb_nocore[k] = remove_core_mo_k(lorb[k], Ccore, self.S[k])  
-                
+                lorb_nocore[k] = remove_core_mo_k(lorb[k], Ccore, self.S[k])
+
         if not self.frozen_core:
             lmf = KMF(self.mol, kpts=self.kpts, mo_coeff = lorb, mo_energy = self.mo_energy)
         else:
@@ -368,7 +368,7 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True
                 e__, v__ = scipy.linalg.eigh(fock_lnc, S_lnc)
                 mo_energy_nc.append(e__)
             lmf = KMF(self.mol, kpts=self.kpts, mo_coeff = lorb_nocore, mo_energy = mo_energy_nc)
-        
+
         num_wann = lmf.mo_coeff.shape[2]
         keywords = '''
         num_iter = 10000
@@ -378,7 +378,7 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True
         iprint = 3
         kmesh_tol = 0.00001
         '''
-        
+
         w90 = pywannier90.W90(lmf, self.kmesh,
                               num_wann, other_keywords=keywords)
         A_matrix = numpy.zeros((self.nkpt, num_wann, num_wann), dtype=numpy.complex128)
@@ -388,7 +388,7 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True
                 A_matrix[k] = numpy.eye(num_wann, dtype=numpy.complex128)
 
         A_matrix = A_matrix.transpose(1,2,0)
-        
+
         w90.kernel(A_matrix=A_matrix)
         u_mat = numpy.array(w90.U_matrix.transpose(2,0,1), order='C', dtype=numpy.complex128)
 
@@ -396,18 +396,18 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g', iao_wannier=True
         W = numpy.zeros((nk, nao, nlo), dtype=numpy.complex128)
         for k in range(nk):
             W[k] = numpy.dot(lmf.mo_coeff[k], u_mat[k])
-        
+
         self.W = W
         lmo_coeff = numpy.zeros((self.nkpt, nlo, nmo-self.ncore), dtype=numpy.complex128)
         cinv_ = numpy.zeros((self.nkpt, nlo, nao), dtype=numpy.complex128)
-  
+
         for k in range(nk):
             lmo_coeff[k] = reduce(numpy.dot, (self.W[k].conj().T, self.S[k], self.C[k][:,self.ncore:]))
             cinv_[k] = numpy.dot(self.W[k].conj().T, self.S[k])
             assert(numpy.allclose(lmo_coeff[k].conj().T @ lmo_coeff[k], numpy.eye(lmo_coeff[k].shape[1])))
         self.lmo_coeff = lmo_coeff
         self.cinv = cinv_
-        
+
     else:
         print('lo_method = ',lo_method,' not implemented!',flush=True)
         print('exiting',flush=True)

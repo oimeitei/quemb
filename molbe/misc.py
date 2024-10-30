@@ -287,7 +287,7 @@ def be2puffin(
         Unrestricted vs restricted HF and CCSD, by default False
     from_chk: bool, optional
         Run calculation from converged RHF/UHF checkpoint. By default False
-    checkfile: string, optional 
+    checkfile: string, optional
         if not None:
         - if from_chk: specify the checkfile to run the embedding calculation
         - if not from_chk: specify where to save the checkfile
@@ -372,7 +372,7 @@ def be2puffin(
         if not hcore is None: mf.get_hcore = lambda *args: hcore_pyscf
         if not jk is None: mf.get_jk = lambda *args: jk_pyscf
 
-        if checkfile: 
+        if checkfile:
             print("Saving checkfile to:", checkfile)
             mf.chkfile = checkfile
         time_pre_mf = time.time()
@@ -427,13 +427,13 @@ def be2puffin(
 
 
 def print_energy(ecorr, e_V_Kapprox, e_F_dg, e_hf):
-    
+
 
     # Print energy results
     print('-----------------------------------------------------',
           flush=True)
     print(' BE ENERGIES with cumulant-based expression', flush=True)
-    
+
     print('-----------------------------------------------------',
           flush=True)
     print(' E_BE = E_HF + Tr(F del g) + Tr(V K_approx)', flush=True)
@@ -444,5 +444,5 @@ def print_energy(ecorr, e_V_Kapprox, e_F_dg, e_hf):
     print(' Ecorr BE        : {:>14.8f} Ha'.format(ecorr), flush=True)
     print('-----------------------------------------------------',
           flush=True)
-    
+
     print(flush=True)

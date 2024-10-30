@@ -27,15 +27,15 @@ def add_check_k(min1, flist, sts, ksts, nk_):
             ksts.append(nk_)
 
 def nearestof2coord(coord1, coord2 , bond=2.6*1.88973):
-       
+
     mind = 50000
     lmin = ()
-    for idx, i in enumerate(coord1):    
+    for idx, i in enumerate(coord1):
         for jdx, j in enumerate(coord2):
             if idx == jdx:
                 continue
             dist = numpy.linalg.norm(i - j)
-            
+
             if dist < mind or dist-mind < 0.1:
                 if dist <= bond:
                     lmin = (idx, jdx)
@@ -55,10 +55,10 @@ def nearestof2coord(coord1, coord2 , bond=2.6*1.88973):
                 continue
             dist = numpy.linalg.norm(i - j)
             if dist-mind<0.1 and dist <= bond:
-                
+
                 lunit_.append(idx)
                 runit_.append(jdx)
-   
+
     return(lunit_, runit_)
 
 
@@ -68,7 +68,7 @@ def sidefunc(cell, Idx, unit1, unit2, main_list, sub_list, coord,
 
     if ext_list == []:
         main_list.extend(unit2[numpy.where(unit1==Idx)[0]])
-        sub_list.extend(unit2[numpy.where(unit1==Idx)[0]])        
+        sub_list.extend(unit2[numpy.where(unit1==Idx)[0]])
     else:
         for sub_i in unit2[numpy.where(unit1==Idx)[0]]:
             if sub_i in rlist: continue
@@ -81,11 +81,11 @@ def sidefunc(cell, Idx, unit1, unit2, main_list, sub_list, coord,
                     sub_list.append(sub_i)
             else:
                 main_list.append(sub_i)
-                sub_list.append(sub_i)                
-        
-    closest = sub_list.copy()    
+                sub_list.append(sub_i)
+
+    closest = sub_list.copy()
     close_be3 = []
-    
+
     if be_type == 'be3' or be_type == 'be4':
         for lmin1 in unit2[numpy.where(unit1==Idx)[0]]:
             for jdx, j in enumerate(coord):
@@ -97,7 +97,7 @@ def sidefunc(cell, Idx, unit1, unit2, main_list, sub_list, coord,
                             main_list.append(jdx)
                             sub_list.append(jdx)
                             close_be3.append(jdx)
-                            
+
                             if be_type == 'be4':
                                 for kdx, k in enumerate(coord):
                                     if kdx == jdx:
@@ -127,25 +127,25 @@ def surround(cell, sidx, unit1, unit2, flist, coord, be_type, ext_list,
         for tmpi in sublist_:
             if not tmpi in rlist:
                 for tmp_jdx, tmpj in enumerate(ext_list):
-                    if tmpj == tmpi and klist[tmp_jdx] == NK:                        
+                    if tmpj == tmpi and klist[tmp_jdx] == NK:
                         break
-                else:                        
+                else:
                     sublist.append(tmpi)
-        
+
         ext_list.extend(sublist)
         for kdx in sublist:
             klist.append(NK)
 
-    
+
 def kfrag_func(site_list, numk, nk1, uNs, Ns, nk2=None, debug=False,
                debug1=False, shift=False, debug2=False):
     if nk2 is None:
         nk2 = nk1
     frglist = []
 
-    for pq in site_list:        
+    for pq in site_list:
         if numk > nk1 * 2:
-            if not uNs == Ns:                
+            if not uNs == Ns:
                 nk_ = numk - (nk1*2)
                 frglist.append(uNs*nk1*2 + (nk_*uNs) + pq)
             else:
@@ -159,15 +159,15 @@ def kfrag_func(site_list, numk, nk1, uNs, Ns, nk2=None, debug=False,
                 else:
                     frglist.append(uNs*numk + pq)
         elif numk >nk1:
-            if uNs == Ns:                
+            if uNs == Ns:
                 frglist.append(uNs*numk + pq)
             else:
-                nk_ = numk - nk1                                   
-                frglist.append(uNs*nk1 + (nk_*uNs)+pq)                 
+                nk_ = numk - nk1
+                frglist.append(uNs*nk1 + (nk_*uNs)+pq)
         else:
             if not Ns==uNs:
                 frglist.append(uNs*numk + pq)
-                
+
             else:
                 frglist.append(uNs*numk + pq)
                 if debug: print(uNs*numk + pq, end=' ')
@@ -183,7 +183,7 @@ def be_reduce(be_type, N=1):
         elif be_type == 'be4':
             return 'be3'
 
-def autogen(mol, kpt, frozen_core=True, be_type='be2', 
+def autogen(mol, kpt, frozen_core=True, be_type='be2',
             write_geom=False,
             unitcell=1, gamma_2d=False, gamma_1d=False,
             long_bond=False, perpend_dist = 4.0, perpend_dist_tol = 1e-3,
@@ -195,8 +195,8 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
 
     Partitions a unitcell into overlapping fragments as defined in BE atom-based fragmentations.
     It automatically detects branched chemical chains and ring systems and partitions accordingly.
-    For efficiency, it only checks two atoms for connectivity (chemical bond) if they are within 3.5 Angstrom. 
-    This value is hardcoded as normdist. Two atoms are defined as bonded if they are within 1.8 Angstrom (1.2 for Hydrogen atom). 
+    For efficiency, it only checks two atoms for connectivity (chemical bond) if they are within 3.5 Angstrom.
+    This value is hardcoded as normdist. Two atoms are defined as bonded if they are within 1.8 Angstrom (1.2 for Hydrogen atom).
     This is also hardcoded as bond & hbond. Neighboring unitcells are used in the fragmentation, exploiting translational symmetry.
 
     Parameters
@@ -243,7 +243,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
     """
     from pyscf import lib
     from .misc import sgeom
-    
+
     if not float(unitcell).is_integer():
         print('Fractional unitcell is not supported!')
         sys.exit()
@@ -251,16 +251,16 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
         if not nx and not ny and not nz:
             nx_ = unitcell if kpt[0] > 1 else 1
             ny_ = unitcell if kpt[1] > 1 else 1
-            nz_ = unitcell if kpt[2] > 1 else 1                
+            nz_ = unitcell if kpt[2] > 1 else 1
         else:
             nx_ = unitcell if nx else 1
             ny_ = unitcell if ny else 1
             nz_ = unitcell if nz else 1
         kmesh = [nx_, ny_, nz_]
-        
+
         cell = sgeom(mol, kmesh=kmesh)
         cell.build()
-        
+
         print(flush=True)
         print('No. of cells used in building fragments : {:>3}'.format(unitcell),flush=True)
 
@@ -273,11 +273,11 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                     sys.exit()
     else:
         cell = mol.copy()
-    
+
     ncore, no_core_idx, core_list = get_core(cell)
-    
+
     coord = cell.atom_coords()
-    
+
     ang2bohr = 1.88973
     normdist = 3.5 * ang2bohr
     bond = 1.8 * ang2bohr
@@ -291,9 +291,9 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
     dunit = []
     munit = []
     tunit = []
-    
+
     lnext = [i for i in kpt if i>1]
-            
+
     if not len(lnext) == 0:
         nk1 = lnext[0]
         twoD = False
@@ -312,7 +312,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
             nk2 = 1
             twoD = True
             lkpt = [2,2,1]
-    
+
     if frozen_core:
         ncore__, no_core_idx__, core_list__ = get_core(mol)
         Nsite = mol.aoslice_by_atom()[-1][3]-ncore__ -1
@@ -320,47 +320,47 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
         Nsite = mol.aoslice_by_atom()[-1][3]-1
     # kmesh is lkpt
     # Building neighbouring cells
-    
+
     if twoD:
         lnk2 = 2
     else:
         lnk2 = 1
-    
-    lattice_vector = cell.lattice_vectors()        
+
+    lattice_vector = cell.lattice_vectors()
     Ts = lib.cartesian_prod((numpy.arange(lkpt[0]),
                              numpy.arange(lkpt[1]),
                              numpy.arange(lkpt[2])))
-    
-    Ls = numpy.dot(Ts, lattice_vector)
-    
-    # 1-2-(1-2)-1-2
-    #   *       *        
 
-    lcoord = Ls.reshape(-1,1,3)[lnk2]*-1 + coord        
+    Ls = numpy.dot(Ts, lattice_vector)
+
+    # 1-2-(1-2)-1-2
+    #   *       *
+
+    lcoord = Ls.reshape(-1,1,3)[lnk2]*-1 + coord
     rcoord = Ls.reshape(-1,1,3)[lnk2] + coord
-            
+
     lunit, runit = nearestof2coord(coord, lcoord, bond=bond)
     lunit_, runit_ = nearestof2coord(coord, rcoord, bond=bond)
-    
+
     if not set(lunit) == set(runit_) or not set(runit) == set(lunit_):
         print('Fragmentation error : wrong connection of unit cells ')
         sys.exit()
-        
+
     if sum(i>1 for i in kpt) > 1 or gamma_2d:
         # only 2D is supported
         # neighbours up-down or right-left
-        
+
         #  *1-2
         #   |
         #  (1-2)
         #   |
-        #  *1-2    
+        #  *1-2
         lcoord2 = Ls.reshape(-1,1,3)[1]*-1 + coord
         rcoord2 = Ls.reshape(-1,1,3)[1] + coord
 
         dunit, uunit = nearestof2coord(coord, lcoord2, bond=bond)
         dunit_, uunit_ = nearestof2coord(coord, rcoord2, bond=bond)
-                    
+
         if not set(uunit) == set(dunit_) or not set(dunit) == set(uunit_):
             print('Fragmentation error : wrong connection of unit cells ')
             sys.exit()
@@ -371,24 +371,24 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
         #    \   /
         #    (1-2)
         #    /   \
-        # 1-2*     1-2            
+        # 1-2*     1-2
         lcoord3 = Ls.reshape(-1,1,3)[lnk2+1]*-1 + coord
         rcoord3 = Ls.reshape(-1,1,3)[lnk2+1] + coord
-        
-        
+
+
         munit, tunit = nearestof2coord(coord, lcoord3, bond=bond)
         munit_, tunit_ = nearestof2coord(coord, rcoord3, bond=bond)
-       
+
         if not set(munit) == set(tunit_) or not set(tunit) == set(munit_):
             print('Fragmentation error : wrong connection of unit cells ')
             sys.exit()
         # kmesh lkpt ends
-    
+
     ## starts here
     normlist = []
     for i in coord:
         normlist.append(numpy.linalg.norm(i))
-    Frag = []   
+    Frag = []
     pedge = []
     cen = []
     lsites = []
@@ -397,14 +397,14 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
     dsites = []
     msites = []
     tsites = []
-    
+
     klsites = []
     krsites = []
     kusites = []
     kdsites = []
     kmsites = []
     ktsites = []
-    
+
     lunit = numpy.asarray(lunit)
     runit = numpy.asarray(runit)
     uunit = numpy.asarray(uunit)
@@ -423,8 +423,8 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
             for ajdx, aj in enumerate(coord):
                 if aidx==ajdx: continue
                 if ai[inter_layer_axis] ==  aj[inter_layer_axis]: continue
-                dist = numpy.linalg.norm(ai-aj)                
-                if dist > bond:                                     
+                dist = numpy.linalg.norm(ai-aj)
+                if dist > bond:
                     if inter_dist > dist:
                         inter_dist = dist
                         inter_idx = ajdx
@@ -438,14 +438,14 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                     inter_dist_.append(dist)
                     inter_idx_.append(ajdx)
             inter_layer_dict.append([inter_idx_, inter_dist_])
-                                
+
     # Assumes - minimum atom in a ring is 5
     if be_type == 'be4':
         if twoD:
             print('*********************')
             print('USE BE4  WITH CAUTION')
             print('*********************')
-    
+
     for idx, i in enumerate(normlist):
         if cell.atom_pure_symbol(idx) == 'H':
             continue
@@ -453,27 +453,27 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
         lsts = []
         rsts = []
         usts = []
-        dsts = []        
+        dsts = []
         msts = []
         tsts = []
-        
+
         klsts = []
         krsts = []
         kusts = []
-        kdsts = []        
+        kdsts = []
         kmsts = []
         ktsts = []
-        
+
         tmplist = normlist - i
         tmplist = list(tmplist)
-        
+
         clist = []
         cout = 0
         for jdx,j in enumerate(tmplist):
             if not idx==jdx and not cell.atom_pure_symbol(jdx) == 'H':
-                if abs(j)< normdist:                  
+                if abs(j)< normdist:
                     clist.append(jdx)
-        
+
         pedg = []
         flist = []
 
@@ -485,7 +485,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
         # For systems like Graphene, BN, SiC, hexagonal 2D sheets,
         # BE4 can give wrong fragmentations
         # the following code adds in redundant atoms
-        
+
         if idx in lunit:
             closest, close_be3 = sidefunc(cell, idx, lunit, runit, flist,
                                           lsts, coord, be_type, bond=bond)
@@ -494,7 +494,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                     klsts.append(nk1*(nk2-1)+1)
                 else:
                     klsts.append(nk1)
-            
+
             for lsidx in closest:
                 if lsidx in lunit or lsidx in munit: warn_large_fragment()
                 if lsidx in runit:
@@ -509,8 +509,8 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                 if lsidx in tunit:
                     surround(cell, lsidx, tunit, munit, flist, coord, be_type,
                              lsts, klsts, 2, bond=bond)
-            
-            if be_type == 'be4':                
+
+            if be_type == 'be4':
                 for lsidx in close_be3:
                     if lsidx in lunit or lsidx in munit: warn_large_fragment()
                     if lsidx in runit:
@@ -519,15 +519,15 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                     if lsidx in uunit:
                         surround(cell, lsidx, uunit, dunit, flist, coord, 'be3',
                                  lsts, klsts, nk1*(nk2-1)+2, bond=bond)
-                    if lsidx in dunit:                                    
+                    if lsidx in dunit:
                         surround(cell, lsidx, dunit, uunit, flist, coord, 'be3',
                                  lsts, klsts, nk1*nk2, bond=bond)
-                    if lsidx in tunit:                                    
+                    if lsidx in tunit:
                         surround(cell, lsidx, tunit, munit, flist, coord, 'be3',
                                  lsts, klsts, 2, bond=bond)
             for i1dx, i1 in enumerate(klsts):
                 if i1 == 1: clist_check.append(lsts[i1dx])
-                
+
         if idx in uunit:
             closest, close_be3 = sidefunc(cell, idx, uunit, dunit, flist, usts,
                                           coord, be_type, bond=bond)
@@ -549,7 +549,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                              kusts, 1, rlist=[idx]+clist_check, bond=bond)
             if be_type == 'be4':
                 for usidx in close_be3:
-                    if usidx in uunit or usidx in tunit: warn_large_fragment()  
+                    if usidx in uunit or usidx in tunit: warn_large_fragment()
                     if usidx in lunit:
                         surround(cell, usidx, lunit, runit, flist, coord, 'be3', usts,
                                  kusts, nk1*(nk2-1)+2, bond=bond)
@@ -564,7 +564,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                                  kusts, 1, rlist=[idx], bond=bond)
             for i1dx, i1 in enumerate(kusts):
                 if i1 == 1: clist_check.append(usts[i1dx])
-                                          
+
         if idx in munit:
             closest, close_be3 = sidefunc(cell, idx, munit, tunit, flist, msts, coord,
                                           be_type, bond=bond)
@@ -618,7 +618,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                 if rsidx in dunit:
                     surround(cell, rsidx, dunit, uunit, flist, coord, be_type, rsts, krsts,
                              nk1*2, bond=bond)
-            if be_type == 'be4':                
+            if be_type == 'be4':
                 for rsidx in close_be3:
                     if rsidx in runit or rsidx in tunit: warn_large_fragment()
                     if rsidx in lunit:
@@ -640,7 +640,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                                           coord, be_type, bond=bond)
             for kdx in dsts:
                 kdsts.append(nk1)
-            for dsidx in closest:                
+            for dsidx in closest:
                 if dsidx in munit or dsidx in dunit: warn_large_fragment()
                 if dsidx in lunit:
                     surround(cell, dsidx, lunit, runit, flist, coord, be_type, dsts, kdsts,
@@ -655,7 +655,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                     surround(cell, dsidx, tunit, munit, flist, coord, be_type, dsts, kdsts,
                              nk1+1, bond=bond)
             if be_type == 'be4':
-                for dsidx in close_be3:               
+                for dsidx in close_be3:
                     if dsidx in munit or dsidx in dunit: warn_large_fragment()
                     if dsidx in lunit:
                         surround(cell, dsidx, lunit, runit, flist, coord, 'be3', dsts, kdsts,
@@ -671,7 +671,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                                  nk1+1, bond=bond)
             for i1dx, i1 in enumerate(kdsts):
                 if i1 == 1: clist_check.append(dsts[i1dx])
-        
+
         if idx in tunit:
             closest, close_be3 = sidefunc(cell, idx, tunit, munit, flist, tsts, coord,
                                           be_type, bond=bond)
@@ -702,13 +702,13 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                                  nk1+1, bond=bond)
             for i1dx, i1 in enumerate(ktsts):
                 if i1 == 1: clist_check.append(tsts[i1dx])
-                        
+
         flist.append(idx)
-        cen.append(idx)        
-        
-        for jdx in clist:                  
+        cen.append(idx)
+
+        for jdx in clist:
             dist = numpy.linalg.norm(coord[idx] - coord[jdx])
-            
+
             if (dist <= bond) or (interlayer and dist in inter_layer_dict[idx][1] \
                                   and jdx in inter_layer_dict[idx][0] and \
                                   dist < perpend_dist*ang2bohr and not jdx in pedg):
@@ -716,7 +716,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                       flist.append(jdx)
                       pedg.append(jdx)
                   if dist > bond: continue
-                  if be_type=='be3' or be_type == 'be4':                      
+                  if be_type=='be3' or be_type == 'be4':
                       if jdx in lunit:
                           lmin1 = runit[numpy.where(lunit==jdx)[0]]
                           if not twoD:
@@ -742,16 +742,16 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                                       if twoD:
                                           klsts.append(nk1*(nk2-1)+1)
                                       else:
-                                          klsts.append(nk1)                              
+                                          klsts.append(nk1)
                               for lsidx in lmin1:
                                   if lsidx in lunit or lsidx in munit: warn_large_fragment()
                                   if lsidx in uunit:
                                       surround(cell, lsidx, uunit, dunit, flist, coord, 'be3',
                                                lsts, klsts, nk1*(nk2-1)+2, bond=bond)
-                                  if lsidx in dunit:                                    
+                                  if lsidx in dunit:
                                       surround(cell, lsidx, dunit, uunit, flist, coord, 'be3',
                                                lsts, klsts, nk1*nk2, bond=bond)
-                                  if lsidx in tunit:                                    
+                                  if lsidx in tunit:
                                       surround(cell, lsidx, tunit, munit, flist, coord, 'be3',
                                                lsts, klsts, 2, bond=bond)
                       if jdx in runit:
@@ -765,7 +765,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                                   else:
                                       krsts.append(2)
                           else:
-                              add_check_k(rmin1, flist, rsts, krsts, nk1+1)    
+                              add_check_k(rmin1, flist, rsts, krsts, nk1+1)
                           if be_type == 'be4':
                               for kdx, k in enumerate(coord):
                                   if kdx == jdx or kdx in rmin1 or cell.atom_pure_symbol(kdx) == 'H':
@@ -781,7 +781,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                                       else:
                                           krsts.append(2)
                               for rsidx in rmin1:
-                                  if rsidx in runit or rsidx in tunit: warn_large_fragment()                                  
+                                  if rsidx in runit or rsidx in tunit: warn_large_fragment()
                                   if rsidx in munit:
                                       surround(cell, rsidx, munit, tunit, flist, coord, 'be3',
                                                rsts, krsts, nk1, bond=bond)
@@ -807,8 +807,8 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                                       flist.append(kdx)
                                       usts.append(kdx)
                                       kusts.append(2)
-                              for usidx in umin1: 
-                                  if usidx in uunit or usidx in tunit: warn_large_fragment()  
+                              for usidx in umin1:
+                                  if usidx in uunit or usidx in tunit: warn_large_fragment()
                                   if usidx in lunit:
                                       surround(cell, usidx, lunit, runit, flist, coord, 'be3',
                                                usts, kusts, nk1*(nk2-1)+2, bond=bond)
@@ -817,11 +817,11 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                                                usts, kusts, nk1+2, bond=bond)
                                   if usidx in munit:
                                       surround(cell, usidx, munit, tunit, flist, coord, 'be3',
-                                               usts, kusts, nk1*(nk2-1)+1, bond=bond)         
+                                               usts, kusts, nk1*(nk2-1)+1, bond=bond)
                       if jdx in dunit:
                           dmin1 = uunit[numpy.where(dunit==jdx)[0]]
                           add_check_k(dmin1, flist, dsts, kdsts, nk1)
-                          
+
                           if be_type == 'be4':
                               for kdx, k in enumerate(coord):
                                   if kdx == jdx or kdx in dmin1 or \
@@ -834,7 +834,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                                       flist.append(kdx)
                                       dsts.append(kdx)
                                       kdsts.append(nk1)
-                              for dsidx in dmin1:              
+                              for dsidx in dmin1:
                                   if dsidx in munit or dsidx in dunit: warn_large_fragment()
                                   if dsidx in lunit:
                                       surround(cell, dsidx, lunit, runit, flist, coord, 'be3',
@@ -869,11 +869,11 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                                   if msidx in uunit:
                                       surround(cell, msidx, uunit, dunit, flist, coord, 'be3',
                                                msts, kmsts, nk1*(nk2-1)+1, bond=bond)
-                    
+
                       if jdx in tunit:
                           tmin1 = munit[numpy.where(tunit==jdx)[0]]
                           add_check_k(tmin1, flist, tsts, ktsts, nk1+2)
-                          
+
                           if be_type == 'be4':
                               for kdx, k in enumerate(coord):
                                   if kdx == jdx or kdx in tmin1 or \
@@ -895,8 +895,8 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                                   if tsidx in dunit:
                                       surround(cell, tsidx, dunit, uunit, flist, coord, 'be3',
                                                tsts, ktsts, nk1+1, bond=bond)
-                                      
-                             
+
+
                       for kdx in clist:
                           if not kdx == jdx:
                               dist = numpy.linalg.norm(coord[jdx] - coord[kdx])
@@ -907,7 +907,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                                       flist.append(kdx)
                                       pedg.append(kdx)
                                   if be_type=='be4':
-                                      if kdx in lunit:                                          
+                                      if kdx in lunit:
                                           lmin1 = runit[numpy.where(lunit==kdx)[0]]
                                           for zdx in lmin1:
                                               if zdx in lsts and klsts[lsts.index(zdx)] == nk1*(nk2-1)+1 \
@@ -918,7 +918,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                                                   klsts.append(nk1*(nk2-1)+1)
                                               else:
                                                   klsts.append(nk1)
-                                      if kdx in runit:                                          
+                                      if kdx in runit:
                                           rmin1 = lunit[numpy.where(runit==kdx)[0]]
                                           for zdx in rmin1:
                                               if zdx in rsts and krsts[rsts.index(zdx)] == nk1+1 and twoD:
@@ -929,7 +929,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                                                   krsts.append(nk1+1)
                                               else:
                                                   krsts.append(2)
-                                      if kdx in uunit:                                          
+                                      if kdx in uunit:
                                           umin1 = dunit[numpy.where(uunit==kdx)[0]]
                                           for zdx in umin1:
                                               if zdx in usts and kusts[usts.index(zdx)] == 2 and twoD:
@@ -960,8 +960,8 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                                                   continue
                                               flist.append(zdx)
                                               tsts.append(zdx)
-                                              ktsts.append(nk1+2)                                              
-                                              
+                                              ktsts.append(nk1+2)
+
                                       for ldx, l in enumerate(coord):
                                           if ldx==kdx or ldx==jdx or cell.atom_pure_symbol(ldx) == 'H'or ldx in pedg:
                                               continue
@@ -969,7 +969,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                                           if dist <= bond:
                                               flist.append(ldx)
                                               pedg.append(ldx)
-                
+
         lsites.append(lsts)
         rsites.append(rsts)
         usites.append(usts)
@@ -982,25 +982,25 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
         kdsites.append(kdsts)
         kmsites.append(kmsts)
         ktsites.append(ktsts)
-        
+
         Frag.append(flist)
         pedge.append(pedg)
 
     hlist = [[] for i in coord]
     for idx, i in enumerate(normlist):
         if cell.atom_pure_symbol(idx) == 'H':
-            
+
             tmplist = normlist - i
             tmplist = list(tmplist)
-            
+
             clist = []
             for jdx,j in enumerate(tmplist):
                 if not idx==jdx and not cell.atom_pure_symbol(jdx) == 'H':
                     if abs(j)< normdist:
                         clist.append(jdx)
-            
+
             for jdx in clist:
-                
+
                 dist = numpy.linalg.norm(coord[idx] - coord[jdx])
                 if dist <= hbond:
                     hlist[jdx].append(idx)
@@ -1010,7 +1010,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
         print('--------------------------',flush=True)
         print('Fragment |   Center | Edges ',flush=True)
         print('--------------------------',flush=True)
-        
+
         for idx,i in enumerate(Frag):
             print('   {:>4}  |   {:>5}  |'.format(idx,
                                                   cell.atom_pure_symbol(cen[idx])+str(cen[idx]+1)),
@@ -1032,7 +1032,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
         w = open('fragments.xyz','w')
         for idx,i in enumerate(Frag):
             w.write(str(len(i)+len(hlist[cen[idx]])+len(hlist[j]))+'\n')
-            w.write('Fragment - '+str(idx)+'\n')            
+            w.write('Fragment - '+str(idx)+'\n')
             for j in hlist[cen[idx]]:
                 w.write(' {:>3}   {:>10.7f}   {:>10.7f}   {:>10.7f} \n'.format(cell.atom_pure_symbol(j),
                                                                                coord[j][0]/ang2bohr,
@@ -1055,42 +1055,42 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
         pao = True
     else:
         pao = False
-        
+
     if pao:
         cell2 = cell.copy()
         cell2.basis = valence_basis
         cell2.build()
 
-        bas2list = cell2.aoslice_by_atom()        
+        bas2list = cell2.aoslice_by_atom()
         nbas2 = [0 for i in range(cell.natm)]
-        
+
     baslist = cell.aoslice_by_atom()
     sites__ = [[] for i in coord]
     coreshift = 0
     hshift = [0 for i in coord]
-    
+
     for adx in range(cell.natm):
-        
+
         if not cell.atom_pure_symbol(adx) == 'H':
-            bas = baslist[adx]            
+            bas = baslist[adx]
             start_ = bas[2]
             stop_ = bas[3]
             if pao:
                 bas2 = bas2list[adx]
                 nbas2[adx] += bas2[3] - bas2[2]
-                
+
             if frozen_core:
-                start_ -= coreshift                
+                start_ -= coreshift
                 ncore_ = core_list[adx]
                 stop_ -= coreshift+ncore_
-                if pao: nbas2[adx] -= ncore_                                
+                if pao: nbas2[adx] -= ncore_
                 coreshift += ncore_
 
             b1list = [i for i in range(start_, stop_)]
             sites__[adx] = b1list
         else:
             hshift[adx] = coreshift
-            
+
     hsites = [[] for i in coord]
     nbas2H = [0 for i in coord]
     for hdx, h in enumerate(hlist):
@@ -1104,19 +1104,19 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
             if pao:
                 bas2H = bas2list[hidx]
                 nbas2H[hdx] += bas2H[3] - bas2H[2]
-            
-            if frozen_core:                
+
+            if frozen_core:
                 startH -= hshift[hidx]
                 stopH -= hshift[hidx]
-                
+
             b1list = [i for i in range(startH, stopH)]
             hsites[hdx].extend(b1list)
-    
+
     max_site = max([j for i in sites__ for j in i])
     if any(hsites):
         maxH = max([j for i in hsites for j in i])
         max_site = max(max_site, maxH)
-            
+
     fsites = []
     edgsites = []
     edge_idx = []
@@ -1130,15 +1130,15 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
     Ns = Nsite+1
     uNs = Ns*unitcell
     Sites = sites__.copy()
-    
-    for j_ in range(unitcell-1):        
-        for idx, i in enumerate(Sites):            
+
+    for j_ in range(unitcell-1):
+        for idx, i in enumerate(Sites):
             if any (i>=unitcell*Ns + unitcell*Ns*j_):
                 sites__[idx] = [ (nk1*Ns)+j+(nk1*Ns*j_ - unitcell*Ns*j_) - (unitcell*Ns) for j in i]
-    
+
     for idx, i in enumerate(Frag):
         ftmp = []
-        ftmpe = [] 
+        ftmpe = []
         indix = 0
         edind = []
         edg = []
@@ -1147,14 +1147,14 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
             if not conmax:
                 frglist = sites__[jdx].copy()
                 frglist.extend(hsites[jdx])
-            elif nkcon:  
+            elif nkcon:
                 numk = klsites[idx][jdx_]-1
                 frglist = kfrag_func(sites__[jdx]+hsites[jdx], numk, nk1, uNs, Ns)
             else:
                 frglist = [pq-max_site-1 for pq in sites__[jdx]]
                 frglist.extend([pq-max_site-1 for pq in hsites[jdx]])
             ftmp.extend(frglist)
-            ls = len(sites__[jdx])+len(hsites[jdx])            
+            ls = len(sites__[jdx])+len(hsites[jdx])
             if not pao:
                 if not conmax:
                     edglist = sites__[jdx].copy()
@@ -1164,7 +1164,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                                          numk, nk1, uNs, Ns)
                 else:
                     edglist = [pq-max_site-1 for pq in sites__[jdx]]
-                    edglist.extend([pq-max_site-1 for pq in hsites[jdx]])            
+                    edglist.extend([pq-max_site-1 for pq in hsites[jdx]])
                 ftmpe.append(edglist)
                 edind.append([pq for pq in range(indix,indix+ls)])
             else:
@@ -1179,7 +1179,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                     edglist.extend([pq-max_site-1 for pq in hsites[jdx]][:nbas2H[jdx]])
 
                 ftmpe.append(edglist)
-                ind__ = [ indix+frglist.index(pq) for pq in edglist]                
+                ind__ = [ indix+frglist.index(pq) for pq in edglist]
                 edind.append(ind__)
             indix += ls
 
@@ -1194,8 +1194,8 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
             else:
                 frglist = [pq-max_site-1 for pq in sites__[jdx]]
                 frglist.extend([pq-max_site-1 for pq in hsites[jdx]])
-            
-            ftmp.extend(frglist)                    
+
+            ftmp.extend(frglist)
             ls = len(sites__[jdx])+len(hsites[jdx])
             if not pao:
                 if not conmax:
@@ -1206,8 +1206,8 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                                         numk, nk1, uNs, Ns)
                 else:
                     edglist = [pq-max_site-1 for pq in sites__[jdx]]
-                    edglist.extend([pq-max_site-1 for pq in hsites[jdx]]) 
-                
+                    edglist.extend([pq-max_site-1 for pq in hsites[jdx]])
+
                 ftmpe.append(edglist)
                 edind.append([pq for pq in range(indix,indix+ls)])
             else:
@@ -1220,12 +1220,12 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                 else:
                     edglist = [pq-max_site-1 for pq in sites__[jdx]][:nbas2[jdx]]
                     edglist.extend([pq-max_site-1 for pq in hsites[jdx]][:nbas2H[jdx]])
-        
+
                 ftmpe.append(edglist)
-                ind__ = [ indix+frglist.index(pq) for pq in edglist]                
+                ind__ = [ indix+frglist.index(pq) for pq in edglist]
                 edind.append(ind__)
             indix += ls
-        
+
         for jdx_,jdx in enumerate(msites[idx]):
             edg.append(jdx)
             if not conmax:
@@ -1235,11 +1235,11 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                 numk = kmsites[idx][jdx_]-1
                 frglist = kfrag_func(sites__[jdx]+hsites[jdx],
                                      numk, nk1, uNs, Ns)
-                
+
             else:
                 frglist = [pq-max_site-1 for pq in sites__[jdx]]
                 frglist.extend([pq-max_site-1 for pq in hsites[jdx]])
-            
+
             ftmp.extend(frglist)
             ls = len(sites__[jdx])+len(hsites[jdx])
             if not pao:
@@ -1251,7 +1251,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                                         numk, nk1, uNs, Ns)
                 else:
                     edglist = [pq-max_site-1 for pq in sites__[jdx]]
-                    edglist.extend([pq-max_site-1 for pq in hsites[jdx]])                        
+                    edglist.extend([pq-max_site-1 for pq in hsites[jdx]])
                 ftmpe.append(edglist)
                 edind.append([pq for pq in range(indix,indix+ls)])
             else:
@@ -1264,29 +1264,29 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                 else:
                     edglist = [pq-max_site-1 for pq in sites__[jdx]][:nbas2[jdx]]
                     edglist.extend([pq-max_site-1 for pq in hsites[jdx]][:nbas2H[jdx]])
-        
+
                 ftmpe.append(edglist)
-                ind__ = [ indix+frglist.index(pq) for pq in edglist]                
+                ind__ = [ indix+frglist.index(pq) for pq in edglist]
                 edind.append(ind__)
-            indix += ls   
-        
+            indix += ls
+
         frglist = sites__[cen[idx]].copy()
         frglist.extend(hsites[cen[idx]])
         ftmp.extend(frglist)
 
         ls = len(sites__[cen[idx]])+len(hsites[cen[idx]])
         if not pao:
-            centerf_idx.append([pq for pq in range(indix,indix+ls)]) 
+            centerf_idx.append([pq for pq in range(indix,indix+ls)])
         else:
             cntlist = sites__[cen[idx]].copy()[:nbas2[cen[idx]]]
             cntlist.extend(hsites[cen[idx]][:nbas2H[cen[idx]]])
-            ind__ = [ indix+frglist.index(pq) for pq in cntlist] 
+            ind__ = [ indix+frglist.index(pq) for pq in cntlist]
             centerf_idx.append(ind__)
         indix += ls
-        
+
         for jdx in pedge[idx]:
             edg.append(jdx)
-            frglist = sites__[jdx].copy()            
+            frglist = sites__[jdx].copy()
             frglist.extend(hsites[jdx])
             ftmp.extend(frglist)
             ls = len(sites__[jdx]) + len(hsites[jdx])
@@ -1298,13 +1298,13 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
             else:
                 edglist = sites__[jdx][:nbas2[jdx]].copy()
                 edglist.extend(hsites[jdx][:nbas2H[jdx]])
-                                
-                ftmpe.append(edglist)
-                ind__ = [ indix+frglist.index(pq) for pq in edglist]                
-                edind.append(ind__) 
-            indix += ls               
 
-                
+                ftmpe.append(edglist)
+                ind__ = [ indix+frglist.index(pq) for pq in edglist]
+                edind.append(ind__)
+            indix += ls
+
+
         for jdx_,jdx in enumerate(rsites[idx]):
             edg.append(jdx)
             if not conmax:
@@ -1318,9 +1318,9 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                 frglist = [pq+max_site+1 for pq in sites__[jdx]]
                 frglist.extend([pq+max_site+1 for pq in hsites[jdx]])
             ftmp.extend(frglist)
-                        
+
             ls = len(sites__[jdx])+len(hsites[jdx])
-            if not pao:  
+            if not pao:
                 if not conmax:
                     edglist = sites__[jdx].copy()
                     edglist.extend(hsites[jdx])
@@ -1329,7 +1329,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                                          numk, nk1, uNs, Ns)
                 else:
                     edglist = [pq-max_site+1 for pq in sites__[jdx]]
-                    edglist.extend([pq-max_site+1 for pq in hsites[jdx]])                    
+                    edglist.extend([pq-max_site+1 for pq in hsites[jdx]])
                 ftmpe.append(edglist)
                 edind.append([pq for pq in range(indix,indix+ls)])
             else:
@@ -1344,7 +1344,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                     edglist.extend([pq+max_site+1 for pq in hsites[jdx]][:nbas2H[jdx]])
 
                 ftmpe.append(edglist)
-                ind__ = [ indix+frglist.index(pq) for pq in edglist]                
+                ind__ = [ indix+frglist.index(pq) for pq in edglist]
                 edind.append(ind__)
             indix += ls
 
@@ -1353,16 +1353,16 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
             if not conmax:
                 frglist = sites__[jdx].copy()
                 frglist.extend(hsites[jdx])
-            elif nkcon:                
+            elif nkcon:
                 numk = kdsites[idx][jdx_]-1
                 frglist = kfrag_func(sites__[jdx]+hsites[jdx], numk, nk1, uNs, Ns)
             else:
                 frglist = [pq+max_site+1 for pq in sites__[jdx]]
                 frglist.extend([pq+max_site+1 for pq in hsites[jdx]])
-            
-            ftmp.extend(frglist)                        
+
+            ftmp.extend(frglist)
             ls = len(sites__[jdx])+len(hsites[jdx])
-            if not pao: 
+            if not pao:
                 if not conmax:
                     edglist = sites__[jdx].copy()
                     edglist.extend(hsites[jdx])
@@ -1372,7 +1372,7 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                 else:
                     edglist = [pq-max_site+1 for pq in sites__[jdx]]
                     edglist.extend([pq-max_site+1 for pq in hsites[jdx]])
-                                    
+
                 ftmpe.append(edglist)
                 edind.append([pq for pq in range(indix,indix+ls)])
             else:
@@ -1385,9 +1385,9 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                 else:
                     edglist = [pq+max_site+1 for pq in sites__[jdx]][:nbas2[jdx]]
                     edglist.extend([pq+max_site+1 for pq in hsites[jdx]][:nbas2H[jdx]])
-                
+
                 ftmpe.append(edglist)
-                ind__ = [ indix+frglist.index(pq) for pq in edglist]                
+                ind__ = [ indix+frglist.index(pq) for pq in edglist]
                 edind.append(ind__)
             indix += ls
 
@@ -1402,19 +1402,19 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
             else:
                 frglist = [pq+max_site+1 for pq in sites__[jdx]]
                 frglist.extend([pq+max_site+1 for pq in hsites[jdx]])
-            
-            ftmp.extend(frglist)                        
+
+            ftmp.extend(frglist)
             ls = len(sites__[jdx])+len(hsites[jdx])
-            if not pao:    
+            if not pao:
                 if not conmax:
                     edglist = sites__[jdx].copy()
                     edglist.extend(hsites[jdx])
                 elif nkcon:
                     edglist = kfrag_func(sites__[jdx]+hsites[jdx],
-                                         numk, nk1, uNs, Ns)                  
+                                         numk, nk1, uNs, Ns)
                 else:
                     edglist = [pq-max_site+1 for pq in sites__[jdx]]
-                    edglist.extend([pq-max_site+1 for pq in hsites[jdx]])            
+                    edglist.extend([pq-max_site+1 for pq in hsites[jdx]])
                 ftmpe.append(edglist)
                 edind.append([pq for pq in range(indix,indix+ls)])
             else:
@@ -1423,38 +1423,38 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                     edglist.extend(hsites[jdx][:nbas2H[jdx]])
                 elif nkcon:
                     edglist =kfrag_func(sites__[jdx][:nbas2[jdx]]+hsites[jdx][:nbas2H[jdx]],
-                                         numk, nk1, uNs, Ns) 
+                                         numk, nk1, uNs, Ns)
                 else:
                     edglist = [pq+max_site+1 for pq in sites__[jdx]][:nbas2[jdx]]
                     edglist.extend([pq+max_site+1 for pq in hsites[jdx]][:nbas2H[jdx]])
-                
+
                 ftmpe.append(edglist)
-                ind__ = [ indix+frglist.index(pq) for pq in edglist]                
+                ind__ = [ indix+frglist.index(pq) for pq in edglist]
                 edind.append(ind__)
-            indix += ls            
+            indix += ls
 
         edge.append(edg)
         fsites.append(ftmp)
         edgsites.append(ftmpe)
         edge_idx.append(edind)
 
-        
+
     center = []
     for ix in edge:
         cen_ = []
         for jx in ix:
             cen_.append(cen.index(jx))
         center.append(cen_)
-    
-    Nfrag = len(fsites)    
+
+    Nfrag = len(fsites)
     ebe_weight=[]
     # Use IAO+PAO for computing energy
     for ix, i in enumerate(fsites):
-    
+
         tmp_ = [i.index(pq) for pq in sites__[cen[ix]]]
-        tmp_.extend([i.index(pq) for pq in hsites[cen[ix]]])                
+        tmp_.extend([i.index(pq) for pq in hsites[cen[ix]]])
         ebe_weight.append([1.0, tmp_])
-    
+
     # Center of a fragment are defined in cen[idx]
     # center[[idx,jdx]] defines fragments idx,jdx who's cen[idx],cen[jdx] \\
     # centers are matched to the edges.
@@ -1470,9 +1470,9 @@ def autogen(mol, kpt, frozen_core=True, be_type='be2',
                 cntlist = sites__[cen[j]].copy()[:nbas2[cen[j]]]
                 cntlist.extend(hsites[cen[j]][:nbas2H[cen[j]]])
                 idx.append([fsites[j].index(k) for k in cntlist])
-            
+
         center_idx.append(idx)
-        
+
     return(fsites, edgsites, center, edge_idx, center_idx, centerf_idx, ebe_weight)
 
 
