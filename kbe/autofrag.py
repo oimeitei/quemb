@@ -147,7 +147,6 @@ def surround(
     if not rlist == [] and be_type_ == "be3":
         be_type_ = "be2"
     sublist_ = []
-    flist_ = flist.copy()
     if not be_type_ == 0:
         sidefunc(
             cell,
@@ -485,13 +484,11 @@ def autogen(
     tunit = numpy.asarray(tunit)
 
     inter_dist = 1000.0
-    inter_idx = 0
     if twoD and interlayer:
         inter_layer_axis = 2
         inter_layer_dict = []
         for aidx, ai in enumerate(coord):
             inter_dist = 1000
-            inter_idx = 0
             for ajdx, aj in enumerate(coord):
                 if aidx == ajdx:
                     continue
@@ -501,7 +498,6 @@ def autogen(
                 if dist > bond:
                     if inter_dist > dist:
                         inter_dist = dist
-                        inter_idx = ajdx
             inter_dist_ = []
             inter_idx_ = []
             for ajdx, aj in enumerate(coord):
@@ -544,7 +540,6 @@ def autogen(
         tmplist = list(tmplist)
 
         clist = []
-        cout = 0
         for jdx, j in enumerate(tmplist):
             if not idx == jdx and not cell.atom_pure_symbol(jdx) == "H":
                 if abs(j) < normdist:
@@ -2006,7 +2001,6 @@ def autogen(
     centerf_idx = []
     edge = []
 
-    mfrac = unitcell - int(unitcell)
     conmax = True
     nkcon = True
     if gamma_2d or gamma_1d:
