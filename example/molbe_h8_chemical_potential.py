@@ -8,9 +8,9 @@ from molbe import BE, fragpart
 mol = gto.M(atom='''
 H 0. 0. 0.
 H 0. 0. 1.
-H 0. 0. 2. 
+H 0. 0. 2.
 H 0. 0. 3.
-H 0. 0. 4. 
+H 0. 0. 4.
 H 0. 0. 5.
 H 0. 0. 6.
 H 0. 0. 7.
@@ -32,7 +32,7 @@ fobj = fragpart(be_type='be1', mol=mol)
 # Initialize BE
 mybe = BE(mf, fobj)
 # Perform chemical potential optimization
-mybe.optimize(solver='FCI', only_chem=True) 
+mybe.optimize(solver='FCI', only_chem=True)
 
 # Compute BE error
 be_ecorr = mybe.ebe_tot - mybe.ebe_hf
@@ -41,8 +41,8 @@ print(f'*** BE1 Correlation Energy Error (%) : {err_:>8.4f} %')
 
 # Define BE2 fragments
 fobj = fragpart(be_type='be2', mol=mol)
-mybe = BE(mf, fobj) 
-mybe.optimize(solver='FCI', only_chem=True) 
+mybe = BE(mf, fobj)
+mybe.optimize(solver='FCI', only_chem=True)
 
 # Compute BE error
 be_ecorr = mybe.ebe_tot - mybe.ebe_hf
@@ -51,8 +51,8 @@ print(f'*** BE2 Correlation Energy Error (%) : {err_:>8.4f} %')
 
 # Define BE3 fragments
 fobj = fragpart(be_type='be3', mol=mol)
-mybe = BE(mf, fobj) 
-mybe.optimize(solver='FCI', only_chem=True) 
+mybe = BE(mf, fobj)
+mybe.optimize(solver='FCI', only_chem=True)
 
 # Compute BE error
 be_ecorr = mybe.ebe_tot - mybe.ebe_hf

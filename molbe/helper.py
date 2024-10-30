@@ -29,14 +29,14 @@ def get_veff(eri_, dm, S, TA, hf_veff):
     numpy.ndarray
         Effective HF potential in the embedding basis.
     """
-    
+
     import functools
     from pyscf import scf
 
     # Transform the density matrix
     ST = numpy.dot(S, TA)
     P_ = functools.reduce(numpy.dot,(ST.T, dm, ST))
-    
+
     # Ensure the transformed density matrix and ERI are real and double-precision
     P_ = numpy.asarray(P_.real, dtype=numpy.double)
     eri_ = numpy.asarray(eri_, dtype=numpy.double)
@@ -45,7 +45,7 @@ def get_veff(eri_, dm, S, TA, hf_veff):
     vj, vk = scf.hf.dot_eri_dm(eri_, P_, hermi=1, with_j=True, with_k=True)
     Veff_ = vj - 0.5 * vk
     Veff = functools.reduce(numpy.dot,(TA.T, hf_veff, TA)) - Veff_
-    
+
     return Veff
 
 # create pyscf pbc scf object
@@ -79,7 +79,7 @@ def get_scfObj(h1, Eri, nocc, dm0=None, enuc=0.,
     """
     # from 40-customizing_hamiltonian.py in pyscf examples
     from pyscf import gto, scf
-        
+
     nao = h1.shape[0]
 
     # Initialize a dummy molecule with the required number of electrons
@@ -87,22 +87,22 @@ def get_scfObj(h1, Eri, nocc, dm0=None, enuc=0.,
     mol = gto.M()
     mol.nelectron = nocc * 2
     mol.incore_anyway = True
-    
+
     # Initialize an RHF object
     mf_ = scf.RHF(mol)
     mf_.get_hcore = lambda *args:h1
     mf_.get_ovlp = lambda *args: S
     mf_._eri = Eri
     mf_.incore_anyway = True
-    mf_.max_cycle=50    
+    mf_.max_cycle=50
     mf_.verbose=0
-    
+
     # Run the SCF calculation
     if dm0 is None:
         mf_.kernel()
     else:
         mf_.kernel(dm0=dm0)
-        
+
     # Check if the SCF calculation converged
     if not mf_.converged:
         print(flush=True)
@@ -110,7 +110,7 @@ def get_scfObj(h1, Eri, nocc, dm0=None, enuc=0.,
         print(flush=True)
         mf_.verbose=0
         mf_.level_shift=0.2
-        mf_.diis_space=25    
+        mf_.diis_space=25
         if dm0 is None:
             mf_.kernel()
         else:
@@ -123,7 +123,7 @@ def get_scfObj(h1, Eri, nocc, dm0=None, enuc=0.,
             print(flush=True)
             print('SCF Converged!',flush=True)
             print(flush=True)
-                    
+
     return mf_
 
 
@@ -160,7 +160,7 @@ def get_eri(i_frag, Nao, symm = 8, ignore_symm = False, eri_file='eri_file.h5'):
 
     # Optionally restore the symmetry of the ERI
     if not ignore_symm:
-        
+
         # Set the number of threads for the library to 1
         lib.num_threads(1)
         eri__ = ao2mo.restore(symm, eri__, Nao)
@@ -170,7 +170,7 @@ def get_eri(i_frag, Nao, symm = 8, ignore_symm = False, eri_file='eri_file.h5'):
     return eri__
 
 def ncore_(z):
-    
+
     if 1<= z<=2:
         nc = 0
     elif 2<=z<=5:
@@ -190,7 +190,7 @@ def ncore_(z):
               flush=True)
         print('exiting',flush=True)
         sys.exit()
-        
+
     return nc
 
 
@@ -257,10 +257,10 @@ def get_frag_energy(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rdm2
         List containing the energy contributions: [e1_tmp, e2_tmp, ec_tmp].
     """
 
-    # Rotate the RDM1 into the MO basis 
+    # Rotate the RDM1 into the MO basis
     rdm1s_rot = mo_coeffs @ rdm1 @ mo_coeffs.T * 0.5
 
-    # Construct the Hartree-Fock 1-RDM 
+    # Construct the Hartree-Fock 1-RDM
     hf_1rdm = numpy.dot(mo_coeffs[:,:nsocc],
                        mo_coeffs[:,:nsocc].conj().T)
 
@@ -296,9 +296,9 @@ def get_frag_energy(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rdm2
     for i in range(nfsites):
         for j in range(jmax):
             ij = i*(i+1)//2+j if i > j else j*(j+1)//2+i
-            Gij = rdm2s[i,j,:jmax,:jmax].copy()            
+            Gij = rdm2s[i,j,:jmax,:jmax].copy()
             Gij[numpy.diag_indices(jmax)] *= 0.5
-            Gij += Gij.T            
+            Gij += Gij.T
             e2[i] += Gij[numpy.tril_indices(jmax)] @ eri[ij]
 
     # Sum the energy contributions
@@ -313,13 +313,13 @@ def get_frag_energy(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rdm2
     # Calculate the total energy contribution for the specified fragment indices
     for i in efac[1]:
         etmp += efac[0]*e_[i]
-        e1_tmp += efac[0]*e1[i] 
-        e2_tmp += efac[0]*e2[i] 
+        e1_tmp += efac[0]*e1[i]
+        e2_tmp += efac[0]*e2[i]
         ec_tmp += efac[0]*ec[i]
-        
+
     return [e1_tmp,e2_tmp,ec_tmp]
 
-def get_frag_energy_u(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rdm2s, dname, 
+def get_frag_energy_u(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rdm2s, dname,
                     eri_file='eri_file.h5', gcores=None, frozen=False, veff0=None):
     """
     Compute the fragment energy for unrestricted calculations
@@ -351,7 +351,7 @@ def get_frag_energy_u(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rd
         Dataset name in the HDF5 file.
     eri_file : str, optional
         Filename of the HDF5 file containing the electron repulsion integrals. Defaults to 'eri_file.h5'.
-    gcores : 
+    gcores :
 
     frozen : bool, optional
         Indicate frozen core. Default is False
@@ -385,7 +385,7 @@ def get_frag_energy_u(mo_coeffs, nsocc, nfsites, efac, TA, h1, hf_veff, rdm1, rd
     # Calculate the one-electron and effective potential energy contributions
     e1 = [numpy.einsum("ij,ij->i",h1[s][:nfsites[s]], delta_rdm1[s][:nfsites[s]]) for s in [0,1]]
     ec = [numpy.einsum("ij,ij->i",veff0[s][:nfsites[s]], delta_rdm1[s][:nfsites[s]]) for s in [0,1]]
-   
+
     jmax = [TA[0].shape[1],TA[1].shape[1]]
 
     # Load ERIs from the HDF5 file

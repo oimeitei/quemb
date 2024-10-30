@@ -18,7 +18,7 @@ class TestBE_restricted(unittest.TestCase):
         mol.charge = 0.; mol.spin = 0.
         mol.build()
         self.molecular_QN_test(mol, 'be2', 'H8 (BE2)', 'hchain_simple', only_chem = False)
-    
+
     def molecular_QN_test(self, mol, be_type, test_name, frag_type, delta = 1e-6, only_chem = True):
         mf = scf.RHF(mol); mf.max_cycle = 100; mf.kernel()
         fobj = fragpart(frag_type=frag_type, be_type=be_type, mol = mol)

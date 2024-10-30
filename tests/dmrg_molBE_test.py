@@ -1,5 +1,5 @@
 """
-This script tests the QuEmb to block2 interface for performing ground state BE-DMRG. 
+This script tests the QuEmb to block2 interface for performing ground state BE-DMRG.
 Author(s): Shaun Weatherly
 """
 
@@ -14,7 +14,7 @@ class TestBE_DMRG(unittest.TestCase):
         from pyscf import dmrgscf
     except ImportError:
         dmrgscf=None
-    
+
     @unittest.skipIf(dmrgscf is None, "Module `pyscf.dmrgscf` not imported correctly.")
     def test_h8_sto3g_pipek(self):
         mol = gto.M()
@@ -30,7 +30,7 @@ class TestBE_DMRG(unittest.TestCase):
             mf = scf.RHF(mol); mf.kernel()
             fobj = fragpart(frag_type=frag_type, be_type=be_type, mol=mol)
             mybe = BE(mf, fobj, lo_method='pipek', pop_method='lowdin')
-            mybe.oneshot(solver='block2', 
+            mybe.oneshot(solver='block2',
                         scratch_dir=str(tmp),
                         maxM=int(maxM),
                         maxIter=30,

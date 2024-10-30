@@ -10,7 +10,7 @@ import h5py,os,time
 class storeBE:
     def __init__(self, Nocc, hf_veff, hcore,
                  S, C, hf_dm, hf_etot, W, lmo_coeff,
-                 enuc, 
+                 enuc,
                  E_core, C_core, P_core, core_veff, mo_energy):
         self.Nocc = Nocc
         self.hf_veff = hf_veff
@@ -48,11 +48,11 @@ class BE:
         Method for orbital localization, default is 'lowdin'.
     """
 
-    def __init__(self, mf, fobj, eri_file='eri_file.h5', 
-                 lo_method='lowdin', pop_method=None, compute_hf=True, 
+    def __init__(self, mf, fobj, eri_file='eri_file.h5',
+                 lo_method='lowdin', pop_method=None, compute_hf=True,
                  restart=False, save=False,
                  restart_file='storebe.pk',
-                 mo_energy = None, 
+                 mo_energy = None,
                  save_file='storebe.pk',hci_pt=False,
                  nproc=1, ompnum=4, scratch_dir=None,
                  hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
@@ -91,7 +91,7 @@ class BE:
         auxbasis : str, optional
             Auxiliary basis for density fitting, by default None (uses default auxiliary basis defined in PySCF).
         """
-        
+
         if restart:
             # Load previous calculation data from restart file
             with open(restart_file, 'rb') as rfile:
@@ -112,7 +112,7 @@ class BE:
             self.P_core = store_.P_core
             self.core_veff = store_.core_veff
             self.mo_energy = store_.mo_energy
-        
+
         self.unrestricted = False
         self.nproc = nproc
         self.ompnum = ompnum
@@ -121,7 +121,7 @@ class BE:
 
         # Fragment information from fobj
         self.frag_type=fobj.frag_type
-        self.Nfrag = fobj.Nfrag 
+        self.Nfrag = fobj.Nfrag
         self.fsites = fobj.fsites
         self.edge = fobj.edge
         self.center = fobj.center
@@ -131,27 +131,27 @@ class BE:
         self.ebe_weight = fobj.ebe_weight
         self.be_type = fobj.be_type
         self.mol = fobj.mol
-                    
+
         self.ebe_hf = 0.
         self.ebe_tot = 0.
-        
+
         # HCI parameters
         self.hci_cutoff = hci_cutoff
         self.ci_coeff_cutoff = ci_coeff_cutoff
         self.select_cutoff = select_cutoff
         self.hci_pt=hci_pt
-       
-        self.mf = mf 
-        if not restart:   
+
+        self.mf = mf
+        if not restart:
             self.mo_energy = mf.mo_energy
-            
+
             self.mf = mf
-            self.Nocc = mf.mol.nelectron//2 
+            self.Nocc = mf.mol.nelectron//2
             self.enuc = mf.energy_nuc()
-            
+
             self.hcore = mf.get_hcore()
             self.S = mf.get_ovlp()
-            self.C = numpy.array(mf.mo_coeff)            
+            self.C = numpy.array(mf.mo_coeff)
             self.hf_dm = mf.make_rdm1()
             self.hf_veff = mf.get_veff()
             self.hf_etot = mf.e_tot
@@ -164,7 +164,7 @@ class BE:
         self.pot = initialize_pot(self.Nfrag, self.edge_idx)
         self.eri_file = eri_file
         self.scratch_dir = scratch_dir
-                
+
         # Set scratch directory
         jobid=''
         if be_var.CREATE_SCRATCH_DIR:
@@ -172,7 +172,7 @@ class BE:
                 jobid = str(os.environ['SLURM_JOB_ID'])
             except:
                 jobid = ''
-        if not be_var.SCRATCH=='': 
+        if not be_var.SCRATCH=='':
             self.scratch_dir = be_var.SCRATCH+str(jobid)
             os.system('mkdir -p '+self.scratch_dir)
         else:
@@ -181,7 +181,7 @@ class BE:
             self.eri_file = be_var.SCRATCH+eri_file
         else:
             self.eri_file = self.scratch_dir+'/'+eri_file
-            
+
         self.frozen_core = False if not fobj.frozen_core else True
         self.ncore = 0
         if not restart:
@@ -189,57 +189,57 @@ class BE:
             self.C_core = None
             self.P_core = None
             self.core_veff = None
-        
+
         if self.frozen_core:
             # Handle frozen core orbitals
             self.ncore = fobj.ncore
             self.no_core_idx = fobj.no_core_idx
             self.core_list = fobj.core_list
-            
+
             if not restart:
-                self.Nocc -=self.ncore                                
+                self.Nocc -=self.ncore
                 self.hf_dm = 2.*numpy.dot(self.C[:,self.ncore:self.ncore+self.Nocc],
                                           self.C[:,self.ncore:self.ncore+self.Nocc].T)
                 self.C_core = self.C[:,:self.ncore]
                 self.P_core = numpy.dot(self.C_core, self.C_core.T)
                 self.core_veff = mf.get_veff(dm = self.P_core*2.)
-                self.E_core = numpy.einsum('ji,ji->',2.*self.hcore+self.core_veff, self.P_core)                
+                self.E_core = numpy.einsum('ji,ji->',2.*self.hcore+self.core_veff, self.P_core)
                 self.hf_veff -= self.core_veff
                 self.hcore += self.core_veff
-                
+
         if not restart:
             # Localize orbitals
             self.localize(lo_method, pop_method=pop_method, mol=self.mol, valence_basis=fobj.valence_basis, valence_only=fobj.valence_only)
-            
+
             if fobj.valence_only and lo_method=='iao':
                 self.Ciao_pao = self.localize(lo_method, pop_method=pop_method, mol=self.mol, valence_basis=fobj.valence_basis,
                                               hstack=True,
                                               valence_only=False, nosave=True)
-            
+
         if save:
             # Save intermediate results for restart
             store_ = storeBE(self.Nocc, self.hf_veff, self.hcore,
                               self.S, self.C, self.hf_dm, self.hf_etot,
-                              self.W, self.lmo_coeff, self.enuc, 
+                              self.W, self.lmo_coeff, self.enuc,
                               self.E_core, self.C_core, self.P_core, self.core_veff, self.mo_energy)
 
             with open(save_file, 'wb') as rfile:
                 pickle.dump(store_, rfile, pickle.HIGHEST_PROTOCOL)
             rfile.close()
-            
-           
+
+
         if not restart :
             # Initialize fragments and perform initial calculations
             self.initialize(mf._eri,compute_hf)
-        else:            
+        else:
             self.initialize(None,compute_hf, restart=True)
-        
-        
+
+
     from ._opt import optimize
     from molbe.external.optqn import get_be_error_jacobian
     from .lo import localize
     from .rdm import rdm1_fullbasis, compute_energy_full
-    
+
     def print_ini(self):
         """
         Print initialization banner for the MOLBE calculation.
@@ -254,14 +254,14 @@ class BE:
         print('  M         M  OO    OO  LL           BB     B   EE      ',flush=True)
         print('  M         M   OO  OO   LL           BB     B   EE      ',flush=True)
         print('  M         M    OOOO    LLLLLL       BBBBBBB    EEEEEEE ',flush=True)
-                
+
         print(flush=True)
-        print('            MOLECULAR BOOTSTRAP EMBEDDING',flush=True)            
+        print('            MOLECULAR BOOTSTRAP EMBEDDING',flush=True)
         print('            BEn = ',self.be_type,flush=True)
         print('-----------------------------------------------------------',
                   flush=True)
         print(flush=True)
-        
+
 
     def initialize(self, eri_,compute_hf, restart=False):
         """
@@ -276,19 +276,19 @@ class BE:
         restart : bool, optional
             Whether to restart from a previous calculation, by default False.
         """
-        from .helper import get_scfObj        
+        from .helper import get_scfObj
         import h5py
         from pyscf import ao2mo
         from multiprocessing import Pool
-        
+
         if compute_hf: E_hf = 0.
-        
+
         # Create a file to store ERIs
         if not restart:
             file_eri = h5py.File(self.eri_file,'w')
         lentmp = len(self.edge_idx)
         for I in range(self.Nfrag):
-            
+
             if lentmp:
                 fobjs_ = Frags(self.fsites[I], I, edge=self.edge[I],
                                eri_file=self.eri_file,
@@ -301,9 +301,9 @@ class BE:
                                edge_idx=[],center_idx=[],centerf_idx=[],
                                efac=self.ebe_weight[I])
             fobjs_.sd(self.W, self.lmo_coeff, self.Nocc)
-                
+
             self.Fobjs.append(fobjs_)
-                
+
         if not restart:
             # Transform ERIs for each fragment and store in the file
             # ERI Transform Decision Tree
@@ -333,50 +333,50 @@ class BE:
                     return NotImplementedError
         else:
             eri=None
-        
+
         for fobjs_ in self.Fobjs:
             # Process each fragment
             eri = numpy.array(file_eri.get(fobjs_.dname))
             dm_init = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
-            
+
             fobjs_.cons_h1(self.hcore)
-                       
+
             if not restart:
                 eri = ao2mo.restore(8, eri, fobjs_.nao)
-            
+
             fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
-                
+
             fobjs_.heff = numpy.zeros_like(fobjs_.h1)
             fobjs_.scf(fs=True, eri=eri)
-            
+
             fobjs_.dm0 = numpy.dot( fobjs_._mo_coeffs[:,:fobjs_.nsocc],
                                     fobjs_._mo_coeffs[:,:fobjs_.nsocc].conj().T) *2.
-                
+
             if compute_hf:
-            
+
                 eh1, ecoul, ef = fobjs_.energy_hf(return_e1=True)
                 E_hf += fobjs_.ebe_hf
 
         if not restart:
             file_eri.close()
-        
+
         if compute_hf:
-                        
+
             self.ebe_hf = E_hf+self.enuc+self.E_core
             hf_err = self.hf_etot - self.ebe_hf
             print('HF-in-HF error                 :  {:>.4e} Ha'.
                   format(hf_err), flush=True)
             if abs(hf_err)>1.e-5:
                 print('WARNING!!! Large HF-in-HF energy error')
-                       
+
             print(flush=True)
-            
+
         couti = 0
         for fobj in self.Fobjs:
             fobj.udim = couti
             couti = fobj.set_udim(couti)
-                        
-    def oneshot(self, solver='MP2', nproc=1, ompnum=4, calc_frag_energy=False, clean_eri=False, 
+
+    def oneshot(self, solver='MP2', nproc=1, ompnum=4, calc_frag_energy=False, clean_eri=False,
                 scratch_dir=None, **solver_kwargs):
         """
         Perform a one-shot bootstrap embedding calculation.
@@ -396,10 +396,10 @@ class BE:
         """
         from .solver import be_func
         from .be_parallel import be_func_parallel
-        
+
         self.scratch_dir = scratch_dir
         self.solver_kwargs = solver_kwargs
-        
+
         print("Calculating Energy by Fragment? ", calc_frag_energy)
         if nproc == 1:
             rets  = be_func(None, self.Fobjs, self.Nocc, solver, self.enuc, hf_veff=self.hf_veff,
@@ -484,9 +484,9 @@ class BE:
         for fobj in self.Fobjs:
             fobj.heff = filepot.get(fobj.dname)
         filepot.close()
-        
-        
-        
+
+
+
 def initialize_pot(Nfrag, edge_idx):
     """
     Initialize the potential array for bootstrap embedding.
@@ -510,7 +510,7 @@ def initialize_pot(Nfrag, edge_idx):
         Initialized potential array with zeros.
     """
     pot_=[]
-    
+
     if not len(edge_idx) == 0:
         for I in range(Nfrag):
             for i in edge_idx[I]:
@@ -519,7 +519,7 @@ def initialize_pot(Nfrag, edge_idx):
                         if j>k:
                             continue
                         pot_.append(0.)
-    
+
     pot_.append(0.)
     return pot_
 

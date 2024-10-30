@@ -61,9 +61,9 @@ def optimize(self, solver='MP2',method='QN',
         if only_chem:
             J0 = [[0.]]
             J0 = self.get_be_error_jacobian(jac_solver='HF')
-            J0 = [[J0[-1,-1]]]            
+            J0 = [[J0[-1,-1]]]
         else:
-            J0 = self.get_be_error_jacobian(jac_solver='HF')                        
+            J0 = self.get_be_error_jacobian(jac_solver='HF')
 
         # Perform the optimization
         be_.optimize(method, J0=J0)

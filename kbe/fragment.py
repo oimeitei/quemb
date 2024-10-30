@@ -9,7 +9,7 @@ def print_mol_missing():
           flush=True)
     print('exiting',flush=True)
     sys.exit()
-    
+
 class fragpart:
 
     def __init__(self, natom=0, dim=1, frag_type='autogen',
@@ -22,7 +22,7 @@ class fragpart:
         """Fragment/partitioning definition
 
         Interfaces two main fragmentation functions (autogen & polychain) in MolBE. It defines edge &
-        center for density matching and energy estimation. It also forms the base for IAO/PAO partitioning for 
+        center for density matching and energy estimation. It also forms the base for IAO/PAO partitioning for
         a large basis set bootstrap calculation. Fragments are constructed based on atoms within a unitcell.
 
         Parameters
@@ -42,7 +42,7 @@ class fragpart:
         valence_basis: str
             Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
         valence_only: bool
-            If this option is set to True, all calculation will be performed in the valence basis in the IAO partitioning. 
+            If this option is set to True, all calculation will be performed in the valence basis in the IAO partitioning.
             This is an experimental feature.
         frozen_core: bool
             Whether to invoke frozen core approximation. This is set to False by default
@@ -77,11 +77,11 @@ class fragpart:
         self.valence_basis=valence_basis
         self.kpt = kpt
         self.molecule = False ### remove this
-        
+
         # Check for frozen core approximation
         if frozen_core:
             self.ncore, self.no_core_idx, self.core_list = get_core(mol)
-            
+
         if frag_type=='polychain':
             if mol is None: print_mol_missing()
             self.polychain(mol, frozen_core=frozen_core, unitcell=unitcell)
@@ -92,21 +92,21 @@ class fragpart:
                       flush=True)
                 print('exiting',flush=True)
                 sys.exit()
-                
+
             fgs = autogen(mol, kpt, be_type=be_type, frozen_core=frozen_core,
                           valence_basis=valence_basis, unitcell=unitcell,
                           nx=nx, ny=ny, nz=nz,
                           long_bond=long_bond,
                           perpend_dist = perpend_dist, perpend_dist_tol = perpend_dist_tol,
                           gamma_2d=gamma_2d, gamma_1d=gamma_1d,interlayer=interlayer)
-                
-            self.fsites, self.edge, self.center, self.edge_idx, self.center_idx, self.centerf_idx, self.ebe_weight = fgs                
+
+            self.fsites, self.edge, self.center, self.edge_idx, self.center_idx, self.centerf_idx, self.ebe_weight = fgs
             self.Nfrag = len(self.fsites)
-            
+
         else:
             print('Fragmentation type = ',frag_type,' not implemented!',
                   flush=True)
             print('exiting',flush=True)
             sys.exit()
-            
+
     from .chain import polychain

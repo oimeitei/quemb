@@ -77,7 +77,7 @@ be_energy = be2puffin(structure, # the QM region XYZ geometry
             nproc = 1, # number of processors to parallize across
             ompnum = 2,
             be_type = 'be2', # BE type: this sets the fragment size.
-            frozen_core = True, # Frozen core 
+            frozen_core = True, # Frozen core
             unrestricted = False, # specify restricted calculation
             from_chk = False, # can save the RHF as PySCF checkpoint.
                               # Set to true if running from converged UHF chk

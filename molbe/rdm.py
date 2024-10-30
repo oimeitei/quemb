@@ -7,7 +7,7 @@ def rdm1_fullbasis(self, return_ao=True, only_rdm1=False,
                    return_RDM2=True, print_energy=False):
     """
     Compute the one-particle and two-particle reduced density matrices (RDM1 and RDM2).
-    
+
     Parameters:
     -----------
     return_ao : bool, optional
@@ -22,7 +22,7 @@ def rdm1_fullbasis(self, return_ao=True, only_rdm1=False,
         Whether to return the two-particle RDM (RDM2). Default is True.
     print_energy : bool, optional
         Whether to print the energy contributions. Default is False.
-    
+
     Returns:
     --------
     rdm1AO : numpy.ndarray
@@ -41,13 +41,13 @@ def rdm1_fullbasis(self, return_ao=True, only_rdm1=False,
     from pyscf import scf, ao2mo
 
     # Copy the molecular orbital coefficients
-    C_mo = self.C.copy()    
+    C_mo = self.C.copy()
     nao, nmo = C_mo.shape
 
     # Initialize density matrices for atomic orbitals (AO)
     rdm1AO = numpy.zeros((nao, nao))
     rdm2AO = numpy.zeros((nao, nao, nao, nao))
-    
+
     for fobjs in self.Fobjs:
         if return_RDM2:
             # Adjust the one-particle reduced density matrix (RDM1)
@@ -58,18 +58,18 @@ def rdm1_fullbasis(self, return_ao=True, only_rdm1=False,
             dm_nc = numpy.einsum('ij,kl->ijkl', drdm1, drdm1, dtype=numpy.float64, optimize=True) - \
                 0.5*numpy.einsum('ij,kl->iklj', drdm1, drdm1, dtype=numpy.float64,optimize=True)
             fobjs.__rdm2 -= dm_nc
-            
-        # Generate the projection matrix    
+
+        # Generate the projection matrix
         cind = [ fobjs.fsites[i] for i in fobjs.efac[1]]
         Pc_ = fobjs.TA.T @ self.S @ self.W[:, cind] @ self.W[:, cind].T @ self.S @ fobjs.TA
 
         if not only_rdm2:
             # Compute RDM1 in the localized orbital (LO) basis and transform to AO basis
-            rdm1_eo = fobjs.mo_coeffs @ fobjs.__rdm1 @ fobjs.mo_coeffs.T                                
+            rdm1_eo = fobjs.mo_coeffs @ fobjs.__rdm1 @ fobjs.mo_coeffs.T
             rdm1_center = Pc_ @ rdm1_eo
             rdm1_ao = fobjs.TA @ rdm1_center @ fobjs.TA.T
             rdm1AO += rdm1_ao
-            
+
         if not only_rdm1:
             # Transform RDM2 to AO basis
             rdm2s = numpy.einsum("ijkl,pi,qj,rk,sl->pqrs", fobjs.__rdm2,
@@ -100,7 +100,7 @@ def rdm1_fullbasis(self, return_ao=True, only_rdm1=False,
             rdm2LO = numpy.einsum("ijkl,pi,qj,rk,sl->pqrs",
                                   rdm2AO, CloT_S, CloT_S,
                                   CloT_S, CloT_S, optimize=True)
-                
+
     if not only_rdm2:
         # Symmetrize RDM1
         rdm1AO = (rdm1AO + rdm1AO.T)/2.
@@ -118,23 +118,23 @@ def rdm1_fullbasis(self, return_ao=True, only_rdm1=False,
         Eh1 = numpy.einsum('ij,ij', self.hcore, rdm1AO, optimize=True)
         eri = ao2mo.restore(1,self.mf._eri, self.mf.mo_coeff.shape[1])
         E2 = 0.5*numpy.einsum('pqrs,pqrs', eri,rdm2AO, optimize=True)
-        print(flush=True)    
+        print(flush=True)
         print('-----------------------------------------------------',
               flush=True)
         print(' BE ENERGIES with cumulant-based expression', flush=True)
-        
+
         print('-----------------------------------------------------',
               flush=True)
-        
+
         print(' 1-elec E        : {:>15.8f} Ha'.format(Eh1), flush=True)
         print(' 2-elec E        : {:>15.8f} Ha'.format(E2), flush=True)
         E_tot = Eh1+E2+self.E_core + self.enuc
         print(' E_BE            : {:>15.8f} Ha'.format(E_tot), flush=True)
         print(' Ecorr BE        : {:>15.8f} Ha'.format((E_tot)-self.ebe_hf), flush=True)
         print('-----------------------------------------------------',
-          flush=True)    
+          flush=True)
         print(flush=True)
-    
+
     if only_rdm1:
         if return_ao:
             return rdm1AO
@@ -170,25 +170,25 @@ def compute_energy_full(self, approx_cumulant=False, use_full_rdm=False, return_
     Returns
     -------
     tuple of numpy.ndarray or None
-        If `return_rdm` is True, returns a tuple containing the one-particle and two-particle 
+        If `return_rdm` is True, returns a tuple containing the one-particle and two-particle
         reduced density matrices (RDM1 and RDM2). Otherwise, returns None.
 
     Notes
     -----
-    This function computes the total energy in the full basis, with options to use 
-    approximate or true cumulants, and to return the reduced density matrices (RDMs). The 
+    This function computes the total energy in the full basis, with options to use
+    approximate or true cumulants, and to return the reduced density matrices (RDMs). The
     energy components are printed as part of the function's output.
     """
-    
+
     from pyscf import scf, ao2mo
 
     # Compute the one-particle reduced density matrix (RDM1) and the cumulant (Kumul) in the full basis
     rdm1f, Kumul, rdm1_lo, rdm2_lo = self.rdm1_fullbasis(return_lo=True, return_RDM2=False)
-    
+
     if not approx_cumulant:
         # Compute the true two-particle reduced density matrix (RDM2) if not using approximate cumulant
         Kumul_T = self.rdm1_fullbasis(only_rdm2=True)
-    
+
     if return_rdm:
         # Construct the full RDM2 from RDM1
         RDM2_full =  numpy.einsum('ij,kl->ijkl', rdm1f, rdm1f, dtype=numpy.float64, optimize=True) - \
@@ -227,15 +227,15 @@ def compute_energy_full(self, approx_cumulant=False, use_full_rdm=False, return_
     if not approx_cumulant:
         # Compute the true two-electron energy if not using approximate cumulant
         EKumul_T = numpy.einsum('pqrs,pqrs', eri,Kumul_T, optimize=True)
-        
+
     if use_full_rdm and return_rdm:
         # Compute the full two-electron energy using the full RDM2
         E2 = numpy.einsum('pqrs,pqrs', eri,RDM2_full, optimize=True)
 
     # Compute the approximate BE total energy
-    EKapprox = self.ebe_hf + Eh1_dg + Eveff_dg + EKumul/2. 
+    EKapprox = self.ebe_hf + Eh1_dg + Eveff_dg + EKumul/2.
     self.ebe_tot = EKapprox
-    
+
     if not approx_cumulant:
         # Compute the true BE total energy if not using approximate cumulant
         EKtrue = Eh1 + EVeff/2. + EKumul_T/2. + self.enuc + self.E_core
@@ -245,7 +245,7 @@ def compute_energy_full(self, approx_cumulant=False, use_full_rdm=False, return_
     print('-----------------------------------------------------',
           flush=True)
     print(' BE ENERGIES with cumulant-based expression', flush=True)
-    
+
     print('-----------------------------------------------------',
           flush=True)
     print(' E_BE = E_HF + Tr(F del g) + Tr(V K_approx)', flush=True)
@@ -254,7 +254,7 @@ def compute_energy_full(self, approx_cumulant=False, use_full_rdm=False, return_
     print(' Tr(V K_aprrox)  : {:>14.8f} Ha'.format(EKumul/2.), flush=True)
     print(' E_BE            : {:>14.8f} Ha'.format(EKapprox), flush=True)
     print(' Ecorr BE        : {:>14.8f} Ha'.format(EKapprox-self.ebe_hf), flush=True)
-    
+
     if not approx_cumulant:
         print(flush=True)
         print(' E_BE = Tr(F[g] g) + Tr(V K_true)', flush=True)
@@ -262,7 +262,7 @@ def compute_energy_full(self, approx_cumulant=False, use_full_rdm=False, return_
         print(' Tr(Veff[g] g)   : {:>14.8f} Ha'.format(EVeff/2.), flush=True)
         print(' Tr(V K_true)    : {:>14.8f} Ha'.format(EKumul_T/2.), flush=True)
         print(' E_BE            : {:>14.8f} Ha'.format(EKtrue), flush=True)
-        if use_full_rdm and return_rdm:            
+        if use_full_rdm and return_rdm:
             print(' E(g+G)          : {:>14.8f} Ha'.format(Eh1 + 0.5*E2 + self.E_core + self.enuc),
                                flush=True)
         print(' Ecorr BE        : {:>14.8f} Ha'.format(EKtrue-self.ebe_hf), flush=True)
@@ -270,9 +270,9 @@ def compute_energy_full(self, approx_cumulant=False, use_full_rdm=False, return_
         print(' True - approx   : {:>14.4e} Ha'.format(EKtrue-EKapprox))
     print('-----------------------------------------------------',
           flush=True)
-    
+
     print(flush=True)
-    
+
     # Return the RDMs if requested
     if return_rdm: return(rdm1f, RDM2_full)
-    
+

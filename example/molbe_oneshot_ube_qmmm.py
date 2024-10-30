@@ -36,7 +36,7 @@ be_energy = be2puffin(structure, # the QM region XYZ geometry
             nproc = 1, # number of processors to parallize across
             ompnum = 2, # number of nodes to parallelize across
             be_type = 'be2', # BE type: this sets the fragment size.
-            frozen_core = False, # keep this to False for non-minimal basis: localization and 
+            frozen_core = False, # keep this to False for non-minimal basis: localization and
                                 # numerical problems for ruthenium systems in non-minimal basis
             unrestricted = True, # specify unrestricted calculation
             from_chk = False, # can save the UHF as PySCF checkpoint.

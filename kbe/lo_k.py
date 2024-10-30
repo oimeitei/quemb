@@ -1,6 +1,6 @@
 # Author(s): Henry Tran
 #            Oinam Meitei
-#          
+#
 
 import numpy, sys, scipy
 from functools import reduce
@@ -36,7 +36,7 @@ def get_symm_orth_mat_k(A, thr=1.E-7, ovlp=None):
     if int(numpy.sum(e < thr)) > 0:
         raise ValueError("Linear dependence is detected in the column space of A: smallest eigenvalue (%.3E) is less than thr (%.3E). Please use 'cano_orth' instead." % (numpy.min(e), thr))
     U = reduce(numpy.dot, (u, numpy.diag(e**-0.5), u.conj().T))
-    #U = reduce(numpy.dot, (u/numpy.sqrt(e), u.conj().T)) 
+    #U = reduce(numpy.dot, (u/numpy.sqrt(e), u.conj().T))
     return U
 
 def symm_orth_k(A, thr=1.E-7, ovlp=None):
@@ -113,18 +113,18 @@ def get_iao_k(Co, S12, S1, S2=None, ortho=True):
         Cotil = reduce(numpy.dot, (P1[k], S12[k], P2[k], S12[k].conj().T, Co[k]))
         ptil = numpy.dot(P1[k], S12[k])
         Stil = reduce(numpy.dot, (Cotil.conj().T, S1[k], Cotil))
-        
+
         Po = numpy.dot(Co[k], Co[k].conj().T)
-        
+
         Stil_inv = numpy.linalg.inv(Stil)
 
         Potil = reduce(numpy.dot, (Cotil, Stil_inv, Cotil.conj().T))
-        
+
         Ciao[k] = (numpy.eye(nao, dtype=numpy.complex128) - \
                 numpy.dot((Po + Potil - 2.* reduce(numpy.dot,(Po, S1[k], Potil))), S1[k])) @ ptil
         if ortho:
             Ciao[k] = symm_orth_k(Ciao[k], ovlp=S1[k])
-            
+
             rep_err = numpy.linalg.norm(Ciao[k] @ Ciao[k].conj().T @ S1[k] @ Po - Po)
             if rep_err > 1.E-10:
                 raise RuntimeError
@@ -152,12 +152,12 @@ def get_pao_k(Ciao, S, S12, S2):
 
         Piao = Ciao[k] @ Ciao[k].conj().T @ S[k]
         cpao_ = (numpy.eye(nao) - Piao)@ nonval
-        
-        numpy.o0 = cpao_.shape[-1]        
+
+        numpy.o0 = cpao_.shape[-1]
         Cpao.append(cano_orth(cpao_,ovlp=S[k]))
         numpy.o1 = Cpao[k].shape[-1]
     Cpao = numpy.asarray(Cpao)
-    
+
     return Cpao
 
 def get_pao_native_k(Ciao, S, mol, valence_basis, kpts, ortho=True):
@@ -170,9 +170,9 @@ def get_pao_native_k(Ciao, S, mol, valence_basis, kpts, ortho=True):
     Return:
         Cpao (symmetrically orthogonalized)
     """
-    
+
     nk, nao, niao = Ciao.shape
-    
+
     # Form a mol object with the valence basis for the ao_labels
     mol_alt = mol.copy()
     mol_alt.basis = valence_basis
@@ -199,8 +199,8 @@ def get_pao_native_k(Ciao, S, mol, valence_basis, kpts, ortho=True):
                 print("# of PAO: %d --> %d" % (npao0,npao1), flush=True)
                 print("", flush=True)
         else:
-           Cpao[k] = cpao_.copy()     
-    
+           Cpao[k] = cpao_.copy()
+
     return Cpao
 
 

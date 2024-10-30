@@ -37,7 +37,7 @@ def get_symm_orth_mat(A, thr=1.E-6, ovlp=None):
 
 def symm_orth(A, thr=1.E-6, ovlp=None):
     """ Symmetrically orthogonalize columns of A
-    """    
+    """
     U = get_symm_orth_mat(A, thr, ovlp)
     return A @ U
 
@@ -45,23 +45,23 @@ def symm_orth(A, thr=1.E-6, ovlp=None):
 def remove_core_mo(Clo, Ccore, S, thr=0.5):
     assert(numpy.allclose(Clo.T@S@Clo,numpy.eye(Clo.shape[1])))
     assert(numpy.allclose(Ccore.T@S@Ccore,numpy.eye(Ccore.shape[1])))
-    
+
     n,nlo = Clo.shape
     ncore = Ccore.shape[1]
     Pcore = Ccore@Ccore.T @ S
-    Clo1 = (numpy.eye(n) - Pcore) @ Clo              
+    Clo1 = (numpy.eye(n) - Pcore) @ Clo
     pop = numpy.diag(Clo1.T @ S @ Clo1)
     idx_keep = numpy.where(pop>thr)[0]
-    assert(len(idx_keep) == nlo-ncore)    
+    assert(len(idx_keep) == nlo-ncore)
     Clo2 = symm_orth(Clo1[:,idx_keep], ovlp=S)
 
     return Clo2
 
- 
+
 def reorder_lo(C, S, idao_by_atom, atom_by_motif, motifname,
     ncore_by_motif, thresh=0.5, verbose=3):
-    """ Reorder localized orbitals 
-    
+    """ Reorder localized orbitals
+
     This function reorders the IAOs and PAOs so that the IAOs
     and PAOs for each atom are grouped together.
     """
@@ -70,7 +70,7 @@ def reorder_lo(C, S, idao_by_atom, atom_by_motif, motifname,
     for idao in idao_by_atom:
         pop = numpy.sum(pop_by_ao[idao], axis = 0)
 
- 
+
 def get_xovlp(mol, basis='sto-3g'):
     """
     Gets set of valence orbitals based on smaller (should be minimal) basis
@@ -108,7 +108,7 @@ def get_iao(Co, S12, S1, S2 = None):
         S2 = S12.T @ numpy.linalg.inv(S1) @ S12
     P1 = numpy.linalg.inv(S1)
     P2 = numpy.linalg.inv(S2)
-    
+
     # depolarized occ mo
     Cotil = P1 @ S12 @ P2 @ S12.T @ Co
 
@@ -121,8 +121,8 @@ def get_iao(Co, S12, S1, S2 = None):
 
     Ciao = (numpy.eye(n) - (Po + Potil - 2 * Po @ S1 @ Potil) @ S1) @ ptil
     Ciao = symm_orth(Ciao, ovlp = S1)
-    
-    # check span 
+
+    # check span
     rep_err = numpy.linalg.norm(Ciao @ Ciao.T @ S1 @ Po - Po)
     if rep_err > 1.E-10:
         raise RuntimeError
@@ -143,16 +143,16 @@ def get_pao(Ciao, S, S12, S2, mol):
     s12 = numpy.linalg.inv(S) @ S12
     nonval = numpy.eye(n) - s12 @ s12.T # set of orbitals minus valence (orth in working basis)
 
-    
+
     Piao = Ciao @ Ciao.T @ S # projector into IAOs
     Cpao = (numpy.eye(n) - Piao) @ nonval # project out IAOs from non-valence basis
 
-    
+
     # begin canonical orthogonalization to get rid of redundant orbitals
     numpy.o0 = Cpao.shape[1]
     Cpao = cano_orth(Cpao, ovlp=S)
     numpy.o1 = Cpao.shape[1]
-    
+
     return Cpao
 
 def get_pao_native(Ciao, S, mol, valence_basis):
@@ -166,7 +166,7 @@ def get_pao_native(Ciao, S, mol, valence_basis):
         Cpao (symmetrically orthogonalized)
     """
     n = Ciao.shape[0]
-    
+
     # Form a mol object with the valence basis for the ao_labels
     mol_alt = mol.copy()
     mol_alt.basis = valence_basis
@@ -201,12 +201,12 @@ def get_loc(mol, C, method, pop_method=None, init_guess=None):
         from pyscf.lo import Boys as Localizer
     else:
         raise NotImplementedError('Localization scheme not understood')
-    
+
     mlo = Localizer(mol, C)
     if pop_method is not None:
         mlo.pop_method=str(pop_method)
 
-    mlo.init_guess = init_guess 
+    mlo.init_guess = init_guess
     C_ = mlo.kernel()
 
     return C_
@@ -228,7 +228,7 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g',
     valence_basis: str
        Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
     valence_only: bool
-       If this option is set to True, all calculation will be performed in the valence basis in the IAO partitioning. 
+       If this option is set to True, all calculation will be performed in the valence basis in the IAO partitioning.
        This is an experimental feature.
     """
     from numpy.linalg import eigh
@@ -236,11 +236,11 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g',
     from pyscf.lo import orth
     import scipy.linalg,functools
     from  .helper import ncore_
-    
+
     if lo_method == 'lowdin':
-        
+
         es_, vs_ = eigh(self.S)
-        edx = es_ > 1.e-15                
+        edx = es_ > 1.e-15
         self.W = numpy.dot(vs_[:,edx]/numpy.sqrt(es_[edx]), vs_[:,edx].T)
         if self.frozen_core:
             if self.unrestricted:
@@ -275,7 +275,7 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g',
                 s_ = numpy.diag(1.0/s_)
                 W_ = functools.reduce(numpy.dot,
                                       (vs_, s_, vs_.T))
-                self.W = numpy.dot(C_, W_)            
+                self.W = numpy.dot(C_, W_)
 
         if self.unrestricted:
             if self.frozen_core:
@@ -294,18 +294,18 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g',
                                                   (self.W.T, self.S, self.C[:,self.ncore:]))
             else:
                 self.lmo_coeff = functools.reduce(numpy.dot,
-                                                  (self.W.T, self.S, self.C))            
+                                                  (self.W.T, self.S, self.C))
 
     elif lo_method in ['pipek-mezey','pipek', 'PM']:
-    
+
         es_, vs_ = eigh(self.S)
-        edx = es_ > 1.e-15                
+        edx = es_ > 1.e-15
         self.W = numpy.dot(vs_[:,edx]/numpy.sqrt(es_[edx]), vs_[:,edx].T)
-        
+
         es_, vs_ = eigh(self.S)
-        edx = es_ > 1.e-15                
+        edx = es_ > 1.e-15
         W_ = numpy.dot(vs_[:,edx]/numpy.sqrt(es_[edx]), vs_[:,edx].T)
-        if self.frozen_core:                    
+        if self.frozen_core:
             P_core = numpy.eye(W_.shape[0]) - numpy.dot(self.P_core, self.S)
             C_ = numpy.dot(P_core, W_)
             Cpop = functools.reduce(numpy.dot,
@@ -319,72 +319,72 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g',
             s_ = numpy.diag(1.0/s_)
             W_ = functools.reduce(numpy.dot,
                                     (vs_, s_, vs_.T))
-            W_ = numpy.dot(C_, W_)            
+            W_ = numpy.dot(C_, W_)
 
         self.W = get_loc(self.mol, W_, 'PM', pop_method=pop_method, init_guess=init_guess)
-        
+
         if not self.frozen_core:
             self.lmo_coeff = self.W.T @ self.S @ self.C
-        else:                
+        else:
             self.lmo_coeff = self.W.T @ self.S @ self.C[:,self.ncore:]
 
-    elif lo_method=='iao':        
+    elif lo_method=='iao':
         from pyscf import lo
         import os, h5py
-        
+
         loc_type = 'SO'
         val_basis = 'sto-3g'
-        
+
         # Occupied mo_coeff (with core)
         Co = self.C[:,:self.Nocc]
         # Get necessary overlaps, second arg is IAO basis
         S12, S2 = get_xovlp(self.mol, basis=val_basis)
         # Use these to get IAOs
         Ciao = get_iao(Co, S12, self.S, S2 = S2)
-                    
+
         if not valence_only:
             # Now get PAOs
             if loc_type.upper() != 'SO':
                 Cpao = get_pao(Ciao, self.S, S12, S2, self.mol)
             elif loc_type.upper() == 'SO':
                 Cpao = get_pao_native(Ciao, self.S, self.mol, valence_basis=val_basis)
-            
+
         # rearrange by atom
         aoind_by_atom = get_aoind_by_atom(self.mol)
         Ciao, iaoind_by_atom = reorder_by_atom_(Ciao, aoind_by_atom, self.S)
 
         if not valence_only:
             Cpao, paoind_by_atom = reorder_by_atom_(Cpao, aoind_by_atom, self.S)
-        
+
         if self.frozen_core:
             # Remove core MOs
             Cc = self.C[:,:self.ncore] # Assumes core are first
             Ciao = remove_core_mo(Ciao, Cc, self.S)
-                    
+
         # Localize orbitals beyond symm orth
         if loc_type.upper() != 'SO':
             Ciao = get_loc(self.mol, Ciao, loc_type)
             if not valence_only:
                 Cpao = get_loc(self.mol, Cpao, loc_type)
-                
+
         shift = 0
         ncore = 0
-        if not valence_only:                
+        if not valence_only:
             Wstack = numpy.zeros((Ciao.shape[0], Ciao.shape[1]+Cpao.shape[1])) #-self.ncore))
         else:
             Wstack = numpy.zeros((Ciao.shape[0], Ciao.shape[1]))
-            
-        if self.frozen_core: 
+
+        if self.frozen_core:
             for ix in range(self.mol.natm):
                 nc = ncore_(self.mol.atom_charge(ix))
                 ncore += nc
                 niao = len(iaoind_by_atom[ix])
                 iaoind_ix = [ i_ - ncore for i_ in iaoind_by_atom[ix][nc:]]
-                Wstack[:, shift:shift+niao-nc] = Ciao[:, iaoind_ix]                
+                Wstack[:, shift:shift+niao-nc] = Ciao[:, iaoind_ix]
                 shift += niao-nc
                 if not valence_only:
                     npao = len(paoind_by_atom[ix])
-                    Wstack[:,shift:shift+npao] = Cpao[:, paoind_by_atom[ix]]                    
+                    Wstack[:,shift:shift+npao] = Cpao[:, paoind_by_atom[ix]]
                     shift += npao
         else:
             if not hstack:
@@ -397,9 +397,9 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g',
                         Wstack[:,shift:shift+npao] = Cpao[:, paoind_by_atom[ix]]
                         shift += npao
             else:
-                Wstack = numpy.hstack((Ciao, Cpao))        
-        if not nosave:       
-            self.W = Wstack            
+                Wstack = numpy.hstack((Ciao, Cpao))
+        if not nosave:
+            self.W = Wstack
             assert(numpy.allclose(self.W.T @ self.S @ self.W, numpy.eye(self.W.shape[1])))
         else:
             assert(numpy.allclose(Wstack.T @ self.S @ Wstack, numpy.eye(Wstack.shape[1])))
@@ -408,7 +408,7 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g',
         nlo = self.W.shape[1]
 
         if not valence_only:
-            if nmo > nlo:                
+            if nmo > nlo:
                 Co_nocore = self.C[:,self.ncore:self.Nocc]
                 Cv = self.C[:,self.Nocc:]
                 # Ensure that the LOs span the occupied space
@@ -422,15 +422,15 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g',
                 self.lmo_coeff = self.W.T @ self.S @ C_
             else:
                 self.lmo_coeff = self.W.T @ self.S @ self.C[:,self.ncore:]
-        else:            
+        else:
             self.lmo_coeff = self.W.T @ self.S @ self.C[:,self.ncore:]
-            
+
     elif lo_method == 'boys':
         from pyscf.lo import Boys
         es_, vs_ = eigh(self.S)
-        edx = es_ > 1.e-15                
+        edx = es_ > 1.e-15
         W_ = numpy.dot(vs_[:,edx]/numpy.sqrt(es_[edx]), vs_[:,edx].T)
-        if self.frozen_core:                    
+        if self.frozen_core:
             P_core = numpy.eye(W_.shape[0]) - numpy.dot(self.P_core, self.S)
             C_ = numpy.dot(P_core, W_)
             Cpop = functools.reduce(numpy.dot,
@@ -444,15 +444,15 @@ def localize(self, lo_method, mol=None, valence_basis='sto-3g',
             s_ = numpy.diag(1.0/s_)
             W_ = functools.reduce(numpy.dot,
                                   (vs_, s_, vs_.T))
-            W_ = numpy.dot(C_, W_)            
-        
+            W_ = numpy.dot(C_, W_)
+
         self.W = get_loc(self.mol, W_, 'BOYS')
-        
+
         if not self.frozen_core:
             self.lmo_coeff = self.W.T @ self.S @ self.C
-        else:                
-            self.lmo_coeff = self.W.T @ self.S @ self.C[:,self.ncore:]   
-        
+        else:
+            self.lmo_coeff = self.W.T @ self.S @ self.C[:,self.ncore:]
+
     else:
         print('lo_method = ',lo_method,' not implemented!',flush=True)
         print('exiting',flush=True)

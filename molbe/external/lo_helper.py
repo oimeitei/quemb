@@ -35,11 +35,11 @@ def get_aoind_by_atom(mol, atomind_by_motif=None):
         for ia in range(natom)]
     # if motif info is provided, group lo by motif
     if atomind_by_motif is None:
-    
+
         aoind_by_atom = [list(range(*aoshift_by_atom[ia:ia+2]))
             for ia in range(natom)]
     else:
-    
+
         nmotif = len(atomind_by_motif)
         assert(
             set([ia for im in range(nmotif)
@@ -50,19 +50,19 @@ def get_aoind_by_atom(mol, atomind_by_motif=None):
             for ia in atomind_by_motif[im]:
                 aoind_by_atom[im] += list(
                     range(*aoshift_by_atom[ia:ia+2]))
-    
+
     return aoind_by_atom
 
 
 def reorder_by_atom_(Clo, aoind_by_atom, S, thr=0.5):
     import numpy as np
-    
+
     natom = len(aoind_by_atom)
     nlo = Clo.shape[1]
     X = get_symm_mat_pow(S, 0.5)
-    
+
     Clo_soao = X @ Clo
-    
+
     loind_reorder = []
     loind_by_atom = [None] * natom
     loshift = 0

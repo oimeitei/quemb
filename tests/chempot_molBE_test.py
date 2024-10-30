@@ -20,7 +20,7 @@ class TestBE_restricted(unittest.TestCase):
         mol.build()
         self.molecular_restricted_test(mol, 'be2', 'H8 (BE2)', 'hchain_simple', -4.30628355, only_chem = True)
         self.molecular_restricted_test(mol, 'be3', 'H8 (BE3)', 'hchain_simple', -4.30649890, only_chem = True)
-    
+
     @unittest.skipIf(os.getenv("GITHUB_ACTIONS") == "true", "Skip expensive tests on Github Actions")
     def test_octane_sto3g_ben(self):
         # Octane, STO-3G

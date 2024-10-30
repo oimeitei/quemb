@@ -34,7 +34,7 @@ processors.
 
 <sub><sup>##</sup>The modified version of [libDMET](https://github.com/gkclab/libdmet_preview) available
 at [here](https://github.com/oimeitei/libdmet_preview) is
-recommended to run periodic BE using QuEmb.  
+recommended to run periodic BE using QuEmb.
 <sup>&&</sup>Wannier90 code is interfaced via [libDMET](https://github.com/gkclab/libdmet_preview) in QuEmb</sub>
 
 ### Steps
@@ -43,16 +43,16 @@ recommended to run periodic BE using QuEmb.
    ```bash
    git clone https://github.com/oimeitei/quemb.git
    cd quemb
-   
+
 2. Install QuEmb using one of the following approaches:
     ```bash
-    pip install .  
+    pip install .
     ```
     or simply add `path/to/quemd` to `PYTHONPATH`
     ```bash
     export PYTHONPATH=/path/to/quemb:$PYTHONPATH
     ```
-    
+
     For conda (or virtual environment) installations, after creating your environment, specify the path to mol-be source as a path file, as in:
     ```bash
     echo path/to/quemb > $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/quemb.pth
@@ -94,6 +94,6 @@ Alternatively, you can view the latest documentation online [here](https://quemb
 ## References
 
 The methods implemented in this code are described in details in the following papers:
-- OR Meitei, T Van Voorhis, Periodic bootstrap embedding, [JCTC 19 3123 2023](https://doi.org/10.1021/acs.jctc.3c00069)  
-- OR Meitei, T Van Voorhis, Electron correlation in 2D periodic systems, [arXiv:2308.06185](https://arxiv.org/abs/2308.06185)  
+- OR Meitei, T Van Voorhis, Periodic bootstrap embedding, [JCTC 19 3123 2023](https://doi.org/10.1021/acs.jctc.3c00069)
+- OR Meitei, T Van Voorhis, Electron correlation in 2D periodic systems, [arXiv:2308.06185](https://arxiv.org/abs/2308.06185)
 - HZ Ye, HK Tran, T Van Voorhis, Bootstrap embedding for large molecular systems, [JCTC 16 5035 2020](https://doi.org/10.1021/acs.jctc.0c00438)

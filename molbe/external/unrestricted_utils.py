@@ -32,7 +32,7 @@ def make_uhf_obj(fobj_a, fobj_b, frozen=False):
 
     full_uhf.TA = [fobj_a.TA, fobj_b.TA]
 
-    # Build core components 
+    # Build core components
     if frozen:
         full_uhf.gcores_raw = [fobj_a.TA.T @ (fobj_a.hf_veff-fobj_a.core_veff) @ fobj_a.TA,
                                 fobj_b.TA.T @ (fobj_b.hf_veff-fobj_b.core_veff) @ fobj_b.TA]
