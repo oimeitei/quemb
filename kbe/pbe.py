@@ -454,14 +454,7 @@ class BE:
 
                     file_eri.create_dataset(fobjs_.dname, data=eri)
                     eri = ao2mo.restore(8, eri, fobjs_.nao)
-                    fobjs_.cons_fock(
-                        self.hf_veff,
-                        self.S,
-                        self.hf_dm,
-                        eri_=eri,
-                        lmo=self.lmo_coeff,
-                        nocc=self.Nocc,
-                    )
+                    fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
                 else:
                     eri = None
             self.Fobjs.append(fobjs_)
