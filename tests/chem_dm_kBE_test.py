@@ -1,5 +1,5 @@
 """
-This script tests the period BE1 and BE2 workflows using chemical potential and density matching, respectively. 
+This script tests the period BE1 and BE2 workflows using chemical potential and density matching, respectively.
 Also tests the gaussian density fitting interface, which is typically used by default.
 
 Author(s): Shaun Weatherly
@@ -14,7 +14,7 @@ class Test_kBE_Full(unittest.TestCase):
         import libdmet
     except ImportError:
         libdmet = None
-    
+
     @unittest.skipIf(libdmet is None, "Module `libdmet` not imported correctly.")
     def test_kc2_sto3g_be1_chempot(self):
         kpt = [1, 1, 1]
@@ -39,7 +39,6 @@ class Test_kBE_Full(unittest.TestCase):
 
         self.periodic_test(cell, kpt, 'be1', 'C2 (kBE1)', 'autogen', -74.62798837, only_chem = True)
 
-    @unittest.skipIf(os.getenv("GITHUB_ACTIONS") == "true", "Skip expensive tests on Github Actions")
     def test_kc4_sto3g_be2_density(self):
         kpt = [1, 1, 1]
         cell = gto.Cell()
@@ -64,25 +63,25 @@ class Test_kBE_Full(unittest.TestCase):
         self.periodic_test(cell, kpt, 'be2', 'C4 (kBE2)', 'autogen', -149.37047888, only_chem = False)
 
     def periodic_test(self, cell, kpt, be_type, test_name, frag_type, target, delta = 1e-4, only_chem = True):
-        
+
         kpts = cell.make_kpts(kpt, wrap_around=True)
         mydf = df.GDF(cell, kpts)
         mydf.build()
-        
+
         kmf = scf.KRHF(cell, kpts)
         kmf.with_df = mydf
         kmf.exxdiv = None
         kmf.conv_tol = 1e-12
         kmf.kernel()
-        
-        kfrag = fragpart(be_type=be_type, 
+
+        kfrag = fragpart(be_type=be_type,
                          mol=cell,
                          frag_type=frag_type,
-                         kpt=kpt, 
+                         kpt=kpt,
                          frozen_core=True)
         mykbe = BE(kmf, kfrag, kpts=kpts)
         mykbe.optimize(solver='CCSD', only_chem=only_chem)
-        
+
         self.assertAlmostEqual(mykbe.ebe_tot, target,
                                msg = "kBE Correlation Energy for " + test_name
                                + " does not match the expected correlation energy!", delta = delta)
