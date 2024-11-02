@@ -367,7 +367,7 @@ class BE:
                     eri = get_emb_eri_fast_gdf(self.mf.cell, self.mf.with_df,
                                                t_reversal_symm=True,
                                                symmetry=4,
-                                               C_ao_emb=fobjs_.TA)[0]
+                                               C_ao_eo=fobjs_.TA)[0]
 
                     file_eri.create_dataset(fobjs_.dname, data=eri)
                     eri = ao2mo.restore(8, eri, fobjs_.nao)
@@ -638,7 +638,7 @@ def eritransform_parallel(a, atom, basis, kpts, C_ao_emb, cderi):
     mydf._cderi = cderi
     eri = get_emb_eri_fast_gdf(cell, mydf,
             t_reversal_symm=True, symmetry=4,
-            C_ao_emb = C_ao_emb)
+            C_ao_eo=C_ao_emb)
 
     return eri
 
