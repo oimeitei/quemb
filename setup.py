@@ -19,6 +19,7 @@ setup(
         'numpy>=1.22.0',
         'scipy>=1.7.0',
         'pyscf>=2.0.0',
+        'matplotlib'
         # TODO this temporarily points to mcocdawc/libdmet_preview.
         # as soon as this PR: https://github.com/gkclab/libdmet_preview/pull/21
         # is merged, let it point to the original libdmet
