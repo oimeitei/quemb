@@ -9,7 +9,6 @@ from pyscf import gto, scf
 from molbe import fragpart, BE
 
 class TestDF_ontheflyERI(unittest.TestCase):
-    @unittest.skipIf(os.getenv("GITHUB_ACTIONS") == "true", "Skip expensive tests on Github Actions")
     def test_octane_BE2(self):
         # Octane, cc-pvtz
         mol = gto.M()
