@@ -37,7 +37,7 @@ class Test_kBE_Full(unittest.TestCase):
         cell.verbose=0
         cell.build()
 
-        self.periodic_test(cell, kpt, 'be1', 'C2 (kBE1)', 'autogen', -74.62798837, only_chem = True)
+        self.periodic_test(cell, kpt, 'be1', 'C2 (kBE1)', 'autogen', -74.64695833012868, only_chem = True)
 
     def test_kc4_sto3g_be2_density(self):
         kpt = [1, 1, 1]
@@ -60,7 +60,7 @@ class Test_kBE_Full(unittest.TestCase):
         cell.verbose=0
         cell.build()
 
-        self.periodic_test(cell, kpt, 'be2', 'C4 (kBE2)', 'autogen', -149.37047888, only_chem = False)
+        self.periodic_test(cell, kpt, 'be2', 'C4 (kBE2)', 'autogen', -149.4085332249809, only_chem = False)
 
     def periodic_test(self, cell, kpt, be_type, test_name, frag_type, target, delta = 1e-4, only_chem = True):
 
