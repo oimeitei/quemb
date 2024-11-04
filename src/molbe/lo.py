@@ -251,13 +251,15 @@ def localize(
     Parameters
     ----------
     lo_method : str
-       Localization method in quantum chemistry. 'lowdin', 'boys', and 'iao' are supported.
+       Localization method in quantum chemistry. 'lowdin', 'boys',
+       and 'iao' are supported.
     mol : pyscf.gto.Molecule
        pyscf.gto.Molecule object.
     valence_basis: str
        Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
     valence_only: bool
-       If this option is set to True, all calculation will be performed in the valence basis in the IAO partitioning.
+       If this option is set to True, all calculation will be performed
+       in the valence basis in the IAO partitioning.
        This is an experimental feature.
     """
     import functools

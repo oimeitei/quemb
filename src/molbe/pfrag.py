@@ -372,7 +372,7 @@ class Frags:
             e2_ += self.efac[0] * e2[i]
 
         print(
-            "BE Energy Frag-{:>3}   {:>12.7f}  {:>12.7f}  {:>12.7f};   Total : {:>12.7f}".format(
+            "BE Energy Frag-{:>3}   {:>12.7f}  {:>12.7f}  {:>12.7f};   Total : {:>12.7f}".format(  # noqa: E501
                 self.dname, e1_, ec_, e2_, etmp
             )
         )

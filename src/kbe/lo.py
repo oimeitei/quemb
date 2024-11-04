@@ -240,7 +240,8 @@ def localize(
                 c_core_val[k] = numpy.hstack((ciao_core[k], Ciao_[k]))
 
             arrange_by_atom = True
-            # tmp - aos are not rearrange and so below is not necessary (iaoind_by_atom is used to stack iao|pao later)
+            # tmp - aos are not rearrange and so below is not necessary
+            #   (iaoind_by_atom is used to stack iao|pao later)
             if arrange_by_atom:
                 nk, nao, nlo = c_core_val.shape
                 for k in range(self.nkpt):
