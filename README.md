@@ -29,12 +29,9 @@ processors.
 - PySCF library
 - Numpy
 - Scipy
-- libDMET<sup>##</sup> (required for periodic BE)
+- libDMET (required for periodic BE)
 - [Wannier90](https://github.com/wannier-developers/wannier90)<sup>&&</sup> (to use Wannier functions)
 
-<sub><sup>##</sup>The modified version of [libDMET](https://github.com/gkclab/libdmet_preview) available
-at [here](https://github.com/oimeitei/libdmet_preview) is
-recommended to run periodic BE using QuEmb.
 <sup>&&</sup>Wannier90 code is interfaced via [libDMET](https://github.com/gkclab/libdmet_preview) in QuEmb</sub>
 
 ### Steps
