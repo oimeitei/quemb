@@ -2,6 +2,7 @@
 
 import sys
 
+
 def chain(self, mol, frozen_core=False, closed=False):
     """
     Hard coded linear chain fragment constructor

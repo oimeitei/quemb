@@ -1,7 +1,8 @@
 # Author(s): Oinam Romesh Meitei
 
-from molbe._opt import BEOPT
 import sys
+
+from molbe._opt import BEOPT
 
 
 def optimize(
