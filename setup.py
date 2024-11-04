@@ -13,7 +13,8 @@ setup(
     long_description_content_type='text/markdown',
     url='https://github.com/oimeitei/quemb',
     license='Apache 2.0',
-    packages=find_packages(),
+    packages=find_packages('src'),
+    package_dir={'': 'src'},
     python_requires='>=3.7',
     install_requires=[
         'numpy>=1.22.0',
