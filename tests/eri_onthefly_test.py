@@ -9,6 +9,7 @@ from pyscf import gto, scf
 from molbe import fragpart, BE
 
 class TestDF_ontheflyERI(unittest.TestCase):
+    @unittest.skipIf(os.getenv("QUEMB_SKIP_EXPENSIVE_TESTS") == "true", "Skipped expensive tests for QuEmb.")
     def test_octane_BE2(self):
         # Octane, cc-pvtz
         mol = gto.M()
