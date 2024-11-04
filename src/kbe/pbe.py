@@ -1,11 +1,12 @@
 # Author(s): Oinam Romesh Meitei
 
 from .pfrag import Frags
-from molbe.helper import get_core
 import molbe.be_var as be_var
-import numpy, functools, sys, pickle
-from pyscf import lib
-import h5py, os
+import numpy
+import sys
+import pickle
+import h5py
+import os
 
 from .misc import storePBE
 
@@ -376,14 +377,11 @@ class BE:
         restart : bool, optional
             Whether to restart from a previous calculation, by default False.
         """
-        from molbe.helper import get_scfObj
         from multiprocessing import Pool
 
-        import h5py, os, logging
+        import h5py
+        import os
         from pyscf import ao2mo
-        from pyscf.pbc.df import fft_ao2mo
-        from pyscf.pbc.df import df_ao2mo
-        from pyscf.pbc import ao2mo as pao2mo
         from libdmet.basis_transform.eri_transform import get_emb_eri_fast_gdf
 
         if compute_hf:

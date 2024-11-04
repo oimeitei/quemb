@@ -1,11 +1,9 @@
 # Illustrates a one-shot BE UCCSD calculation from UHF reference
 # for hexene anion
 
-import numpy
 
 from pyscf import gto, scf
-from molbe import fragpart, UBE, be_var
-import sys
+from molbe import fragpart, UBE
 
 # Set up scratch directory settings
 # be_var.SCRATCH='{scratch location}'

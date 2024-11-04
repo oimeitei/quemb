@@ -2,7 +2,8 @@
 #            Oinam Meitei
 #
 
-import numpy, sys, scipy
+import numpy
+import scipy
 from functools import reduce
 
 
@@ -200,7 +201,7 @@ def get_pao_native_k(Ciao, S, mol, valence_basis, kpts, ortho=True):
     vir_idx = [
         idx
         for idx, label in enumerate(full_ao_labels)
-        if (not label in valence_ao_labels)
+        if (label not in valence_ao_labels)
     ]
 
     niao = len(vir_idx)

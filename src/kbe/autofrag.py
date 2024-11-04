@@ -3,7 +3,6 @@
 import sys
 import numpy
 from molbe.helper import get_core
-from itertools import compress
 
 
 def warn_large_fragment():
@@ -103,13 +102,13 @@ def sidefunc(
         for lmin1 in unit2[numpy.where(unit1 == Idx)[0]]:
             for jdx, j in enumerate(coord):
                 if (
-                    not jdx in unit1
-                    and not jdx in unit2
+                    jdx not in unit1
+                    and jdx not in unit2
                     and not cell.atom_pure_symbol(jdx) == "H"
                 ):
                     dist = numpy.linalg.norm(coord[lmin1] - j)
                     if dist <= bond:
-                        if not jdx in sub_list:  # avoid repeated occurence
+                        if jdx not in sub_list:  # avoid repeated occurence
                             main_list.append(jdx)
                             sub_list.append(jdx)
                             close_be3.append(jdx)
@@ -119,8 +118,8 @@ def sidefunc(
                                     if kdx == jdx:
                                         continue
                                     if (
-                                        not kdx in unit1
-                                        and not kdx in unit2
+                                        kdx not in unit1
+                                        and kdx not in unit2
                                         and not cell.atom_pure_symbol(kdx) == "H"
                                     ):
                                         dist = numpy.linalg.norm(coord[jdx] - k)
@@ -165,10 +164,10 @@ def surround(
             NK=NK,
             rlist=rlist,
         )
-        sublist = [tmpi for tmpi in sublist_ if not tmpi in rlist]
+        sublist = [tmpi for tmpi in sublist_ if tmpi not in rlist]
         sublist = []
         for tmpi in sublist_:
-            if not tmpi in rlist:
+            if tmpi not in rlist:
                 for tmp_jdx, tmpj in enumerate(ext_list):
                     if tmpj == tmpi and klist[tmp_jdx] == NK:
                         break
@@ -1311,9 +1310,9 @@ def autogen(
                 and dist in inter_layer_dict[idx][1]
                 and jdx in inter_layer_dict[idx][0]
                 and dist < perpend_dist * ang2bohr
-                and not jdx in pedg
+                and jdx not in pedg
             ):
-                if not jdx in clist_check:
+                if jdx not in clist_check:
                     flist.append(jdx)
                     pedg.append(jdx)
                 if dist > bond:
@@ -1732,7 +1731,7 @@ def autogen(
                                 and kdx in inter_layer_dict[jdx][0]
                                 and dist < perpend_dist * ang2bohr
                             ):
-                                if not kdx in pedg and not kdx in clist_check:
+                                if kdx not in pedg and kdx not in clist_check:
                                     flist.append(kdx)
                                     pedg.append(kdx)
                                 if be_type == "be4":
@@ -1937,7 +1936,7 @@ def autogen(
                     )
         w.close()
 
-    if not valence_basis is None:
+    if valence_basis is not None:
         pao = True
     else:
         pao = False

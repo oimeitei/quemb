@@ -5,7 +5,8 @@ Also tests the gaussian density fitting interface, which is typically used by de
 Author(s): Shaun Weatherly
 """
 
-import os, unittest, numpy
+import unittest
+import numpy
 from pyscf.pbc import gto, scf, df
 from kbe import fragpart, BE
 

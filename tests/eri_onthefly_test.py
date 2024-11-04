@@ -4,7 +4,8 @@ This script tests the on-the-fly DF-based ERI transformation routine for molecul
 Author(s): Minsik Cho
 """
 
-import os, unittest
+import os
+import unittest
 from pyscf import gto, scf
 from molbe import fragpart, BE
 

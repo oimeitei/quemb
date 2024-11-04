@@ -1,9 +1,8 @@
 # Author(s): Oinam Meitei
 #            Henry Tran
 #
-from pyscf import lib
-import numpy, sys
-from copy import deepcopy
+import numpy
+import sys
 from functools import reduce
 from molbe.external.lo_helper import get_aoind_by_atom, reorder_by_atom_
 # iao tmp
@@ -47,11 +46,9 @@ def localize(
     iao_wannier : bool
        Whether to perform Wannier localization in the IAO space
     """
-    from numpy.linalg import eigh
-    from pyscf.lo.iao import iao
-    import scipy.linalg, functools
+    import scipy.linalg
+    import functools
     from molbe.helper import ncore_
-    from .misc import get_phase, sgeom
 
     if lo_method == "iao":
         if valence_basis == "sto-3g":
@@ -125,18 +122,15 @@ def localize(
 
     elif lo_method == "iao":
         from libdmet.lo import pywannier90
-        from pyscf import lo
-        import os, h5py
+        import os
 
         from .lo_k import (
             get_xovlp_k,
             get_iao_k,
-            get_pao_k,
             get_pao_native_k,
             symm_orth_k,
             remove_core_mo_k,
         )
-        from pyscf import gto, lo
 
         if not iao_val_core or not self.frozen_core:
             Co = self.C[:, :, : self.Nocc].copy()
@@ -394,7 +388,7 @@ def localize(
     elif lo_method == "wannier":
         # from pyscf.pbc.tools import pywannier90
         from libdmet.lo import pywannier90
-        from .lo_k import get_symm_orth_mat_k, remove_core_mo_k
+        from .lo_k import remove_core_mo_k
 
         nk, nao, nmo = self.C.shape
         lorb = numpy.zeros((nk, nao, nmo), dtype=numpy.complex128)

@@ -3,7 +3,7 @@
 #         The code has been slightly modified.
 #
 
-import numpy, functools, sys, time, os
+import numpy
 
 
 def make_rdm1_ccsd_t1(t1):

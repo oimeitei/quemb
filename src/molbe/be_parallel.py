@@ -6,7 +6,9 @@ from .solver import make_rdm2_urlx
 from .helper import get_frag_energy
 from molbe.external.unrestricted_utils import make_uhf_obj
 from molbe.external.ccsd_rdm import make_rdm1_uccsd, make_rdm2_uccsd
-import functools, numpy, sys
+import functools
+import numpy
+import sys
 from .helper import *
 
 
@@ -467,7 +469,7 @@ def be_func_parallel(
     nprocs = int(nproc / ompnum)
 
     # Update the effective Hamiltonian with potentials
-    if not pot is None:
+    if pot is not None:
         for fobj in Fobjs:
             fobj.update_heff(pot, only_chem=only_chem)
 

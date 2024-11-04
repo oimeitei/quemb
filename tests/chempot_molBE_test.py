@@ -4,8 +4,9 @@ This script tests the correlation energies of sample restricted molecular BE cal
 Author(s): Minsik Cho
 """
 
-import os, unittest
-from pyscf import cc, gto, scf
+import os
+import unittest
+from pyscf import gto, scf
 from molbe import fragpart, BE
 
 

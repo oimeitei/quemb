@@ -2,7 +2,8 @@
 # `block2` is a DMRG and sparse tensor network library developed by the
 # Garnet-Chan group at Caltech: https://block2.readthedocs.io/en/latest/index.html
 
-import os, numpy, sys
+import os
+import numpy
 import matplotlib.pyplot as plt
 from pyscf import gto, scf, fci, cc
 from molbe import BE, fragpart

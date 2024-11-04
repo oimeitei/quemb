@@ -1,11 +1,11 @@
 # Author(s): Oinam Romesh Meitei
 
 from .pfrag import Frags
-from .helper import get_core
 import molbe.be_var as be_var
-import numpy, functools, sys, pickle
-from pyscf import lib
-import h5py, os, time
+import numpy
+import pickle
+import h5py
+import os
 
 
 class storeBE:
@@ -330,10 +330,8 @@ class BE:
         restart : bool, optional
             Whether to restart from a previous calculation, by default False.
         """
-        from .helper import get_scfObj
         import h5py
         from pyscf import ao2mo
-        from multiprocessing import Pool
 
         if compute_hf:
             E_hf = 0.0
@@ -380,17 +378,17 @@ class BE:
             #            Yes -- ao2mo, outcore version, using saved (ij|P)
             #            No  -- if integral_direct_DF is requested, invoke on-the-fly routine
             assert (
-                (not eri_ is None)
+                (eri_ is not None)
                 or (hasattr(self.mf, "with_df"))
                 or (self.integral_direct_DF)
             ), "Input mean-field object is missing ERI (mf._eri) or DF (mf.with_df) object AND integral direct DF routine was not requested. Please check your inputs."
             if (
-                not eri_ is None
+                eri_ is not None
             ):  # incore ao2mo using saved eri from mean-field calculation
                 for I in range(self.Nfrag):
                     eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
                     file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
-            elif hasattr(self.mf, "with_df") and not self.mf.with_df is None:
+            elif hasattr(self.mf, "with_df") and self.mf.with_df is not None:
                 # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P) in pyscf temp directory
                 for I in range(self.Nfrag):
                     eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)

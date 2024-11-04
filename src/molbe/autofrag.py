@@ -68,7 +68,6 @@ def autogen(
         centers in any other fragments
 
     """
-    from pyscf import lib
 
     if not valence_only:
         cell = mol.copy()
@@ -131,7 +130,7 @@ def autogen(
                             if not kdx == jdx:
                                 dist = numpy.linalg.norm(coord[jdx] - coord[kdx])
                                 if dist <= bond:
-                                    if not kdx in pedg:
+                                    if kdx not in pedg:
                                         flist.append(kdx)
                                         pedg.append(kdx)
                                     if be_type == "be4":

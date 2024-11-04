@@ -1,8 +1,8 @@
 # Authors: Leah Weisburn, Hongzhou Ye, Henry Tran
 
-import scipy.linalg as slg
 import h5py
-import numpy, functools
+import numpy
+import functools
 
 
 def make_uhf_obj(fobj_a, fobj_b, frozen=False):

@@ -77,7 +77,7 @@ def chain(self, mol, frozen_core=False, closed=False):
                 tmp_ = []
                 elist_ = [xx for yy in self.edge[ix] for xx in yy]
                 for j in i:
-                    if not j in elist_:
+                    if j not in elist_:
                         tmp_.append(i.index(j))
                 self.ebe_weight.append([1.0, tmp_])
 
@@ -164,7 +164,7 @@ def chain(self, mol, frozen_core=False, closed=False):
 
             elist_ = [xx for yy in self.edge[ix] for xx in yy]
             for j in i:
-                if not j in elist_:
+                if j not in elist_:
                     tmp_.append(i.index(j))
             self.ebe_weight.append([1.0, tmp_])
         for i in range(self.Nfrag):
@@ -240,7 +240,7 @@ def chain(self, mol, frozen_core=False, closed=False):
             tmp_ = []
             elist_ = [xx for yy in self.edge[ix] for xx in yy]
             for j in i:
-                if not j in elist_:
+                if j not in elist_:
                     tmp_.append(i.index(j))
             self.ebe_weight.append([1.0, tmp_])
 

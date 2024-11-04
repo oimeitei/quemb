@@ -1,10 +1,10 @@
 # Author(s): Oinam Romesh Meitei
 
-import numpy, sys, functools
+import numpy
+import functools
 
 
 def get_veff(eri_, dm, S, TA, hf_veff, return_veff0=False):
-    import functools
     from pyscf import scf
 
     """
