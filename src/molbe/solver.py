@@ -93,7 +93,6 @@ def be_func(
     rdm_return = False
     if relax_density:
         rdm_return = True
-    E = 0.0
     if frag_energy or eeval:
         total_e = [0.0, 0.0, 0.0]
 
@@ -934,7 +933,6 @@ def solve_uccsd(
     from molbe.external.uccsd_eri import make_eris_incore
 
     C = mf.mo_coeff
-    nao = [C[s].shape[0] for s in [0, 1]]
 
     Vss = eris_inp[:2]
     Vos = eris_inp[-1]
@@ -973,7 +971,8 @@ def solve_uccsd(
                     )
             try:
                 return ao2mo.incore.general(Vos, moish, compact=False)
-            except:
+            except NotImplementedError:
+                # not implemented for complex numbers
                 return numpy.einsum(
                     "ijkl,ip,jq,kr,ls->pqrs",
                     Vos,

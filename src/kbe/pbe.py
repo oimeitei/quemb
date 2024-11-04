@@ -177,7 +177,7 @@ class BE:
         if be_var.CREATE_SCRATCH_DIR:
             try:
                 jobid = str(os.environ["SLURM_JOB_ID"])
-            except:
+            except KeyError:
                 jobid = ""
         if not be_var.SCRATCH == "":
             os.system("mkdir " + be_var.SCRATCH + str(jobid))
@@ -604,7 +604,7 @@ class BE:
         clean_eri : bool, optional
             Whether to clean up ERI files after calculation, by default False.
         """
-        from .solver import be_func
+        from kbe.solver import be_func
         from .be_parallel import be_func_parallel
 
         print("Calculating Energy by Fragment? ", calc_frag_energy)
@@ -668,11 +668,11 @@ class BE:
         if not calc_frag_energy:
             self.compute_energy_full(approx_cumulant=True, return_rdm=False)
 
-        if clean_eri == True:
+        if clean_eri:
             try:
                 os.remove(self.eri_file)
                 os.rmdir(self.scratch_dir)
-            except:
+            except FileNotFoundError:
                 print("Scratch directory not removed")
 
     def update_fock(self, heff=None):

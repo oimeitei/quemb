@@ -544,7 +544,6 @@ def autogen(
         tmplist = list(tmplist)
 
         clist = []
-        cout = 0
         for jdx, j in enumerate(tmplist):
             if not idx == jdx and not cell.atom_pure_symbol(jdx) == "H":
                 if abs(j) < normdist:

@@ -455,7 +455,7 @@ class UBE(BE):  # 🍠
         print("Total Energy : {:>12.8f} Ha".format((self.ebe_tot), ))
         print("Corr  Energy : {:>12.8f} Ha".format((E), ))
 
-        if clean_eri == True:
+        if clean_eri:
             try:
                 os.remove(self.eri_file)
                 os.rmdir(self.scratch_dir)

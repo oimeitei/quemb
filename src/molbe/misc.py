@@ -2,6 +2,7 @@
 
 import numpy
 import os
+import sys
 from pyscf import gto, scf
 import time
 
@@ -336,7 +337,7 @@ def be2puffin(
         if hcore is None:  # from point charges OR with no external potential
             hcore_pyscf = None
         else:  # from starting Hamiltonian in Libint format
-            if libint_inp == True:
+            if libint_inp:
                 libint2pyscf = []
                 for labelidx, label in enumerate(mol.ao_labels()):
                     # pyscf: px py pz // 1 -1 0
@@ -425,7 +426,7 @@ def be2puffin(
         time_pre_mf = time.time()
         mf.kernel()
         time_post_mf = time.time()
-        if mf.converged == True:
+        if mf.converged:
             print("Reference HF Converged", flush=True)
         else:
             print("Reference HF Unconverged -- stopping the calculation", flush=True)

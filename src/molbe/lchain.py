@@ -1,5 +1,6 @@
 # Author(s): Oinam Romesh Meitei
 
+import sys
 
 def chain(self, mol, frozen_core=False, closed=False):
     """
@@ -21,7 +22,7 @@ def chain(self, mol, frozen_core=False, closed=False):
             sites.append([i for i in range(start_, stop_)])
     if closed:
         lnext = [i for i in self.kpt if i > 1]
-        if not len(lnext) == 0:
+        if lnext:
             nk1 = lnext[0]
         else:
             print("Gamma point does not work")
