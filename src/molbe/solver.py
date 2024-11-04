@@ -203,13 +203,10 @@ def be_func(pot, Fobjs, Nocc, solver, enuc, hf_veff=None,
                 os.system('mkdir -p '+tmp)
 
             try:
-                rdm1_tmp, rdm2s = solve_block2(fobj._mf,
-                                                fobj.nsocc,
-                                                frag_scratch = tmp,
-                                                **solver_kwargs_)
+                rdm1_tmp, rdm2s = solve_block2(
+                    fobj._mf, fobj.nsocc, frag_scratch = tmp, **solver_kwargs_)
             except Exception as inst:
-                print(f"Fragment DMRG solver failed with Exception: {type(inst)}\n", inst, flush=True)
-
+                raise inst
             finally:
                 if solver_kwargs_.pop('force_cleanup', False):
                     os.system('rm -r '+ os.path.join(tmp,'F.*'))
