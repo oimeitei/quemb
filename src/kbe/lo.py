@@ -32,20 +32,21 @@ def localize(
 ):
     """Orbital localization
 
-    Performs orbital localization computations for periodic systems. For large basis, IAO is recommended
-    augmented with PAO orbitals.
+    Performs orbital localization computations for periodic systems. For large basis,
+    IAO is recommended augmented with PAO orbitals.
 
     Parameters
     ----------
     lo_method : str
-       Localization method in quantum chemistry. 'lowdin', 'boys','iao', and 'wannier' are supported.
+       Localization method in quantum chemistry. 'lowdin', 'boys','iao',
+       and 'wannier' are supported.
     mol : pyscf.gto.Molecule
        pyscf.gto.Molecule object.
     valence_basis: str
        Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
     valence_only: bool
-       If this option is set to True, all calculation will be performed in the valence basis in the IAO partitioning.
-       This is an experimental feature.
+       If this option is set to True, all calculation will be performed in the
+       valence basis in the IAO partitioning.  This is an experimental feature.
     iao_wannier : bool
        Whether to perform Wannier localization in the IAO space
     """

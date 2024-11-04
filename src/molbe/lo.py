@@ -37,8 +37,9 @@ def get_symm_orth_mat(A, thr=1.0e-6, ovlp=None):
     e, u = numpy.linalg.eigh(S)
     if int(numpy.sum(e < thr)) > 0:
         raise ValueError(
-            "Linear dependence is detected in the column space of A: smallest eigenvalue (%.3E) is less than thr (%.3E). Please use 'cano_orth' instead."
-            % (numpy.min(e), thr)
+            "Linear dependence is detected in the column space of A: "
+            "smallest eigenvalue (%.3E) is less than thr (%.3E). "
+            "Please use 'cano_orth' instead." % (numpy.min(e), thr)
         )
     U = u @ numpy.diag(e**-0.5) @ u.T
 
@@ -244,8 +245,8 @@ def localize(
 ):
     """Molecular orbital localization
 
-    Performs molecular orbital localization computations. For large basis, IAO is recommended
-    augmented with PAO orbitals.
+    Performs molecular orbital localization computations. For large basis,
+    IAO is recommended augmented with PAO orbitals.
 
     Parameters
     ----------

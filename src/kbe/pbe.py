@@ -17,9 +17,10 @@ class BE:
     """
     Class for handling periodic bootstrap embedding (BE) calculations.
 
-    This class encapsulates the functionalities required for performing periodic bootstrap embedding calculations,
-    including setting up the BE environment, initializing fragments, performing SCF calculations, and
-    evaluating energies.
+    This class encapsulates the functionalities required for performing
+    periodic bootstrap embedding calculations,
+    including setting up the BE environment, initializing fragments,
+    performing SCF calculations, and evaluating energies.
 
     Attributes
     ----------
@@ -87,7 +88,8 @@ class BE:
         save_file : str, optional
             Path to the file storing save information, by default 'storebe.pk'.
         nproc : int, optional
-            Number of processors for parallel calculations, by default 1. If set to >1, threaded parallel computation is invoked.
+            Number of processors for parallel calculations, by default 1. If set to >1,
+            threaded parallel computation is invoked.
         ompnum : int, optional
             Number of OpenMP threads, by default 4.
         """
@@ -596,9 +598,11 @@ class BE:
         Parameters
         ----------
         solver : str, optional
-            High-level quantum chemistry method, by default 'MP2'. 'CCSD', 'FCI', and variants of selected CI are supported.
+            High-level quantum chemistry method, by default 'MP2'. 'CCSD', 'FCI',
+            and variants of selected CI are supported.
         nproc : int, optional
-            Number of processors for parallel calculations, by default 1. If set to >1, threaded parallel computation is invoked.
+            Number of processors for parallel calculations, by default 1. If set to >1,
+            multi-threaded parallel computation is invoked.
         ompnum : int, optional
             Number of OpenMP threads, by default 4.
         calc_frag_energy : bool, optional
@@ -728,18 +732,19 @@ def initialize_pot(Nfrag, edge_idx):
     """
     Initialize the potential array for bootstrap embedding.
 
-    This function initializes a potential array for a given number of fragments (`Nfrag`)
-    and their corresponding edge indices (`edge_idx`). The potential array is initialized
-    with zeros for each pair of edge site indices within each fragment, followed by an
-    additional zero for the global chemical potential.
+    This function initializes a potential array for a given number of fragments
+    (`Nfrag`) and their corresponding edge indices (`edge_idx`).
+    The potential array is initialized with zeros for each pair of edge site indices
+    within each fragment, followed by an additional zero
+    for the global chemical potential.
 
     Parameters
     ----------
     Nfrag : int
         Number of fragments.
     edge_idx : list of list of list of int
-        List of edge indices for each fragment. Each element is a list of lists, where each
-        sublist contains the indices of edge sites for a particular fragment.
+        List of edge indices for each fragment. Each element is a list of lists,
+        where each sublist contains the indices of edge sites for a particular fragment.
 
     Returns
     -------
