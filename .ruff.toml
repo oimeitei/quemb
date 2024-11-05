@@ -1,6 +1,4 @@
 [lint]
-# Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
-# Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
-# McCabe complexity (`C901`) by default.
-select = ["E", "F", "I"]
-ignore = ["E741"]
+# see the rules [here](https://docs.astral.sh/ruff/rules/)
+select = ["E", "F", "I", "NPY"]
+ignore = ["E741", "S101"]
