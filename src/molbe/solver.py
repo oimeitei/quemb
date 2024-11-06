@@ -6,7 +6,6 @@ import sys
 
 import numpy
 from pyscf import ao2mo, cc, fci
-from pyscf.shciscf import shci
 
 from molbe import be_var
 from molbe.external.ccsd_rdm import (

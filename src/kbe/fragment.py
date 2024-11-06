@@ -3,7 +3,6 @@
 import sys
 
 from kbe.autofrag import autogen
-from kbe.chain import polychain
 from molbe.helper import get_core
 
 

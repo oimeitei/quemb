@@ -13,16 +13,13 @@ from pyscf.pbc import df, gto
 from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
 
 import molbe.be_var as be_var
-from kbe._opt import optimize
 from kbe.be_parallel import be_func_parallel
 from kbe.helper import get_eri, get_scfObj, get_veff
-from kbe.lo import localize
 from kbe.misc import storePBE
 from kbe.pfrag import Frags
 from kbe.solver import be_func
 
 # this is a molbe method not BEOPT
-from molbe.external.optqn import get_be_error_jacobian
 
 
 class BE:

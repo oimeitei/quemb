@@ -4,7 +4,6 @@ import sys
 
 from molbe.autofrag import autogen
 from molbe.helper import get_core
-from molbe.lchain import chain
 
 
 class fragpart:

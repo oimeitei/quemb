@@ -8,12 +8,8 @@ import numpy
 from pyscf import ao2mo
 
 import molbe.be_var as be_var
-from molbe._opt import optimize
 from molbe.be_parallel import be_func_parallel
-from molbe.external.optqn import get_be_error_jacobian
-from molbe.lo import localize
 from molbe.pfrag import Frags
-from molbe.rdm import compute_energy_full, rdm1_fullbasis
 from molbe.solver import be_func
 
 
