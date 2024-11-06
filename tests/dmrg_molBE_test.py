@@ -11,13 +11,13 @@ from pyscf import gto, scf
 
 from molbe import BE, fragpart
 
+try:
+    from pyscf import dmrgscf
+except ImportError:
+    dmrgscf = None
+
 
 class TestBE_DMRG(unittest.TestCase):
-    try:
-        from pyscf import dmrgscf
-    except ImportError:
-        dmrgscf = None
-
     @unittest.skipIf(dmrgscf is None, "Module `pyscf.dmrgscf` not imported correctly.")
     def test_h8_sto3g_pipek(self):
         mol = gto.M()

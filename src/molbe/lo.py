@@ -1,13 +1,17 @@
 # Author(s): Henry Tran, Oinam Meitei, Shaun Weatherly
 #
+import functools
 import sys
 
 import numpy
+from numpy.linalg import eigh
+from pyscf.gto import intor_cross
 
 from molbe.external.lo_helper import (
     get_aoind_by_atom,
     reorder_by_atom_,
 )
+from molbe.helper import ncore_
 
 
 def dot_gen(A, B, ovlp):
@@ -92,8 +96,6 @@ def get_xovlp(mol, basis="sto-3g"):
         S12 - Overlap of two basis sets
         S22 - Overlap in new basis set
     """
-    from pyscf.gto import intor_cross
-
     mol_alt = mol.copy()
     mol_alt.basis = basis
     mol_alt.build()
@@ -262,12 +264,6 @@ def localize(
        in the valence basis in the IAO partitioning.
        This is an experimental feature.
     """
-    import functools
-
-    from numpy.linalg import eigh
-
-    from .helper import ncore_
-
     if lo_method == "lowdin":
         es_, vs_ = eigh(self.S)
         edx = es_ > 1.0e-15

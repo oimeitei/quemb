@@ -5,10 +5,16 @@ import pickle
 
 import h5py
 import numpy
+from pyscf import ao2mo
 
 import molbe.be_var as be_var
-
-from .pfrag import Frags
+from molbe._opt import optimize
+from molbe.be_parallel import be_func_parallel
+from molbe.external.optqn import get_be_error_jacobian
+from molbe.lo import localize
+from molbe.pfrag import Frags
+from molbe.rdm import compute_energy_full, rdm1_fullbasis
+from molbe.solver import be_func
 
 
 class storeBE:
@@ -298,13 +304,6 @@ class BE:
             self.initialize(mf._eri, compute_hf)
         else:
             self.initialize(None, compute_hf, restart=True)
-
-    from molbe.external.optqn import get_be_error_jacobian
-
-    from ._opt import optimize
-    from .lo import localize
-    from .rdm import compute_energy_full, rdm1_fullbasis
-
     def print_ini(self):
         """
         Print initialization banner for the MOLBE calculation.
@@ -338,9 +337,6 @@ class BE:
         restart : bool, optional
             Whether to restart from a previous calculation, by default False.
         """
-        import h5py
-        from pyscf import ao2mo
-
         if compute_hf:
             E_hf = 0.0
 
@@ -497,9 +493,6 @@ class BE:
         clean_eri : bool, optional
             Whether to clean up ERI files after calculation, by default False.
         """
-        from .be_parallel import be_func_parallel
-        from .solver import be_func
-
         self.scratch_dir = scratch_dir
         self.solver_kwargs = solver_kwargs
 

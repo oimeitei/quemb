@@ -1,9 +1,12 @@
 # Author(s): Oinam Romesh Meitei, Leah Weisburn
 
 import functools
+import os
 import sys
+from multiprocessing import Pool
 
 import numpy
+from pyscf import ao2mo
 
 from molbe.external.ccsd_rdm import make_rdm1_uccsd, make_rdm2_uccsd
 from molbe.external.unrestricted_utils import make_uhf_obj
@@ -131,7 +134,7 @@ def run_solver(
         efci, civec = mc_.kernel()
         rdm1_tmp = mc_.make_rdm1(civec, mc_.norb, mc_.nelec)
     elif solver == "HCI":
-        from pyscf import ao2mo, hci
+        from pyscf import hci
 
         nao, nmo = mf_.mo_coeff.shape
         eri = ao2mo.kernel(mf_._eri, mf_.mo_coeff, aosym="s4", compact=False).reshape(
@@ -175,7 +178,7 @@ def run_solver(
         rdm1_tmp, rdm2s = mch.fcisolver.make_rdm12(0, nmo, nelec)
 
     elif solver == "SCI":
-        from pyscf import ao2mo, cornell_shci, mcscf
+        from pyscf import cornell_shci, mcscf
 
         nao, nmo = mf_.mo_coeff.shape
         nelec = (nocc, nocc)
@@ -468,9 +471,6 @@ def be_func_parallel(
         Depending on the parameters, returns the error norm or a tuple containing
         the error norm, error vector, and the computed energy.
     """
-    import os
-    from multiprocessing import Pool
-
     nfrag = len(Fobjs)
     # Create directories for fragments if required
     if writeh1 and solver == "SCI":
@@ -638,9 +638,6 @@ def be_func_parallel_u(
     float
         Returns the computed energy
     """
-    import os
-    from multiprocessing import Pool
-
     # Set the number of OpenMP threads
     os.system("export OMP_NUM_THREADS=" + str(ompnum))
     nprocs = int(nproc / ompnum)

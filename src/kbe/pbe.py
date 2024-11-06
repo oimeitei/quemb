@@ -3,14 +3,26 @@
 import os
 import pickle
 import sys
+from multiprocessing import Pool
 
 import h5py
 import numpy
+from libdmet.basis_transform.eri_transform import get_emb_eri_fast_gdf
+from pyscf import ao2mo
+from pyscf.pbc import df, gto
+from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
 
 import molbe.be_var as be_var
+from kbe._opt import optimize
+from kbe.be_parallel import be_func_parallel
+from kbe.helper import get_eri, get_scfObj, get_veff
+from kbe.lo import localize
+from kbe.misc import storePBE
+from kbe.pfrag import Frags
+from kbe.solver import be_func
 
-from .misc import storePBE
-from .pfrag import Frags
+# this is a molbe method not BEOPT
+from molbe.external.optqn import get_be_error_jacobian
 
 
 class BE:
@@ -323,12 +335,6 @@ class BE:
         if not restart:
             self.initialize(mf._eri, compute_hf)
 
-    # this is a molbe method not BEOPT
-    from molbe.external.optqn import get_be_error_jacobian
-
-    from ._opt import optimize
-    from .lo import localize
-
     def print_ini(self):
         """
         Print initialization banner for the kBE calculation.
@@ -350,8 +356,6 @@ class BE:
         print(flush=True)
 
     def ewald_sum(self, kpts=None):
-        from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
-
         dm_ = self.mf.make_rdm1()
         nk, nao, nao = dm_.shape
 
@@ -381,13 +385,6 @@ class BE:
         restart : bool, optional
             Whether to restart from a previous calculation, by default False.
         """
-        import os
-        from multiprocessing import Pool
-
-        import h5py
-        from libdmet.basis_transform.eri_transform import get_emb_eri_fast_gdf
-        from pyscf import ao2mo
-
         if compute_hf:
             E_hf = 0.0
         EH1 = 0.0
@@ -610,10 +607,6 @@ class BE:
         clean_eri : bool, optional
             Whether to clean up ERI files after calculation, by default False.
         """
-        from kbe.solver import be_func
-
-        from .be_parallel import be_func_parallel
-
         print("Calculating Energy by Fragment? ", calc_frag_energy)
         if nproc == 1:
             rets = be_func(
@@ -770,10 +763,6 @@ def eritransform_parallel(a, atom, basis, kpts, C_ao_emb, cderi):
     """
     Wrapper for parallel eri transformation
     """
-    from pyscf.pbc import df, gto
-
-    from molbe.external.eri_transform import get_emb_eri_fast_gdf
-
     cell = gto.Cell()
     cell.a = a
     cell.atom = atom
@@ -795,8 +784,6 @@ def parallel_fock_wrapper(dname, nao, dm, S, TA, hf_veff, eri_file):
     """
     Wrapper for parallel Fock transformation
     """
-    from .helper import get_eri, get_veff
-
     eri_ = get_eri(dname, nao, eri_file=eri_file, ignore_symm=True)
     veff0, veff_ = get_veff(eri_, dm, S, TA, hf_veff, return_veff0=True)
 
@@ -807,8 +794,6 @@ def parallel_scf_wrapper(dname, nao, nocc, h1, dm_init, eri_file):
     """
     Wrapper for performing fragment scf calculation
     """
-    from .helper import get_eri, get_scfObj
-
     eri = get_eri(dname, nao, eri_file=eri_file)
     mf_ = get_scfObj(h1, eri, nocc, dm_init)
 

@@ -2,9 +2,9 @@
 
 import sys
 
+from kbe.autofrag import autogen
+from kbe.chain import polychain
 from molbe.helper import get_core
-
-from .autofrag import autogen
 
 
 def print_mol_missing():
@@ -154,5 +154,3 @@ class fragpart:
             print("Fragmentation type = ", frag_type, " not implemented!", flush=True)
             print("exiting", flush=True)
             sys.exit()
-
-    from .chain import polychain

@@ -2,8 +2,9 @@
 
 import sys
 
-from .autofrag import autogen
-from .helper import get_core
+from molbe.autofrag import autogen
+from molbe.helper import get_core
+from molbe.lchain import chain
 
 
 class fragpart:
@@ -133,8 +134,6 @@ class fragpart:
             print("Fragmentation type = ", frag_type, " not implemented!", flush=True)
             print("exiting", flush=True)
             sys.exit()
-
-    from .lchain import chain
 
     def hchain_simple(self):
         """Hard coded fragmentation feature"""
