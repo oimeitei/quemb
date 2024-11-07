@@ -54,7 +54,7 @@ for a in seps:
     # Next, run BE-DMRG with default parameters and maxM=100.
     mybe.oneshot(
         solver='block2',                                # or 'DMRG', 'DMRGSCF', 'DMRGCI'
-        scratch=scratch,                                # Scratch dir for fragment DMRG
+        scratch_dir=scratch,                            # Scratch dir for fragment DMRG
         maxM=100,                                       # Max fragment bond dimension
         force_cleanup=True,                             # Remove all fragment DMRG tmpfiles
         )
