@@ -13,11 +13,12 @@ from pyscf.pbc import df, gto
 from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
 
 import molbe.be_var as be_var
-from kbe.be_parallel import be_func_parallel
-from kbe.helper import get_eri, get_scfObj, get_veff
+from kbe.helper import get_veff
 from kbe.misc import storePBE
 from kbe.pfrag import Frags
-from kbe.solver import be_func
+from molbe.be_parallel import be_func_parallel
+from molbe.helper import get_eri, get_scfObj
+from molbe.solver import be_func
 
 # this is a molbe method not BEOPT
 
